@@ -200,7 +200,7 @@ Placeholder faces drawn in code.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Jerry appears, blinks, glances around
+- ✅ Jerry appears on the real screen and blinks. First time Jerry is alive!
 - [ ] Poke works; menu / settings / about navigation feels right
 - [ ] Brightness change survives a power cycle
 - [ ] Sleepy after 2 minutes idle
