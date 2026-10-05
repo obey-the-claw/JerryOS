@@ -8,6 +8,7 @@
 #include "ble_nearby.h"
 #include "tracker_detect.h"
 #include "tracker_watch.h"
+#include "wifi_nets.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -243,10 +244,61 @@ static void testNearby() {
   CHECK(n == 5 && few[0].rssi >= few[1].rssi && few[3].rssi >= few[4].rssi && few[0].rssi == -60);
 }
 
+static void testWifi() {
+  printf("Wi-Fi table + log lines\n");
+  WifiTable t;
+  const uint8_t a[6] = {0x3c, 0x52, 0x82, 1, 2, 3}, b[6] = {0x3c, 0x52, 0x82, 1, 2, 4};
+  CHECK(t.update(a, "5quatch HQ", 6, 3, -45, 1000) == true);   // new -> log it
+  CHECK(t.update(a, "5quatch HQ", 6, 3, -60, 21000) == false); // seen again -> don't
+  CHECK(t.update(b, "", 11, 0, -80, 21000) == true);
+  CHECK(t.uniqueSeen() == 2 && t.count(30000) == 2);
+  const WifiNet *n = t.find(a);
+  CHECK(n && n->bestRssi == -45 && n->rssi == -60 && n->sightings == 2);
+  WifiNet out[4];
+  CHECK(t.snapshot(out, 4, 30000) == 2 && out[0].rssi == -60);
+  CHECK(t.count(21000 + WifiTable::WINDOW_MS) == 0);  // out of range for 90 s
+
+  char line[160];
+  formatLogLine(line, sizeof line, 7, 123, *n);
+  CHECK(strcmp(line, "7,123,3c:52:82:01:02:03,\"5quatch HQ\",WPA2,6,-60") == 0);
+  // Quotes doubled, newline made harmless, so the CSV never breaks.
+  WifiNet evil = *n;
+  snprintf(evil.ssid, sizeof evil.ssid, "Bob's \"Fast\"\nWiFi,ok");
+  formatLogLine(line, sizeof line, 1, 1, evil);
+  CHECK(strstr(line, "\"Bob's \"\"Fast\"\"?WiFi,ok\"") != nullptr);
+  CHECK(strchr(line, '\n') == nullptr);
+  // A 32-character name full of quotes still fits and stays valid.
+  memset(evil.ssid, '"', 32);
+  evil.ssid[32] = 0;
+  const int len = formatLogLine(line, sizeof line, 4000000000u, 4000000000u, evil);
+  CHECK(len > 0 && len < (int)sizeof line && line[len - 1] != ',');
+  char tiny[8];
+  CHECK(formatLogLine(tiny, sizeof tiny, 1, 1, *n) == 7 && strlen(tiny) == 7);
+
+  char shown[34];
+  displaySsid(*t.find(b), shown, sizeof shown);
+  CHECK(strcmp(shown, "(hidden)") == 0);
+  WifiNet emoji = *n;
+  snprintf(emoji.ssid, sizeof emoji.ssid, "Caf\xc3\xa9 \xf0\x9f\x8d\xa9");  // "Café 🍩"
+  displaySsid(emoji, shown, sizeof shown);
+  CHECK(strcmp(shown, "Caf? ?") == 0);
+  CHECK(strcmp(authName(0), "open") == 0 && strcmp(authName(6), "WPA3") == 0 &&
+        strcmp(authName(99), "other") == 0);
+
+  WifiTable crowd;  // a city block: table stays capped, every new one still reported
+  int fresh = 0;
+  for (int i = 0; i < 300; i++) {
+    uint8_t m[6] = {1, 2, 3, 4, (uint8_t)(i >> 8), (uint8_t)i};
+    fresh += crowd.update(m, "x", 1, 3, -70, 1000 + i);
+  }
+  CHECK(fresh == 300 && crowd.count(2000) == WifiTable::MAX && crowd.uniqueSeen() == 300);
+}
+
 int main() {
   testDetection();
   testPersistence();
   testNearby();
+  testWifi();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

@@ -35,6 +35,7 @@ class Shell {
   void drawStatusBar(lgfx::LovyanGFX &g);
   void drawHintBar(lgfx::LovyanGFX &g, const Hints &h);
   void logScreen(const char *why);
+  void pollConsole();  // commands typed over USB (used by tools/pull_wifi_log.py)
 
   JerryDisplay &lcd_;
   LGFX_Sprite frame_;
@@ -54,4 +55,6 @@ class Shell {
   uint32_t lastPowerRead_ = 0;
   uint32_t lastFrame_ = 0;
   uint32_t lastLog_ = 0;
+  char cmd_[32] = {};
+  int cmdLen_ = 0;
 };

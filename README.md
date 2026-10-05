@@ -9,6 +9,8 @@ Jerry's animated head lives on the screen. The v0 modes are:
 - **Tracker Watch:** passive BLE scan for AirTag / Tile / SmartTag-style
   trackers that keep following you.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
+- **WiFi Scan:** listen-only Wi-Fi scanner that logs every network it hears
+  (copy the log to your PC with `tools/pull_wifi_log.py`).
 - **Rig Dashboard:** placeholder for the Scanner v0 Pi Zero link.
 - **Settings.**
 
@@ -23,7 +25,7 @@ stays physically stock (no soldering).
 | 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
 | 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
-| 5 | Art spec + PNG converter | ⏳ |
+| 5 | Wi-Fi scanner + logger | 🟡 ready to test ([guide](docs/CHECKPOINT5.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 
@@ -37,12 +39,12 @@ docs/           hardware reference, per-checkpoint guides     (docs/)
 firmware/       ready-to-flash builds (+ SHA256)
 include/        board_pins.h - every pin in one place
 src/            the firmware source
-tools/          backup / restore / flash / inspect scripts, PC simulator (tools/sim)
+tools/          backup / restore / flash / inspect / pull-log scripts, PC simulator (tools/sim)
+logs/           Wi-Fi logs pulled off the device (not in git)
 platformio.ini  build settings (PlatformIO)
 BUILDLOG.md     checkpoint-by-checkpoint build diary
 ```
 
-Coming later: `art/` (Jerry PNGs) and the PNG-to-firmware converter.
 
 ## Step 0: back up the original firmware
 

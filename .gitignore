@@ -20,3 +20,6 @@ tools/sim/out/
 # stock firmware's saved Wi-Fi password. See backup/README.md.
 backup/*
 !backup/README.md
+
+# Logs pulled off the device (Wi-Fi networks you passed). Private.
+logs/

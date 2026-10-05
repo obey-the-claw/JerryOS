@@ -2,6 +2,7 @@
 //
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
 //                     ├─> BLE Nearby ─────> one device's details
+//                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
 //                     └─> Settings ─┬─> Diagnostics
 //                                   └─> About
@@ -16,6 +17,7 @@
 #include "ble_scanner.h"
 #include "shell.h"
 #include "theme.h"
+#include "wifi_scanner.h"
 
 using namespace theme;
 
@@ -34,12 +36,16 @@ void centered(lgfx::LovyanGFX &g, int y, uint16_t col, const char *s) {
   text(g, (W - g.textWidth(s)) / 2, y, col, s);
 }
 
-// A vertical list with a gold highlight bar on the selected row.
+// A vertical list with a gold highlight bar on the selected row. Shows 5
+// rows at a time and scrolls to keep the selected one on screen.
 void drawList(lgfx::LovyanGFX &g, int y0, const char *const *labels, const char *const *values,
               int count, int cursor, bool editing) {
-  const int rowH = 18;
-  for (int i = 0; i < count; i++) {
-    const int y = y0 + 4 + i * rowH;
+  const int rowH = 18, visible = (CONTENT_H - 4) / rowH;
+  const int top = cursor < visible ? 0 : cursor - visible + 1;
+  if (top + visible < count) g.fillTriangle(W / 2 - 3, y0 + CONTENT_H - 3, W / 2 + 3,
+                                            y0 + CONTENT_H - 3, W / 2, y0 + CONTENT_H, DIM);
+  for (int i = top; i < count && i < top + visible; i++) {
+    const int y = y0 + 4 + (i - top) * rowH;
     const bool sel = i == cursor;
     if (sel) g.fillRoundRect(3, y, W - 6, rowH - 3, 3, editing ? CREAM : GOLD);
     const uint16_t fg = sel ? BARK : CREAM;
@@ -365,6 +371,132 @@ Screen &nearbyDetail(const NearbyDevice &d) {
 }
 
 // ---------------------------------------------------------------------------
+// WiFi Scan: networks heard (listen-only), strongest first, + the logger
+// ---------------------------------------------------------------------------
+void logSize(char *buf, size_t n) {
+  const uint32_t b = wifi::logBytes();
+  if (b < 1024 * 1024) snprintf(buf, n, "%luK", (unsigned long)((b + 1023) / 1024));
+  else snprintf(buf, n, "%lu.%luM", (unsigned long)(b >> 20), (unsigned long)((b % (1 << 20)) * 10 >> 20));
+}
+
+Screen &wifiDetail(const WifiNet &n);  // one network, below
+
+class WifiScreen : public Screen {
+ public:
+  const char *tag() const override { return "WIFI"; }
+  Hints hints() const override { return {"back", n_ ? "next" : nullptr, n_ ? "info" : nullptr}; }
+  void enter(Shell &) override { refresh(); }
+  void onRightShort(Shell &) override {
+    if (!n_) return;
+    cursor_ = (cursor_ + 1) % n_;
+    memcpy(sel_, list_[cursor_].bssid, 6);
+  }
+  void onRightLong(Shell &shell) override {
+    if (n_) shell.open(wifiDetail(list_[cursor_]));
+  }
+  void update(Shell &shell, uint32_t now) override {
+    shell.jerry().setMood(Mood::Scanning);
+    if (now - lastRefresh_ >= 2000) refresh();
+  }
+
+  void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
+    char buf[28], size[10];
+    logSize(size, sizeof size);
+    if (!wifi::enabled()) snprintf(buf, sizeof buf, "scan OFF (Settings)");
+    else if (wifi::logFull()) snprintf(buf, sizeof buf, "%d nets  log FULL", n_);
+    else snprintf(buf, sizeof buf, "%d nets  log %s", n_, size);
+    text(g, 4, y0 + 3, wifi::logFull() ? ALERT : DIM, buf);
+    if (!n_) {
+      centered(g, y0 + 44, CREAM, wifi::enabled() ? "listening..." : "Wi-Fi scan is off");
+      return;
+    }
+    const int top = cursor_ < kRows ? 0 : cursor_ - kRows + 1;
+    for (int r = 0; r < kRows && top + r < n_; r++) {
+      const int i = top + r;
+      const WifiNet &w = list_[i];
+      const int y = y0 + 14 + r * 11;
+      const bool sel = i == cursor_;
+      if (sel) g.fillRoundRect(2, y - 1, W - 4, 11, 2, GOLD);
+      signalBars(g, 5, y, w.rssi, sel ? BARK : GOOD, sel ? FUR_DARK : BAR);
+      char name[34];
+      displaySsid(w, name, sizeof name);
+      const bool open = isOpen(w.auth);
+      const int right = open ? W - 33 : W - 6;  // leave room for the "open" tag
+      fitText(g, 20, y + 1, right - 20, sel ? BARK : w.ssid[0] ? CREAM : DIM, name);
+      if (open) text(g, W - 28, y + 1, sel ? BARK : GOOD, "open");
+    }
+  }
+
+ private:
+  static constexpr int kRows = 8;
+  static constexpr int kMax = 48;
+  void refresh() {
+    lastRefresh_ = millis();
+    n_ = wifi::snapshot(list_, kMax);
+    cursor_ = 0;
+    for (int i = 0; i < n_; i++)
+      if (memcmp(list_[i].bssid, sel_, 6) == 0) cursor_ = i;
+    if (n_) memcpy(sel_, list_[cursor_].bssid, 6);
+  }
+  WifiNet list_[kMax];
+  int n_ = 0, cursor_ = 0;
+  uint8_t sel_[6] = {};
+  uint32_t lastRefresh_ = 0;
+};
+
+// One network: name, security, channel, hardware address, signal now and best.
+class WifiDetailScreen : public Screen {
+ public:
+  void set(const WifiNet &n) { net_ = n; }
+  const char *tag() const override { return "NETWORK"; }
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  void update(Shell &shell, uint32_t now) override {
+    shell.jerry().setMood(Mood::Scanning);
+    if (now - lastRefresh_ < 1000) return;
+    lastRefresh_ = now;
+    static WifiNet all[WifiTable::MAX];
+    const int n = wifi::snapshot(all, WifiTable::MAX);
+    gone_ = true;
+    for (int i = 0; i < n; i++)
+      if (memcmp(all[i].bssid, net_.bssid, 6) == 0) {
+        net_ = all[i];
+        gone_ = false;
+      }
+  }
+  void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
+    char buf[34], seen[10];
+    displaySsid(net_, buf, sizeof buf);
+    fitText(g, 4, y0 + 4, W - 8, GOLD, buf);
+    snprintf(buf, sizeof buf, "%s  ch %u", authName(net_.auth), net_.channel);
+    text(g, 4, y0 + 17, isOpen(net_.auth) ? GOOD : CREAM, buf);
+    const uint8_t *b = net_.bssid;
+    snprintf(buf, sizeof buf, "%02X:%02X:%02X:%02X:%02X:%02X", b[0], b[1], b[2], b[3], b[4], b[5]);
+    text(g, 4, y0 + 30, CREAM, buf);
+    snprintf(buf, sizeof buf, "signal %d dBm", net_.rssi);
+    text(g, 4, y0 + 46, CREAM, buf);
+    signalBars(g, W - 18, y0 + 45, net_.rssi, GOOD, BAR);
+    snprintf(buf, sizeof buf, "best %d dBm", net_.bestRssi);
+    text(g, 4, y0 + 58, DIM, buf);
+    snprintf(buf, sizeof buf, "around %s",
+             ago(seen, sizeof seen, (int)((net_.lastMs - net_.firstMs) / 60000) + 1));
+    text(g, 4, y0 + 72, CREAM, buf);
+    if (gone_) text(g, 4, y0 + 86, ALERT, "out of range");
+    else text(g, 4, y0 + 86, DIM, "logged");
+  }
+
+ private:
+  WifiNet net_ = {};
+  uint32_t lastRefresh_ = 0;
+  bool gone_ = false;
+};
+
+WifiDetailScreen wifiDetailObj;
+Screen &wifiDetail(const WifiNet &n) {
+  wifiDetailObj.set(n);
+  return wifiDetailObj;
+}
+
+// ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
@@ -400,6 +532,8 @@ class DiagScreen : public Screen {
     row(buf);
     snprintf(buf, sizeof(buf), "heap %u KB", ESP.getFreeHeap() / 1024); row(buf);
     snprintf(buf, sizeof(buf), "ble %s %d near", ble::listening() ? "on" : "OFF", ble::nearbyDevices()); row(buf);
+    snprintf(buf, sizeof(buf), "wifi %s %d near", wifi::scanning() ? "on" : "off", wifi::nearby());
+    row(buf);
     snprintf(buf, sizeof(buf), "up %lu s", millis() / 1000); row(buf);
     snprintf(buf, sizeof(buf), "jerry %s", moodName(shell.jerry().mood())); row(buf);
     snprintf(buf, sizeof(buf), "JerryOS %s", JERRYOS_VERSION); row(buf);
@@ -453,19 +587,24 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, sound, diagnostics, about
+// Settings: brightness, alert window, sound, Wi-Fi scan, Wi-Fi log, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
   const char *tag() const override { return "SETTINGS"; }
   Hints hints() const override {
     if (editing_) return {"undo", "+", "save"};
-    return {"back", "next", isValue(cursor_) ? "edit" : "open"};
+    if (erasing_) return {"cancel", nullptr, "erase"};
+    return {"back", "next", isValue(cursor_) ? "edit" : cursor_ == kWifiLog ? "erase" : "open"};
   }
 
-  void enter(Shell &) override { editing_ = false; }
+  void enter(Shell &) override { editing_ = erasing_ = false; }
 
   void onLeftShort(Shell &shell) override {
+    if (erasing_) {
+      erasing_ = false;
+      return;
+    }
     if (!editing_) return shell.back();
     shell.settings() = before_;  // undo
     shell.applyBrightness();
@@ -473,6 +612,7 @@ class SettingsScreen : public Screen {
   }
 
   void onRightShort(Shell &shell) override {
+    if (erasing_) return;
     if (!editing_) {
       cursor_ = (cursor_ + 1) % kItems;
       return;
@@ -485,12 +625,20 @@ class SettingsScreen : public Screen {
         break;
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
       case 2: s.sound = !s.sound; break;
+      case 3: s.wifiScan = !s.wifiScan; break;
     }
   }
 
   void onRightLong(Shell &shell) override {
+    if (erasing_) {  // second hold: really erase
+      wifi::clearLog();
+      erasing_ = false;
+      shell.jerry().flash(Mood::Approved, 1200);
+      return;
+    }
     if (editing_) {
       shell.settings().save();
+      wifi::setEnabled(shell.settings().wifiScan);
       editing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       Serial.println(F("[settings] saved"));
@@ -499,7 +647,9 @@ class SettingsScreen : public Screen {
     if (isValue(cursor_)) {
       before_ = shell.settings();
       editing_ = true;
-    } else if (cursor_ == 3) {
+    } else if (cursor_ == kWifiLog) {
+      erasing_ = true;  // ask first: "hold R again to erase"
+    } else if (cursor_ == 5) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -508,25 +658,30 @@ class SettingsScreen : public Screen {
 
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     const Settings &s = shell.settings();
-    char bright[8], alert[8];
+    char bright[8], alert[8], log[10];
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "Sound",
-                                               "Diagnostics", "About"};
-    const char *values[kItems] = {bright, alert, s.sound ? "on" : "off", nullptr, nullptr};
-    drawList(g, y0, labels, values, kItems, cursor_, editing_);
+    logSize(log, sizeof log);
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "Sound", "WiFi scan",
+                                               "WiFi log", "Diagnostics", "About"};
+    const char *values[kItems] = {bright, alert, s.sound ? "on" : "off", s.wifiScan ? "on" : "off",
+                                  erasing_ ? "erase?" : log, nullptr, nullptr};
+    drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 5;
-  static bool isValue(int i) { return i <= 2; }
+  static constexpr int kItems = 7;
+  static constexpr int kWifiLog = 4;
+  static bool isValue(int i) { return i <= 3; }
   int cursor_ = 0;
   bool editing_ = false;
+  bool erasing_ = false;
   Settings before_;
 };
 
 TrackerScreen trackerScreenObj;
 NearbyScreen nearbyScreen;
+WifiScreen wifiScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
 
@@ -541,6 +696,7 @@ struct ModeEntry {
 const ModeEntry kModes[] = {
     {"Tracker Watch", &trackerScreenObj},
     {"BLE Nearby", &nearbyScreen},
+    {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
     {"Settings", &settingsScreen},
 };

@@ -6,6 +6,7 @@
 #include "ble_scanner.h"
 #include "screens.h"
 #include "theme.h"
+#include "wifi_scanner.h"
 
 void Screen::onLeftShort(Shell &shell) { shell.back(); }
 
@@ -33,8 +34,30 @@ void Shell::begin() {
                 JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes(),
                 settings_.sound ? "on" : "off");
   ble::begin();  // Tracker Watch listens in the background on every screen
+  wifi::setEnabled(settings_.wifiScan);
+  wifi::begin();  // ...and so does the Wi-Fi scanner/logger
   current().enter(*this);
   logScreen("boot");
+}
+
+// Tiny USB command line. Type a command + Enter in a serial terminal:
+//   wifi dump   print the whole Wi-Fi log (tools/pull_wifi_log.py does this)
+//   wifi clear  erase the Wi-Fi log
+//   help        list commands
+void Shell::pollConsole() {
+  while (Serial.available()) {
+    const int c = Serial.read();
+    if (c == '\r') continue;
+    if (c != '\n') {
+      if (cmdLen_ < (int)sizeof(cmd_) - 1) cmd_[cmdLen_++] = (char)c;
+      continue;
+    }
+    cmd_[cmdLen_] = 0;
+    cmdLen_ = 0;
+    if (!strcmp(cmd_, "wifi dump")) wifi::dumpLog();
+    else if (!strcmp(cmd_, "wifi clear")) wifi::clearLog();
+    else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | help"));
+  }
 }
 
 void Shell::applyBrightness() { lcd_.setBrightness(settings_.brightnessPct() * 255 / 100); }
@@ -88,6 +111,7 @@ void Shell::handleButtons() {
 void Shell::loop() {
   const uint32_t now = millis();
   handleButtons();
+  pollConsole();
 
   if (now - lastPowerRead_ >= 1000) {
     lastPowerRead_ = now;
@@ -98,11 +122,13 @@ void Shell::loop() {
   if (now - lastLog_ >= 10000) {
     lastLog_ = now;
     Serial.printf("[status] %s | batt %.2fV %s | usb %d chg %d | mood %s | ble %d nearby, "
-                  "%lu adverts, %lu tracker | up %lus\n",
+                  "%lu adverts, %lu tracker | wifi %s %d near, %lu seen, log %lu B | up %lus\n",
                   current().tag(), power_.battV,
                   power_.batteryPresent ? (String(power_.percent) + "%").c_str() : "none?",
                   power_.usb, power_.charging, moodName(jerry_.mood()), ble::nearbyDevices(),
-                  (unsigned long)ble::advertsHeard(), (unsigned long)ble::trackerAdverts(), now / 1000);
+                  (unsigned long)ble::advertsHeard(), (unsigned long)ble::trackerAdverts(),
+                  wifi::scanning() ? "on" : "off", wifi::nearby(), (unsigned long)wifi::seenThisBoot(),
+                  (unsigned long)wifi::logBytes(), now / 1000);
   }
 
   // Tracker Watch: take in what the radio heard, check for new alerts.

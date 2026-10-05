@@ -21,6 +21,7 @@ struct Settings {
   uint8_t brightnessIdx = 3;  // 80%
   uint8_t alertIdx = 3;       // 30 minutes (brief default)
   bool sound = true;
+  bool wifiScan = true;       // passive Wi-Fi scanner + logger
 
   uint8_t brightnessPct() const { return brightnessChoice(brightnessIdx); }
   uint8_t alertMinutes() const { return alertChoice(alertIdx); }
@@ -31,6 +32,7 @@ struct Settings {
     brightnessIdx = clampIdx(p.getUChar("bright", brightnessIdx), N_BRIGHTNESS);
     alertIdx = clampIdx(p.getUChar("alert", alertIdx), N_ALERT);
     sound = p.getBool("sound", sound);
+    wifiScan = p.getBool("wifi", wifiScan);
     p.end();
   }
 
@@ -40,6 +42,7 @@ struct Settings {
     p.putUChar("bright", brightnessIdx);
     p.putUChar("alert", alertIdx);
     p.putBool("sound", sound);
+    p.putBool("wifi", wifiScan);
     p.end();
   }
 

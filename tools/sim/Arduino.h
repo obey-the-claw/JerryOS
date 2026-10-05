@@ -33,6 +33,8 @@ inline void analogSetPinAttenuation(int, int) {}
 struct String : std::string { String(int v) : std::string(std::to_string(v)) {} const char *c_str() const { return std::string::c_str(); } String operator+(const char *s) const { String r(*this); r.append(s); return r; } private: String() {} };
 struct SerialStub {
   void begin(int) {}
+  int available() { return 0; }
+  int read() { return -1; }
   void println(const char *s = "") { if (getenv("SIMLOG")) printf("%s\n", s); }
   void print(const char *s) { if (getenv("SIMLOG")) printf("%s", s); }
   int printf(const char *fmt, ...) { if (!getenv("SIMLOG")) return 0; va_list a; va_start(a, fmt); int n = vprintf(fmt, a); va_end(a); return n; }

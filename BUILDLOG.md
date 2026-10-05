@@ -302,3 +302,55 @@ and lighter chest fur. The small Jerrys next to text stay head-only so they
 don't cover the words.
 
 ![Jerry v0.4.2](docs/img/jerry-moods.png)
+
+---
+
+## Checkpoint 5: Wi-Fi Scanner + Logger
+
+**Change of plan:** Steve likes the code-drawn Jerry, so the old Checkpoint 5
+(art spec + PNG converter) is shelved. The new Checkpoint 5 is the Wi-Fi
+scanner and logger, which Steve wanted in this build.
+
+**Goal:** hear the Wi-Fi networks around, show them, and keep a log that
+can go to a PC. Still listen-only.
+
+### What we did
+
+- **Passive scan.** Jerry listens on channels 1-13 for router beacons
+  (~120 ms each, every 20 s). He sends no probe requests and never joins
+  anything. ESP32-S3 = 2.4 GHz only.
+- **Its own background task.** Scanning and writing to flash happen off the
+  screen's loop, so the UI never freezes. The network table is shared with
+  the screens behind a lock, same pattern as Bluetooth.
+- **Logger.** `/wifi.csv` on the chip's 3.4 MB storage area (LittleFS),
+  one line per network per power-on, capped at 3 MB. A "session" number
+  counts power-ons, so different trips can be told apart. No clock or GPS
+  on board, so there's no date or location yet (later, from the Scanner v0).
+- **Getting it off.** A tiny USB command line (`wifi dump`, `wifi clear`)
+  and `tools/pull_wifi_log.py COM7 [--clear]`, which saves
+  `logs/wifi-<date>.csv`. `logs/` is git-ignored.
+- **Screens.** Menu → WiFi Scan (closest first, green "open" tag, hidden
+  networks shown as "(hidden)"), a details page with a live signal,
+  Settings → WiFi scan on/off (off = radio off, saves battery) and
+  WiFi log (hold R twice to erase). The Settings list now scrolls.
+- **Tested before flashing:** 76 unit checks, including network names with
+  quotes, commas, newlines and emoji, which could otherwise break the CSV
+  or the screen. The PC script was tested against a fake Jerry on a virtual
+  serial port. Simulator screenshots of every new screen.
+
+### What broke / how we fixed it
+
+- In the simulator, "Ring Setup 4C" ran straight into the green "open" tag.
+  Added a gap.
+- `dumpLog()` first took a "Print" object, which the PC simulator doesn't
+  have. It prints straight to USB now.
+
+### On the real device (Steve fills this in)
+
+- [ ] WiFi Scan lists networks; your router is near the top
+- [ ] Signal changes as you walk around
+- [ ] WiFi scan off/on in Settings works
+- [ ] Log size survives a power cycle
+- [ ] `py tools\pull_wifi_log.py COM7` saves a CSV that opens in Excel
+- [ ] Erase works
+- [ ] Tracker Watch and BLE Nearby still work alongside Wi-Fi
