@@ -58,10 +58,12 @@ partition table inside.
 **Result: BACKUP CONFIRMED.** ✅
 
 - First try, the script couldn't find the device: Windows only listed two
-  Bluetooth COM ports. A moment later Windows saw it as **COM7**
-  (`USB\VID_303A&PID_1001`, Espressif's built-in USB). Re-running with
-  `-Port COM7` worked. *(Lesson: if auto-detect misses it, check
-  `Get-PnpDevice` for VID_303A and pass the port by hand.)*
+  Bluetooth COM ports. **Fix: switch the device fully off, take the battery
+  off, then plug USB back in.** After that Windows saw it as **COM7**
+  (`USB\VID_303A&PID_1001`, Espressif's built-in USB), and `-Port COM7`
+  worked. *(Why, probably: the stock firmware had the chip in a state where
+  its USB wasn't answering. A full power cut, battery included, resets
+  everything. The battery keeps the chip alive even when it "looks" off.)*
 - What the chip says it is: **ESP32-S3 rev v0.2, 8 MB embedded PSRAM, 16 MB
   flash.** It matches the brief exactly.
 - Security: **Secure Boot off, flash encryption off.** The door is open for
@@ -76,3 +78,52 @@ partition table inside.
   "model" partition for the "hey, wake up" voice model.
 - 61% of the chip is empty space. Lots of room for Jerry.
 - [ ] Copy the `.bin` off the laptop (USB stick / cloud).
+
+---
+
+## Checkpoint 2: Hello World (hardware test)
+
+**Goal:** prove the screen, both buttons, the battery reading and the serial
+log all work before building JerryOS on top.
+
+### What we did
+
+- **Set up the project:** PlatformIO + Arduino framework, with LovyanGFX for
+  the screen. `platformio.ini` pins exact versions so builds are repeatable.
+- **Picked LovyanGFX over TFT_eSPI.** Every panel quirk (colour order,
+  inversion, offsets, rotation) is a plain setting in *our* code
+  (`src/display.h`). TFT_eSPI wants you to edit files inside the library,
+  which is easy to lose.
+- **All pins live in one file**, `include/board_pins.h`. If one is wrong,
+  that's the only place to fix it.
+- **Wrote the button handler JerryOS will use**, `src/buttons.h`. It filters
+  out contact bounce and turns presses into "short" and "long" events.
+- **Power:** the very first line of code holds GPIO10 high, so the device
+  doesn't switch itself off on battery. `src/power.h` reads the battery,
+  USB and charging state, and guesses "no battery" when the reading makes no
+  sense for a LiPo.
+- **The test card:** colour swatches with letters, a 1-pixel frame around
+  the edge, and different-coloured corner markers. One glance shows whether
+  the colours, orientation and screen offsets are right.
+- **Compile-checked before shipping.** My sandbox can't reach PlatformIO's
+  servers, so I built it with the same Arduino-ESP32 2.0.17 core from GitHub.
+  That caught two real compile errors before they ever reached Steve's laptop.
+- **Made a ready-to-flash `.bin`** plus `tools\flash_prebuilt.ps1`. That
+  means the first flash uses the same esptool from Checkpoint 1, with
+  nothing new to install yet.
+
+### What broke / how we fixed it
+
+- My first version used a C++ trick (a "variadic generic lambda") that this
+  compiler version doesn't support. I swapped it for a plain helper function.
+- I referenced a reset-reason name (`ESP_RST_USB`) that doesn't exist in this
+  ESP-IDF version. Removed it.
+
+### On the real device (Steve fills this in)
+
+- [ ] Test card: all 4 edges visible? Corners in the right places?
+- [ ] Colours match the letters? Inversion off or on looks right?
+- [ ] Buttons: short/long counts work? Holding LEFT 5 s on USB: stays on?
+- [ ] Unplug USB: stays on battery? Battery voltage: ______
+- [ ] Holding LEFT 5 s on battery only: ______
+- [ ] Battery removed, on USB: `batt` line says ______

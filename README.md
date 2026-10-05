@@ -19,7 +19,7 @@ stays physically stock (no soldering).
 | # | Checkpoint | State |
 |---|---|---|
 | 1 | Firmware backup confirmed | ✅ 2026-10-04 |
-| 2 | Hello world: screen, buttons, battery, serial log | ⏳ |
+| 2 | Hello world: screen, buttons, battery, serial log | 🟡 ready to test ([guide](docs/CHECKPOINT2.md)) |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ⏳ |
 | 4 | Tracker Watch working | ⏳ |
 | 5 | Art spec + PNG converter | ⏳ |
@@ -29,14 +29,17 @@ See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 ## Repo layout
 
 ```
-backup/     original firmware dump + how to restore it   (backup/README.md)
-docs/       hardware reference with sources              (docs/HARDWARE.md)
-tools/      backup / restore / inspect scripts
-BUILDLOG.md checkpoint-by-checkpoint build diary
+backup/         original firmware dump + how to restore it   (backup/README.md)
+docs/           hardware reference, per-checkpoint guides     (docs/)
+firmware/       ready-to-flash builds (+ SHA256)
+include/        board_pins.h - every pin in one place
+src/            the firmware source
+tools/          backup / restore / flash / inspect scripts
+platformio.ini  build settings (PlatformIO)
+BUILDLOG.md     checkpoint-by-checkpoint build diary
 ```
 
-Coming at later checkpoints: `platformio.ini`, `src/` (firmware), and `art/`
-(Jerry PNGs) with its converter.
+Coming later: `art/` (Jerry PNGs) and the PNG-to-firmware converter.
 
 ## Step 0: back up the original firmware
 
@@ -63,4 +66,5 @@ Lite before us. Full details are in [docs/HARDWARE.md](docs/HARDWARE.md#sources-
 - sticks918: [AIPI-Lite-ESPHome](https://github.com/sticks918/AIPI-Lite-ESPHome)
 - bcarroll: [aipi-lite-minitv](https://github.com/bcarroll/aipi-lite-minitv)
 - Robert Lipe's AIPI-Lite teardown
-- Espressif: [esptool](https://github.com/espressif/esptool)
+- Espressif: [esptool](https://github.com/espressif/esptool), [Arduino-ESP32](https://github.com/espressif/arduino-esp32)
+- lovyan03: [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
