@@ -149,8 +149,9 @@ log all work before building JerryOS on top.
   panel actually wants RGB in LovyanGFX's terms. Changed one setting
   (`rgb_order = false`). *Lesson: "verified" community values still need
   checking on your own unit.*
-- [ ] Re-flash: colours now match the letters?
-- [ ] Buttons: short/long counts work? Holding LEFT 5 s on USB: stays on?
+- ✅ Re-flashed: colours now match the letters, title bar is brown.
+- ✅ Buttons: short and long presses counted correctly on both.
+- [ ] Holding LEFT 5 s on USB: stays on?
 - [ ] Unplug USB: stays on battery? Battery voltage: ______
 - [ ] Holding LEFT 5 s on battery only: ______
 - [ ] Battery removed, on USB: `batt` line says ______
