@@ -151,7 +151,56 @@ log all work before building JerryOS on top.
   checking on your own unit.*
 - ✅ Re-flashed: colours now match the letters, title bar is brown.
 - ✅ Buttons: short and long presses counted correctly on both.
-- [ ] Holding LEFT 5 s on USB: stays on?
-- [ ] Unplug USB: stays on battery? Battery voltage: ______
-- [ ] Holding LEFT 5 s on battery only: ______
-- [ ] Battery removed, on USB: `batt` line says ______
+- ✅ Holding LEFT 5+ s on USB: stays on.
+- ✅ Unplugged USB: stays on battery, reads 4.15 V / 95%.
+- ✅ Holding LEFT 5+ s **on battery**: stays on. Our firmware owns the left
+  button now. The stock "hold to power off" was a software feature, not
+  wiring, so **"hold LEFT = home" is safe.**
+
+**Checkpoint 2 complete.**
+
+---
+
+## Checkpoint 3: the JerryOS shell
+
+**Goal:** home screen with Jerry, menu, hint bar, status bar, mode switching.
+Placeholder faces drawn in code.
+
+### What we did
+
+- **Jerry, drawn in code** (`src/jerry_face.cpp`): shaggy fur clumps, big
+  googly eyes (resting look: down-left), mismatched bushy brows, triangle
+  nose, huge orange grin with white zigzag teeth. Five moods: **idle,
+  scanning, alert, approved, sleepy**. Blinking (sometimes a double blink)
+  and glancing are animation layered on top, so every mood blinks.
+- **Jerry reacts:** grins when poked or when USB is plugged in, gets sleepy
+  on low battery or after 2 minutes of no buttons, and looks around while
+  "scanning" in Tracker / Rig.
+- **The shell** (`src/shell.cpp`): a stack of screens, the status bar (mode
+  name + battery) and the hint bar. LEFT-hold = home lives here, so no screen
+  can forget it.
+- **Every mode is one class** (`src/screens.cpp`). The menu is just a list
+  of them. Adding the real Rig Dashboard later = write one class, swap it in.
+- **Settings saved to flash:** brightness (live preview), tracker alert
+  window (default 30 min), sound on/off. Plus Diagnostics and About/credits.
+- **A simulator** (`tools/sim/`): runs the *real* JerryOS code on a PC with
+  fake button presses and saves screenshots. Every screen got checked before
+  it reached the device. Those screenshots are in `docs/img/`.
+
+### What broke / how we fixed it
+
+- **Jerry v1 looked like a sea urchin.** Even spikes all round a circle read
+  as a hedgehog, not a squatch. The simulator made this obvious *before*
+  flashing. Fix: uneven fur clumps that **droop downward**, a darker
+  under-layer for depth, messy bangs, and a slightly taller head.
+- A colour named `OK` clashed with a name already used inside Espressif's
+  code (compile error). Renamed it `GOOD`.
+- My flash script edit used a helper before defining it (PowerShell needs
+  definitions first). Caught by testing the script, fixed before pushing.
+
+### On the real device (Steve fills this in)
+
+- [ ] Jerry appears, blinks, glances around
+- [ ] Poke works; menu / settings / about navigation feels right
+- [ ] Brightness change survives a power cycle
+- [ ] Sleepy after 2 minutes idle

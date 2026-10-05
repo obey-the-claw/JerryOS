@@ -19,12 +19,14 @@ stays physically stock (no soldering).
 | # | Checkpoint | State |
 |---|---|---|
 | 1 | Firmware backup confirmed | ✅ 2026-10-04 |
-| 2 | Hello world: screen, buttons, battery, serial log | 🟡 ready to test ([guide](docs/CHECKPOINT2.md)) |
-| 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ⏳ |
+| 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
+| 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | 🟡 ready to test ([guide](docs/CHECKPOINT3.md)) |
 | 4 | Tracker Watch working | ⏳ |
 | 5 | Art spec + PNG converter | ⏳ |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
+
+![Jerry's moods](docs/img/cp3-jerry-moods.png)
 
 ## Repo layout
 
@@ -34,7 +36,7 @@ docs/           hardware reference, per-checkpoint guides     (docs/)
 firmware/       ready-to-flash builds (+ SHA256)
 include/        board_pins.h - every pin in one place
 src/            the firmware source
-tools/          backup / restore / flash / inspect scripts
+tools/          backup / restore / flash / inspect scripts, PC simulator (tools/sim)
 platformio.ini  build settings (PlatformIO)
 BUILDLOG.md     checkpoint-by-checkpoint build diary
 ```

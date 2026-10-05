@@ -10,7 +10,7 @@
   safe in backup\, and tools\restore_firmware.ps1 puts it back any time.
 
 .PARAMETER Firmware
-  Path to the .bin. Default: firmware\jerryos-cp2-hello.bin
+  Path to the .bin. Default: the newest firmware\jerryos-cp*.bin
 
 .PARAMETER Port
   COM port, e.g. COM7. If omitted, the script finds the device automatically.
@@ -24,10 +24,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-if (-not $Firmware) { $Firmware = Join-Path $RepoRoot 'firmware\jerryos-cp2-hello.bin' }
-
 function Fail($msg) { Write-Host ''; Write-Host "STOP: $msg" -ForegroundColor Red; exit 1 }
+
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+if (-not $Firmware) {
+    # Newest checkpoint build (cp3 sorts after cp2, and so on).
+    $latest = Get-ChildItem -Path (Join-Path $RepoRoot 'firmware') -Filter 'jerryos-cp*.bin' -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $latest) { Fail 'No firmware\jerryos-cp*.bin found. Pull the latest from GitHub.' }
+    $Firmware = $latest.FullName
+}
 
 $Py = $null; $PyArgs = @()
 if (Get-Command py -ErrorAction SilentlyContinue)         { $Py = 'py'; $PyArgs = @('-3') }

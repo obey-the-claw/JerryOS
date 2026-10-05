@@ -54,10 +54,10 @@ model 0x10000 · ota_0 0x100000 (6 MB) · ota_1 0x700000 (6 MB).
 | Left | 1 | Active-low. **It's the stock power button** (tap = wake, hold = power off). | [A][B] |
 | BOOT | 0 | Under the back cover. Only needed if USB flashing ever fails. We don't touch it. | [A][C] |
 
-⚠️ The left button is wired into the power circuit. [C] saw 5–15 s hangs when
-using it as a normal button. [A] and [B] use it fine. Since the brief wants
-**LEFT long-press = home**, Checkpoint 2 must test: long-pressing LEFT on
-USB power and on battery, and confirm it never cuts power.
+✅ **Verified CP2:** holding LEFT for 5+ s with our firmware does **not** cut
+power, on USB or on battery. The stock "hold to power off" was done in
+software. Both buttons read correctly with internal pull-ups and a 30 ms
+debounce.
 
 ## Power and battery
 
