@@ -18,7 +18,7 @@ stays physically stock (no soldering).
 
 | # | Checkpoint | State |
 |---|---|---|
-| 1 | Firmware backup confirmed | 🟡 tools ready, waiting on Steve to run on the device |
+| 1 | Firmware backup confirmed | ✅ 2026-10-04 |
 | 2 | Hello world: screen, buttons, battery, serial log | ⏳ |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ⏳ |
 | 4 | Tracker Watch working | ⏳ |

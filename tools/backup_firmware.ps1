@@ -128,9 +128,13 @@ $flashSize = [regex]::Match($facts, 'Detected flash size:\s*(\S+)').Groups[1].Va
 $psram     = [regex]::Match($facts, '(Embedded PSRAM[^\r\n]*)').Groups[1].Value
 $mac       = [regex]::Match($facts, 'MAC:\s*([0-9a-fA-F:]{17})').Groups[1].Value
 Say 'What the device says about itself:' 'Green'
-Write-Host "   Flash size : $flashSize"
-Write-Host "   PSRAM      : $(if ($psram) { $psram } else { '(not reported - see device-info file)' })"
-Write-Host "   MAC        : $mac"
+$summary = @(
+    "   Flash size : $flashSize",
+    "   PSRAM      : $(if ($psram) { $psram } else { '(not reported - see device-info file)' })",
+    "   MAC        : $mac"
+)
+$summary | ForEach-Object { Write-Host $_ }
+Add-Content -Path $LogFile -Value $summary
 
 if ($sec -match 'Flash Encryption:\s*Enabled' -or $sec -match 'Flash encryption:\s*enabled') {
     Write-Host '   WARNING: flash encryption is ENABLED. The backup will be encrypted, but it can still be restored to THIS unit.' -ForegroundColor Yellow

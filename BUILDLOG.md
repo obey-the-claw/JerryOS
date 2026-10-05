@@ -53,10 +53,26 @@ partition table inside.
   end of the file). Caught in testing. Now it reports "outside the dump" and
   fails cleanly.
 
-### On the real device (Steve fills this in)
+### On the real device (2026-10-04)
 
-- [ ] Ran `tools\backup_firmware.ps1`. Got `BACKUP CONFIRMED`.
-- [ ] Chip / flash / PSRAM the device reported: ________
-- [ ] Stock firmware name + version (from the inspect output): ________
-- [ ] Copied the `.bin` off the laptop.
-- [ ] Anything weird: ________
+**Result: BACKUP CONFIRMED.** ✅
+
+- First try, the script couldn't find the device: Windows only listed two
+  Bluetooth COM ports. A moment later Windows saw it as **COM7**
+  (`USB\VID_303A&PID_1001`, Espressif's built-in USB). Re-running with
+  `-Port COM7` worked. *(Lesson: if auto-detect misses it, check
+  `Get-PnpDevice` for VID_303A and pass the port by hand.)*
+- What the chip says it is: **ESP32-S3 rev v0.2, 8 MB embedded PSRAM, 16 MB
+  flash.** It matches the brief exactly.
+- Security: **Secure Boot off, flash encryption off.** The door is open for
+  custom firmware.
+- Two full 16 MB reads, about 2.5 min each, came out byte-identical. The
+  chip's own checksum matched the file too.
+- SHA256 of the backup:
+  `47eff76e932958084df49ce7550f213c894aa26901927698cc19251c52680305`
+- What's inside: the **XiaoZhi** AI chatbot firmware, with *two* versions
+  side by side (v1.2.5 and v1.2.7). That's an A/B update setup: the device
+  downloads updates into the spare slot and flips over. There's also a 960 KB
+  "model" partition for the "hey, wake up" voice model.
+- 61% of the chip is empty space. Lots of room for Jerry.
+- [ ] Copy the `.bin` off the laptop (USB stick / cloud).

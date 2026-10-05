@@ -1,6 +1,6 @@
 # AIPI Lite: hardware reference for JerryOS
 
-Status: **from community sources, not yet verified on Steve's unit.**
+Status: chip facts **verified on Steve's unit (2026-10-04, Checkpoint 1)**. Pins still from community sources until Checkpoint 2.
 Every row gets a ✅ once we've seen it on the real device at Checkpoint 1
 (chip facts) or Checkpoint 2 (pins).
 
@@ -11,13 +11,24 @@ and the device will settle it.
 
 | Thing | Brief said | Community says | Verified on our unit |
 |---|---|---|---|
-| SoC | ESP32-S3 | ESP32-S3, module ESP32-S3-WROOM-1 **N16R8** [A][B] | ⏳ CP1 (`device-info-*.txt`) |
-| Flash | 16 MB | 16 MB [A][B][C] | ⏳ CP1 |
-| PSRAM | 8 MB | 8 MB **octal** PSRAM, embedded in the module [A][B] | ⏳ CP1 |
-| USB | USB-C | Native USB (USB-Serial-JTAG), no separate USB chip. Shows up as a COM port with vendor ID `303A` [A] | ⏳ CP1 |
+| SoC | ESP32-S3 | ESP32-S3, module ESP32-S3-WROOM-1 **N16R8** [A][B] | ✅ ESP32-S3 (QFN56) rev v0.2, dual core 240 MHz, 40 MHz crystal |
+| Flash | 16 MB | 16 MB [A][B][C] | ✅ 16 MB, quad SPI, 3.3 V (JEDEC mfr 0x46, device 0x4018) |
+| PSRAM | 8 MB | 8 MB **octal** PSRAM, embedded in the module [A][B] | ✅ "Embedded PSRAM 8MB (AP_3v3)" (eFuse PSRAM_CAP = 8M) |
+| USB | USB-C | Native USB (USB-Serial-JTAG), no separate USB chip. Shows up as a COM port with vendor ID `303A` [A] | ✅ USB-Serial/JTAG, VID 303A PID 1001 (COM7 on Steve's laptop) |
 
 Plain-English note: "N16R8" literally means **N**16 = 16 MB flash, **R**8 = 8 MB PSRAM.
 Octal PSRAM uses GPIO 33–37 internally, so those pins are off-limits.
+
+**Security (verified CP1):** Secure Boot off, flash encryption off, download
+mode enabled, no eFuse keys burned. In plain terms: the chip is unlocked and
+will accept our firmware, and nothing we do can brick it in a way the
+backup can't undo.
+
+**Stock firmware (from the backup):** XiaoZhi AI chatbot, two copies in A/B
+OTA slots (`ota_0` = v1.2.5 built Aug 13 2026, `ota_1` = v1.2.7 built Sep 22
+2026, both ESP-IDF 5.5.4), plus a 960 KB `model` partition (the wake-word
+model). Partition table: nvs 0x9000 · otadata 0xd000 · phy_init 0xf000 ·
+model 0x10000 · ota_0 0x100000 (6 MB) · ota_1 0x700000 (6 MB).
 
 ## Display
 
