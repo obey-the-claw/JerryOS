@@ -201,6 +201,14 @@ Placeholder faces drawn in code.
 ### On the real device (Steve fills this in)
 
 - ✅ Jerry appears on the real screen and blinks. First time Jerry is alive!
-- [ ] Poke works; menu / settings / about navigation feels right
+- ✅ Poke works, menu works, brightness works.
+- ❌→✅ **Battery % jumped around in real time.** It was recalculated from a
+  single voltage reading every second, and LiPo voltage naturally wobbles
+  (the screen and chip draw power in bursts). **Fix:** `BatteryGauge` in
+  `src/power.h` does what phones do: a slow running average (~15 s), the
+  number only moves for real changes, it never ticks *up* on battery, and it
+  resets cleanly when USB is plugged or unplugged. Tested with 15 simulated
+  minutes of noisy readings: the raw % changed **818** times, the gauge
+  **15** times, with zero upward ticks on battery.
 - [ ] Brightness change survives a power cycle
 - [ ] Sleepy after 2 minutes idle

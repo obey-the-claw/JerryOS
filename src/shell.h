@@ -41,6 +41,7 @@ class Shell {
   JerryFace jerry_;
   Settings settings_;
   PowerStatus power_;
+  power::BatteryGauge gauge_;
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

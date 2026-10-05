@@ -25,7 +25,7 @@ void Shell::begin() {
   if (!frame_.createSprite(theme::W, theme::H))
     Serial.println(F("!! could not allocate the frame buffer"));
 
-  power_ = power::read();
+  power_ = gauge_.update(power::read());
   lastInput_ = millis();
   Serial.printf("[shell] JerryOS %s up. brightness %u%%, alert window %u min, sound %s\n",
                 JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes(),
@@ -89,7 +89,7 @@ void Shell::loop() {
   if (now - lastPowerRead_ >= 1000) {
     lastPowerRead_ = now;
     const bool wasUsb = power_.usb;
-    power_ = power::read();
+    power_ = gauge_.update(power::read());
     if (power_.usb && !wasUsb) jerry_.flash(Mood::Approved, 1500);  // "thanks for the juice"
   }
   if (now - lastLog_ >= 10000) {
