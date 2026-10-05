@@ -1,8 +1,17 @@
 # /backup: the original AIPI Lite firmware
 
-This folder holds a byte-for-byte copy of everything that was on the AIPI
-Lite's 16 MB flash chip before JerryOS touched it. It's the undo button: as
-long as this file exists, the device can go back to exactly how it shipped.
+This folder is where the backup script saves a byte-for-byte copy of
+everything that was on the AIPI Lite's 16 MB flash chip before JerryOS
+touched it. It's the undo button: as long as you keep that file, the device
+can go back to exactly how it shipped.
+
+> **Your backup is yours to keep.** The backup files are **not** stored in
+> this repo, and git ignores this folder (except this README). Make your
+> own backup before flashing JerryOS, and keep a copy somewhere safe (USB
+> stick, cloud drive). Without a backup, JerryOS still works fine; you just
+> can't put the original firmware back yourself. The stock firmware is the
+> XiaoZhi AI chatbot. If you ever want it back without a backup, look to the
+> AIPI Lite seller or the XiaoZhi project for a copy.
 
 ## What's in here (after you run the backup)
 
@@ -15,9 +24,7 @@ long as this file exists, the device can go back to exactly how it shipped.
 
 > ⚠️ **Privacy:** the dump includes the stock firmware's settings area (NVS).
 > If you ever entered your Wi-Fi password into the stock AIPI app/firmware,
-> it is in this file. That's fine in a **private** repo. If this repo ever
-> goes public (the plug-and-play kit), the `.bin` must be removed from
-> git history first, not just deleted.
+> it is in this file. That's why it never goes into git or anywhere public.
 
 ## How to make the backup (Windows)
 

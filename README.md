@@ -22,7 +22,7 @@ stays physically stock (no soldering).
 | 1 | Firmware backup confirmed | ✅ 2026-10-04 |
 | 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
-| 4 | Tracker Watch working | 🟡 ready to test ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
+| 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
 | 5 | Art spec + PNG converter | ⏳ |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
@@ -32,7 +32,7 @@ See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 ## Repo layout
 
 ```
-backup/         original firmware dump + how to restore it   (backup/README.md)
+backup/         where YOUR firmware backup goes (not in git)  (backup/README.md)
 docs/           hardware reference, per-checkpoint guides     (docs/)
 firmware/       ready-to-flash builds (+ SHA256)
 include/        board_pins.h - every pin in one place
@@ -46,7 +46,8 @@ Coming later: `art/` (Jerry PNGs) and the PNG-to-firmware converter.
 
 ## Step 0: back up the original firmware
 
-Do this before anything gets flashed. Full instructions are in
+Do this before anything gets flashed. The backup stays on your own PC (it's
+never put in git). Full instructions are in
 [backup/README.md](backup/README.md). Short version, on Windows in this folder:
 
 ```powershell

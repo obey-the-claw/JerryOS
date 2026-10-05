@@ -77,7 +77,9 @@ partition table inside.
   downloads updates into the spare slot and flips over. There's also a 960 KB
   "model" partition for the "hey, wake up" voice model.
 - 61% of the chip is empty space. Lots of room for Jerry.
-- [ ] Copy the `.bin` off the laptop (USB stick / cloud).
+- Decision (2026-10-05): the backup stays on Steve's laptop, **not** in
+  GitHub. It can hold the stock firmware's Wi-Fi password, and kit users
+  will make their own backup anyway. `.gitignore` now keeps `backup/` out.
 
 ---
 
@@ -253,10 +255,15 @@ seen over a configurable window (default 30 min), even as addresses rotate.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Tracker Watch shows a "BLE nearby" count that changes
-- [ ] Own AirTag (if any) shows as `0 +1` and is listed as `own`
+- [x] Tracker Watch shows a "BLE nearby" count (18 in the office)
 - [x] BLE Nearby lists devices (v0.4.1, 2026-10-05)
-- [ ] Separated-AirTag test: WATCHING → FOLLOWED? → acknowledged
+- [x] BLE Nearby: devices in the office show up, and the signal follows
+  Steve as he moves around
+- [ ] Own-AirTag and separated-AirTag alert tests: **not done on the device
+  (no AirTag on hand).** The alert is covered by the unit tests and the
+  30-minute simulator run. Retest when an AirTag is around.
+
+**Checkpoint 4: ✅ done (2026-10-05).**
 
 ### v0.4.1: "18 nearby... but who?"
 

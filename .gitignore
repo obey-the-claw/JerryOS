@@ -15,3 +15,8 @@ __pycache__/
 Thumbs.db
 desktop.ini
 tools/sim/out/
+
+# Firmware backups stay on your own PC, never in git: they can contain the
+# stock firmware's saved Wi-Fi password. See backup/README.md.
+backup/*
+!backup/README.md
