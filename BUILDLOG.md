@@ -255,7 +255,7 @@ seen over a configurable window (default 30 min), even as addresses rotate.
 
 - [ ] Tracker Watch shows a "BLE nearby" count that changes
 - [ ] Own AirTag (if any) shows as `0 +1` and is listed as `own`
-- [ ] BLE Nearby lists devices; a speaker/earbuds turned on shows up
+- [x] BLE Nearby lists devices (v0.4.1, 2026-10-05)
 - [ ] Separated-AirTag test: WATCHING → FOLLOWED? → acknowledged
 
 ### v0.4.1: "18 nearby... but who?"
