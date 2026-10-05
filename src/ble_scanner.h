@@ -6,6 +6,7 @@
 #pragma once
 #include <stdint.h>
 
+#include "ble_nearby.h"
 #include "tracker_watch.h"
 
 namespace ble {
@@ -16,6 +17,8 @@ void begin();  // start listening (call once)
 void drain(TrackerWatch &watch);
 
 int nearbyDevices();       // distinct BLE devices heard in the last minute
+// Copy of everything heard in the last minute, strongest signal first.
+int nearbySnapshot(NearbyDevice *out, int max);
 uint32_t advertsHeard();   // total broadcasts heard since boot (diagnostics)
 uint32_t trackerAdverts(); // of those, how many were trackers
 bool listening();

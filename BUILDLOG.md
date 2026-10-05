@@ -254,5 +254,32 @@ seen over a configurable window (default 30 min), even as addresses rotate.
 ### On the real device (Steve fills this in)
 
 - [ ] Tracker Watch shows a "BLE nearby" count that changes
-- [ ] Own AirTag (if any) listed as `own`, not counted
+- [ ] Own AirTag (if any) shows as `0 +1` and is listed as `own`
+- [ ] BLE Nearby lists devices; a speaker/earbuds turned on shows up
 - [ ] Separated-AirTag test: WATCHING → FOLLOWED? → acknowledged
+
+### v0.4.1: "18 nearby... but who?"
+
+First flash: **BLE nearby: 18**, but every tracker row said 0. That's
+correct (all 18 were phones, earbuds and other gear, and only *lost*
+trackers count), but it raised two good questions.
+
+- **Own count.** Each tracker row now shows a dim **+N** for trackers that
+  are with their owner. They still never alert, but now you can see that
+  Jerry noticed them.
+- **BLE Nearby mode.** A new menu item that lists everything Jerry hears,
+  closest first, with signal bars. Each device gets the best label its own
+  broadcast gives away: a name ("JBL Flip 5"), a type ("AirPods/Beats",
+  "Windows PC"), or just the maker. Hold R for details and a live signal
+  meter, for a game of "hotter / colder".
+- **Still passive.** Phones hide their names; getting a name would mean
+  asking, and asking is transmitting. So lots of rows say "Apple device".
+  That's privacy working as intended.
+- **Calm list.** Signal is smoothed and the list re-sorts every 2 s. Same
+  lesson as the battery number.
+- Under the hood: the radio task and the screen now share one device table,
+  behind a lock so they never trip over each other. Unit tests: 41 → 60.
+
+**What broke:** in the simulator the top line and a hint were a few pixels
+too wide and wrapped onto the next line, which looked like a stray "+". I
+shortened both before building the firmware.

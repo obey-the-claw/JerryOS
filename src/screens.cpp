@@ -1,6 +1,7 @@
 // screens.cpp - every JerryOS v0 screen.
 //
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
+//                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> Rig Dashboard   (coming soon)
 //                     └─> Settings ─┬─> Diagnostics
 //                                   └─> About
@@ -9,6 +10,8 @@
 // L hold = home (handled by the shell).
 
 #include "screens.h"
+
+#include <string.h>
 
 #include "ble_scanner.h"
 #include "shell.h"
@@ -91,8 +94,9 @@ class HomeScreen : public Screen {
 // ---------------------------------------------------------------------------
 // Tracker Watch
 // ---------------------------------------------------------------------------
-// One row per tracker kind: how many separated ones are around right now,
-// and how long that kind has kept up with you. Hold R on a row to see the
+// One row per tracker kind: how many separated ones are around right now
+// (plus a dim "+N" for ones still with their owner, which never alert), and
+// how long that kind has kept up with you. Hold R on a row to see the
 // individual devices; on an alerting row, hold R to acknowledge ("ok").
 Screen &trackerList(TrackerKind k);  // the per-kind device list, below
 
@@ -167,6 +171,10 @@ class TrackerScreen : public Screen {
       text(g, 6, y + 1, fg, trackerName(kind));
       snprintf(buf, sizeof buf, "%d", sm.devicesNow);
       text(g, 68, y + 1, sm.devicesNow ? fg : (sel ? BARK : DIM), buf);
+      if (sm.withOwner) {  // with their owner: shown, but they never alert
+        snprintf(buf, sizeof buf, "+%d", sm.withOwner);
+        text(g, 78, y + 1, (sm.alerting || sel) ? fg : DIM, buf);
+      }
       ago(buf, sizeof buf, sm.streakMin);
       text(g, W - 6 - g.textWidth(buf), y + 1, fg, buf);
     }
@@ -212,6 +220,148 @@ TrackerListScreen trackerListObj;
 Screen &trackerList(TrackerKind k) {
   trackerListObj.setKind(k);
   return trackerListObj;
+}
+
+// ---------------------------------------------------------------------------
+// BLE Nearby: every Bluetooth LE device heard in the last minute
+// ---------------------------------------------------------------------------
+// Strongest signal (closest) first. Labels come only from what each device
+// broadcasts on its own: its name if it shares one, else its type or maker.
+// The list re-sorts every 2 s (not every frame) so it doesn't jitter.
+
+// Four little signal bars, like a phone: -60 dBm or better = 4 bars.
+void signalBars(lgfx::LovyanGFX &g, int x, int y, int rssi, uint16_t on, uint16_t off) {
+  const int bars = rssi >= -60 ? 4 : rssi >= -70 ? 3 : rssi >= -80 ? 2 : 1;
+  for (int b = 0; b < 4; b++) {
+    const int h = 2 + b * 2;
+    g.fillRect(x + b * 3, y + 8 - h, 2, h, b < bars ? on : off);
+  }
+}
+
+// Fit a label in `width` pixels, cutting it short with a '.' if needed.
+void fitText(lgfx::LovyanGFX &g, int x, int y, int width, uint16_t col, const char *s) {
+  char buf[24];
+  snprintf(buf, sizeof buf, "%s", s);
+  size_t n = strlen(buf);
+  while (n > 1 && g.textWidth(buf) > width) {
+    buf[--n] = 0;
+    buf[n - 1] = '.';
+  }
+  text(g, x, y, col, buf);
+}
+
+Screen &nearbyDetail(const NearbyDevice &d);  // one device, below
+
+class NearbyScreen : public Screen {
+ public:
+  const char *tag() const override { return "NEARBY"; }
+  Hints hints() const override { return {"back", n_ ? "next" : nullptr, n_ ? "info" : nullptr}; }
+  void enter(Shell &) override { refresh(); }
+  void onRightShort(Shell &) override {
+    if (n_) cursor_ = (cursor_ + 1) % n_;
+    if (n_) memcpy(selAddr_, list_[cursor_].addr, 6);
+  }
+  void onRightLong(Shell &shell) override {
+    if (n_) shell.open(nearbyDetail(list_[cursor_]));
+  }
+
+  void update(Shell &shell, uint32_t now) override {
+    shell.jerry().setMood(Mood::Scanning);
+    if (now - lastRefresh_ >= 2000) refresh();
+  }
+
+  void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
+    char buf[28];
+    snprintf(buf, sizeof buf, "%d heard, by signal", n_);
+    text(g, 4, y0 + 3, DIM, buf);
+    if (!n_) {
+      centered(g, y0 + 44, CREAM, "listening...");
+      return;
+    }
+    // Scroll so the cursor stays on screen.
+    const int top = cursor_ < kRows ? 0 : cursor_ - kRows + 1;
+    for (int r = 0; r < kRows && top + r < n_; r++) {
+      const int i = top + r;
+      const NearbyDevice &d = list_[i];
+      const int y = y0 + 14 + r * 11;
+      const bool sel = i == cursor_;
+      if (sel) g.fillRoundRect(2, y - 1, W - 4, 11, 2, GOLD);
+      signalBars(g, 5, y, d.rssi, sel ? BARK : GOOD, sel ? FUR_DARK : BAR);
+      const uint16_t col = sel ? BARK : d.labelRank >= 2 ? CREAM : DIM;  // names/types bright
+      fitText(g, 20, y + 1, W - 24, col, d.label);
+    }
+  }
+
+ private:
+  static constexpr int kRows = 8;
+  static constexpr int kMax = NearbyTable::MAX;
+
+  void refresh() {
+    lastRefresh_ = millis();
+    n_ = ble::nearbySnapshot(list_, kMax);
+    // Keep the highlight on the same device after re-sorting.
+    cursor_ = 0;
+    for (int i = 0; i < n_; i++)
+      if (memcmp(list_[i].addr, selAddr_, 6) == 0) cursor_ = i;
+    if (n_) memcpy(selAddr_, list_[cursor_].addr, 6);
+  }
+
+  NearbyDevice list_[kMax];
+  int n_ = 0, cursor_ = 0;
+  uint8_t selAddr_[6] = {};
+  uint32_t lastRefresh_ = 0;
+};
+
+// One device in detail: label, full address, signal, how long it's been around.
+class NearbyDetailScreen : public Screen {
+ public:
+  void set(const NearbyDevice &d) { dev_ = d; }
+  const char *tag() const override { return "DEVICE"; }
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  void update(Shell &shell, uint32_t now) override {
+    shell.jerry().setMood(Mood::Scanning);
+    if (now - lastRefresh_ < 1000) return;  // follow the live signal once a second
+    lastRefresh_ = now;
+    static NearbyDevice all[NearbyTable::MAX];
+    const int n = ble::nearbySnapshot(all, NearbyTable::MAX);
+    gone_ = true;
+    for (int i = 0; i < n; i++)
+      if (memcmp(all[i].addr, dev_.addr, 6) == 0) {
+        dev_ = all[i];
+        gone_ = false;
+      }
+  }
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    shell.jerry().draw(g, 18, y0 + 16, 0.3f);
+    fitText(g, 36, y0 + 5, W - 40, GOLD, dev_.label);
+    static const char *const kWhat[] = {"no clues sent", "maker only", "device type",
+                                        "its own name"};
+    text(g, 36, y0 + 17, DIM, kWhat[dev_.labelRank > 3 ? 0 : dev_.labelRank]);
+
+    char buf[28], seen[10];
+    const uint8_t *a = dev_.addr;  // stored backwards; print the usual way round
+    snprintf(buf, sizeof buf, "%02X:%02X:%02X:%02X:%02X:%02X", a[5], a[4], a[3], a[2], a[1], a[0]);
+    text(g, 4, y0 + 38, CREAM, buf);
+    snprintf(buf, sizeof buf, "signal %d dBm", dev_.rssi);
+    text(g, 4, y0 + 52, CREAM, buf);
+    signalBars(g, W - 18, y0 + 51, dev_.rssi, GOOD, BAR);
+    snprintf(buf, sizeof buf, "around %s",
+             ago(seen, sizeof seen, (int)((dev_.lastMs - dev_.firstMs) / 60000) + 1));
+    text(g, 4, y0 + 66, CREAM, buf);
+    if (gone_) text(g, 4, y0 + 80, ALERT, "not heard for 1 min");
+    else text(g, 4, y0 + 80, DIM, "addr can rotate (ok)");
+  }
+
+ private:
+  NearbyDevice dev_ = {};
+  uint32_t lastRefresh_ = 0;
+  bool gone_ = false;
+};
+
+NearbyDetailScreen nearbyDetailObj;
+Screen &nearbyDetail(const NearbyDevice &d) {
+  nearbyDetailObj.set(d);
+  return nearbyDetailObj;
 }
 
 // ---------------------------------------------------------------------------
@@ -376,6 +526,7 @@ class SettingsScreen : public Screen {
 };
 
 TrackerScreen trackerScreenObj;
+NearbyScreen nearbyScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
 
@@ -389,6 +540,7 @@ struct ModeEntry {
 
 const ModeEntry kModes[] = {
     {"Tracker Watch", &trackerScreenObj},
+    {"BLE Nearby", &nearbyScreen},
     {"Rig Dashboard", &rigScreen},
     {"Settings", &settingsScreen},
 };

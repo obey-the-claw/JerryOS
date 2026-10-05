@@ -1,10 +1,11 @@
-// Unit tests for tracker detection + persistence (runs on a PC).
-//   g++ -std=gnu++17 -I src tools/sim/test_trackers.cpp src/tracker_detect.cpp src/tracker_watch.cpp
+// Unit tests for tracker detection + persistence + BLE Nearby labels (runs on a PC).
+//   run with tools/sim/run_tests.sh
 #include <stdio.h>
 #include <string.h>
 
 #include <vector>
 
+#include "ble_nearby.h"
 #include "tracker_detect.h"
 #include "tracker_watch.h"
 
@@ -187,9 +188,65 @@ static void testPersistence() {
   }
 }
 
+static void testNearby() {
+  printf("BLE Nearby labels + table\n");
+  char label[22];
+  auto describe = [&](const Bytes &b) { return describeAdvert(b.data(), b.size(), label, sizeof label); };
+
+  const Bytes named = {0x02, 0x01, 0x06, 0x0B, 0x09, 'J', 'B', 'L', ' ', 'F', 'l', 'i', 'p', ' ', '5'};
+  CHECK(describe(named) == 3 && strcmp(label, "JBL Flip 5") == 0);
+  const Bytes iphone = {0x02, 0x01, 0x1A, 0x0A, 0xFF, 0x4C, 0x00, 0x10, 0x05, 0x01, 0x18, 0, 0, 0};
+  CHECK(describe(iphone) == 2 && strcmp(label, "Apple device") == 0);
+  const Bytes airpods = {0x08, 0xFF, 0x4C, 0x00, 0x07, 0x19, 0x01, 0x0E, 0x20};
+  CHECK(describe(airpods) == 2 && strcmp(label, "AirPods/Beats") == 0);
+  const Bytes garmin = {0x05, 0xFF, 0x87, 0x00, 0x01, 0x02};
+  CHECK(describe(garmin) == 1 && strcmp(label, "Garmin") == 0);
+  const Bytes mystery = {0x05, 0xFF, 0x34, 0x12, 0xAB, 0xCD};
+  CHECK(describe(mystery) == 0 && strcmp(label, "unknown") == 0);
+  CHECK(describe(serviceData(0xFE2C, {0x00, 0x12, 0x34})) == 2 && strcmp(label, "Fast Pair device") == 0);
+  CHECK(describe(appleAdv(0x10, true)) == 2 && strcmp(label, "AirTag (lost)") == 0);
+  CHECK(describe(appleAdv(0x10, false)) == 2 && strcmp(label, "AirTag (own)") == 0);
+  // Long and non-printable names are cut short and made safe for the screen.
+  Bytes longName = {0x1F, 0x09};
+  for (int i = 0; i < 30; i++) longName.push_back(i == 3 ? 0x07 : 'A' + i % 26);
+  CHECK(describe(longName) == 3 && strlen(label) == 20 && label[3] == '?');
+  // Broken lengths never read past the end.
+  const Bytes broken = {0x05, 0xFF, 0x4C};
+  CHECK(describe(broken) == 0);
+  CHECK(describe(Bytes{}) == 0);
+
+  NearbyTable t;
+  const uint8_t a[6] = {1, 0, 0, 0, 0, 1}, b[6] = {2, 0, 0, 0, 0, 2};
+  t.update(a, -90, iphone.data(), iphone.size(), 1000);
+  t.update(b, -50, mystery.data(), mystery.size(), 1000);
+  t.update(b, -50, named.data(), named.size(), 2000);    // name arrives in another advert
+  t.update(b, -50, mystery.data(), mystery.size(), 3000);  // ...and isn't forgotten
+  NearbyDevice out[8];
+  int n = t.snapshot(out, 8, 4000);
+  CHECK(n == 2 && t.count(4000) == 2);
+  CHECK(strcmp(out[0].label, "JBL Flip 5") == 0);         // strongest first
+  CHECK(strcmp(out[1].label, "Apple device") == 0);
+  t.update(a, -50, iphone.data(), iphone.size(), 5000);    // one spike is smoothed out
+  n = t.snapshot(out, 8, 5000);
+  CHECK(out[1].rssi < -70);
+  CHECK(t.count(3000 + NearbyTable::WINDOW_MS) == 1);  // b silent for a minute: dropped
+  CHECK(t.count(5000 + NearbyTable::WINDOW_MS) == 0);  // then a too
+  // A crowd bigger than the table: newest replace oldest, count stays capped.
+  NearbyTable crowd;
+  for (int i = 0; i < 300; i++) {
+    uint8_t addr[6] = {(uint8_t)i, (uint8_t)(i >> 8), 0, 0, 0, 9};
+    crowd.update(addr, -60 - i % 30, iphone.data(), iphone.size(), 1000 + i);
+  }
+  CHECK(crowd.count(2000) == NearbyTable::MAX);
+  NearbyDevice few[5];
+  n = crowd.snapshot(few, 5, 2000);
+  CHECK(n == 5 && few[0].rssi >= few[1].rssi && few[3].rssi >= few[4].rssi && few[0].rssi == -60);
+}
+
 int main() {
   testDetection();
   testPersistence();
+  testNearby();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

@@ -62,6 +62,23 @@ for one alert window; if it's *still* following after that, it alerts again.
 - Not yet covered: Chipolo (`0xFE33`) and Pebblebee (`0xFA25`) native
   protocols. Their Google/Apple-network versions *are* covered above.
 
+## BLE Nearby labels
+
+`src/ble_nearby.cpp` picks the best label from each broadcast, best first:
+
+1. **Its own name** (AD type `0x09`/`0x08`), if it sends one: speakers, TVs,
+   fitness bands, cars.
+2. **A device type:** trackers (with lost/own), Apple's first data byte
+   (`0x07` AirPods/Beats, `0x09` AirPlay, `0x10`/`0x0C`/`0x0F` other Apple
+   gear), Microsoft data = Windows PC, service UUIDs `0xFE2C` Google Fast
+   Pair, `0xFD69`/`0xFD5A` Samsung, `0xFE9F` Google.
+3. **The maker,** from the Bluetooth SIG company ID (Apple, Samsung, Garmin...).
+4. Otherwise **unknown.**
+
+A device sends several kinds of broadcast, so the table keeps the best label
+it has seen for each address. Up to 64 devices; the longest-silent one makes
+room for a new one.
+
 ## Sources (thank you)
 
 - **AirGuard** by TU Darmstadt's SEEMOO lab, the open-source anti-stalking
@@ -77,9 +94,10 @@ for one alert window; if it's *still* following after that, it alerts again.
 
 ## Tested
 
-`tools/sim/run_tests.sh` runs 41 checks: every fingerprint above, junk and
+`tools/sim/run_tests.sh` runs 60 checks: every fingerprint above, junk and
 malformed broadcasts (including 20,000 random ones), and scenarios: a
 rotating-address AirTag following for 40 min (alerts at 30), your own AirTag
 for an hour (never alerts), a 5-minute drive-by (no alert), signal gaps,
 acknowledge-and-re-alert, a 500-tag parking lot, and the `millis()` wrap
-after 49 days.
+after 49 days. Plus the BLE Nearby labels (names, device types, makers,
+long or garbled names, broken lengths) and its table (a crowd of 300).

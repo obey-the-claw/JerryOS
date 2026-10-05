@@ -32,7 +32,11 @@ int main() {
   run(2000);
   tap(PIN_BTN_LEFT); snap("menu");
   tap(PIN_BTN_RIGHT); snap("menu_next");
-  hold(PIN_BTN_RIGHT); snap("rig");
+  hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
+  hold(PIN_BTN_RIGHT); run(1100); snap("nearby_detail");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("rig");
   tap(PIN_BTN_LEFT); snap("menu_back");
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("settings");
   hold(PIN_BTN_RIGHT); snap("settings_edit");

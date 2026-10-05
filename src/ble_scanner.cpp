@@ -5,12 +5,15 @@
 // hears. That callback stays tiny: classify the broadcast, and if it's a
 // tracker, drop a small record into a queue. The main loop picks the queue
 // up in drain(). This way the two tasks never touch the same data at once.
+// The "BLE Nearby" table is shared, so it sits behind a lock (mutex) that
+// each side holds for a fraction of a millisecond.
 
 #include "ble_scanner.h"
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
 
 #include <atomic>
 
@@ -27,45 +30,24 @@ struct Sighting {
 };
 
 QueueHandle_t queue = nullptr;
+SemaphoreHandle_t nearbyLock = nullptr;
+NearbyTable nearbyTable;  // every device heard lately (guarded by nearbyLock)
 std::atomic<uint32_t> adverts{0}, trackerCount{0}, dropped{0};
-std::atomic<int> nearby{0};
 bool started = false;
-
-// "How many devices are around": a small table of address fingerprints
-// (hashes) with when we last heard each. Only touched by the BLE task.
-struct Recent { uint32_t hash, ms; };
-Recent recent[128];
-
-uint32_t hashAddr(const uint8_t *a) {
-  uint32_t h = 2166136261u;  // FNV-1a
-  for (int i = 0; i < 6; i++) h = (h ^ a[i]) * 16777619u;
-  return h ? h : 1;
-}
-
-void noteNearby(const uint8_t *addr, uint32_t now) {
-  const uint32_t h = hashAddr(addr);
-  int slot = -1, oldest = 0;
-  for (int i = 0; i < 128 && slot < 0; i++) {
-    if (recent[i].hash == h || recent[i].hash == 0) slot = i;              // known, or empty
-    else if (now - recent[i].ms > now - recent[oldest].ms) oldest = i;     // longest unheard
-  }
-  recent[slot < 0 ? oldest : slot] = {h, now};
-
-  int count = 0;
-  for (const auto &r : recent)
-    if (r.hash && now - r.ms < 60000) count++;
-  nearby = count;
-}
 
 class Listener : public NimBLEAdvertisedDeviceCallbacks {
   void onResult(NimBLEAdvertisedDevice *dev) override {
     const uint32_t now = millis();
     adverts++;
     const uint8_t *addr = dev->getAddress().getNative();
-    noteNearby(addr, now);
+    const uint8_t *payload = dev->getPayload();
+    const size_t len = dev->getPayloadLength();
+    xSemaphoreTake(nearbyLock, portMAX_DELAY);
+    nearbyTable.update(addr, dev->getRSSI(), payload, len, now);
+    xSemaphoreGive(nearbyLock);
 
     TrackerAdvert adv;
-    if (!classifyAdvert(dev->getPayload(), dev->getPayloadLength(), adv)) return;
+    if (!classifyAdvert(payload, len, adv)) return;
     trackerCount++;
     Sighting s;
     memcpy(s.addr, addr, 6);
@@ -93,6 +75,7 @@ void startScan() {
 void begin() {
   if (started) return;
   queue = xQueueCreate(64, sizeof(Sighting));
+  nearbyLock = xSemaphoreCreateMutex();
   NimBLEDevice::init("");  // no name: we never advertise
   startScan();
   started = true;
@@ -115,7 +98,21 @@ void drain(TrackerWatch &watch) {
   }
 }
 
-int nearbyDevices() { return nearby; }
+int nearbyDevices() {
+  if (!started) return 0;
+  xSemaphoreTake(nearbyLock, portMAX_DELAY);
+  const int n = nearbyTable.count(millis());
+  xSemaphoreGive(nearbyLock);
+  return n;
+}
+
+int nearbySnapshot(NearbyDevice *out, int max) {
+  if (!started) return 0;
+  xSemaphoreTake(nearbyLock, portMAX_DELAY);
+  const int n = nearbyTable.snapshot(out, max, millis());
+  xSemaphoreGive(nearbyLock);
+  return n;
+}
 uint32_t advertsHeard() { return adverts; }
 uint32_t trackerAdverts() { return trackerCount; }
 bool listening() { return started && NimBLEDevice::getScan()->isScanning(); }

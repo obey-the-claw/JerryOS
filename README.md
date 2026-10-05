@@ -8,6 +8,7 @@ Jerry's animated head lives on the screen. The v0 modes are:
 
 - **Tracker Watch:** passive BLE scan for AirTag / Tile / SmartTag-style
   trackers that keep following you.
+- **BLE Nearby:** every Bluetooth device in range, closest first.
 - **Rig Dashboard:** placeholder for the Scanner v0 Pi Zero link.
 - **Settings.**
 
