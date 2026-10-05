@@ -27,7 +27,7 @@ stays physically stock (no soldering).
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 
-![Jerry's moods](docs/img/cp3-jerry-moods.png)
+![Jerry's moods](docs/img/jerry-moods.png)
 
 ## Repo layout
 

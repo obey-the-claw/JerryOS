@@ -89,7 +89,7 @@ void JerryFace::update(uint32_t now) {
   lookY_ += (targetY_ - lookY_) * 0.3f;
 }
 
-void JerryFace::draw(lgfx::LovyanGFX &g, int cx, int cy, float s) const {
+void JerryFace::draw(lgfx::LovyanGFX &g, int cx, int cy, float s, bool shoulders) const {
   using namespace theme;
   const Mood m = mood();
   const bool blinking = (int32_t)(now_ - blinkEnd_) < 0 && m != Mood::Approved;
@@ -100,6 +100,34 @@ void JerryFace::draw(lgfx::LovyanGFX &g, int cx, int cy, float s) const {
   auto line = [&](float x0, float y0, float x1, float y1, float r, uint16_t c) {
     g.drawWideLine(X(x0), Y(y0), X(x1), Y(y1), max(0.6f, r * s), c);
   };
+
+  // --- Neck and shoulders (Bigfoot style) ---
+  // Hardly any neck: the head sits low between big, hunched, shaggy
+  // shoulders. Fur slopes from the sides of the head down onto them, and
+  // the bottom runs off the screen like a portrait.
+  if (shoulders) {
+    g.fillEllipse(X(0), Y(78), L(66), L(40), FUR_DARK);  // shoulder mass
+    for (int side = -1; side <= 1; side += 2) {          // slope head -> shoulders
+      g.fillTriangle(X(side * 30), Y(10), X(side * 62), Y(52), X(side * 8), Y(60), FUR_DARK);
+    }
+    // Shaggy edge along the shoulders: clumps hanging down and outward.
+    for (int i = 0; i < 14; i++) {
+      const float t = i / 13.0f;                          // 0 = left, 1 = right
+      const float x = -60 + t * 120;
+      const float y = 44 + fabsf(x) * 0.18f + ((i * 7) % 3);  // edge drops toward the arms
+      const float len = 9 + (i * 5) % 6;
+      const float lean = x * 0.12f;                       // hair falls outward
+      g.fillTriangle(X(x - 6), Y(y - 4), X(x + 6), Y(y - 4), X(x + lean), Y(y + len),
+                     (i % 3) ? FUR_DARK : BAR);
+      g.fillTriangle(X(x - 4), Y(y - 7), X(x + 4), Y(y - 7), X(x + lean * 0.6f), Y(y + len - 4),
+                     (i % 2) ? FUR : FUR_DARK);
+    }
+    // Lighter chest fur peeking out under the chin.
+    g.fillEllipse(X(0), Y(64), L(26), L(16), FUR);
+    for (int i = -3; i <= 3; i++)
+      g.fillTriangle(X(i * 8 - 5), Y(62), X(i * 8 + 5), Y(62), X(i * 8 + (i % 2 ? 2 : -2)),
+                     Y(74 + (i * i) % 4), FUR);
+  }
 
   // --- Shaggy fur ---
   // Uneven clumps all round the head that droop downward (gravity), with a
@@ -119,6 +147,16 @@ void JerryFace::draw(lgfx::LovyanGFX &g, int cx, int cy, float s) const {
   };
   for (int i = 0; i < 26; i++) clump(i, 40, 1.1f, FUR_DARK);              // under-layer
   for (int i = 0; i < 26; i++) clump(i + 13, 41, 0.8f, (i % 4) ? FUR : FUR_DARK);
+  if (shoulders) {
+    // Thick ruff under the chin: long clumps that merge into the chest.
+    for (int i = -4; i <= 4; i++) {
+      const float x = i * 8.0f + ((i * 3) % 2);
+      const float len = 14 + ((i * 11 + 44) % 5) * 2;
+      g.fillTriangle(X(x - 7), Y(34 - fabsf(x) * 0.25f), X(x + 7), Y(34 - fabsf(x) * 0.25f),
+                     X(x + (i % 2 ? 2.5f : -2.5f)), Y(40 + len - fabsf(x) * 0.2f),
+                     (i % 2) ? FUR_DARK : FUR);
+    }
+  }
   g.fillEllipse(cx, cy, L(43), L(45), FUR);
   // Messy bangs over the forehead.
   for (int i = -3; i <= 3; i++) {

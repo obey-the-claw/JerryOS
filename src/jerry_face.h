@@ -32,7 +32,9 @@ class JerryFace {
   void update(uint32_t now);
 
   // Draw centred at (cx, cy). scale 1.0 = head about 104 px across.
-  void draw(lgfx::LovyanGFX &g, int cx, int cy, float scale) const;
+  // shoulders = also draw his big shaggy neck and shoulders below the head
+  // (home screen). Off for the small heads next to text.
+  void draw(lgfx::LovyanGFX &g, int cx, int cy, float scale, bool shoulders = false) const;
 
  private:
   void pickNextGlance(uint32_t now);

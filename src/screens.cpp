@@ -87,7 +87,7 @@ class HomeScreen : public Screen {
   }
 
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) override {
-    shell.jerry().draw(g, W / 2, y0 + h / 2, 0.95f);
+    shell.jerry().draw(g, W / 2, y0 + h / 2 - 8, 0.8f, /*shoulders=*/true);
   }
 };
 

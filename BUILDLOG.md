@@ -290,3 +290,15 @@ trackers count), but it raised two good questions.
 **What broke:** in the simulator the top line and a hint were a few pixels
 too wide and wrapped onto the next line, which looked like a stray "+". I
 shortened both before building the firmware.
+
+### v0.4.2: more Bigfoot
+
+Steve's call: the code-drawn Jerry already has the right vibe, so we keep
+him and skip swapping in PNG art for now. One change: **more Sasquatch in
+the neck.** Bigfoot hardly has a neck, so the home-screen Jerry is now a
+"portrait": his head sits low between big, hunched, shaggy shoulders, with
+fur sloping down from the sides of his head, a thick ruff under his chin
+and lighter chest fur. The small Jerrys next to text stay head-only so they
+don't cover the words.
+
+![Jerry v0.4.2](docs/img/jerry-moods.png)
