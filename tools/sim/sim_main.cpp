@@ -21,7 +21,7 @@ static void snap(const char *name) {
   }
   fclose(f);
 }
-static void run(int ms) { for (int t = 0; t < ms; t += 5) { g_fake_ms += 5; shell.loop(); } }
+static void run(int ms, int step = 5) { for (int t = 0; t < ms; t += step) { g_fake_ms += step; shell.loop(); } }
 static void tap(int pin) { g_pin[pin] = 0; run(150); g_pin[pin] = 1; run(200); }
 static void hold(int pin) { g_pin[pin] = 0; run(900); g_pin[pin] = 1; run(200); }
 int main() {
@@ -43,8 +43,16 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("about");
   tap(PIN_BTN_RIGHT); snap("about_more");
   hold(PIN_BTN_LEFT); snap("home_via_hold_left");
-  tap(PIN_BTN_LEFT); hold(PIN_BTN_RIGHT); snap("tracker");
   hold(PIN_BTN_LEFT); run(125000); snap("home_sleepy");
+  // Tracker Watch: open it from the menu (cursor is on Settings; wrap to Tracker).
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
+  hold(PIN_BTN_RIGHT); snap("tracker_airtag_list");
+  tap(PIN_BTN_LEFT); hold(PIN_BTN_LEFT);
+  run(27 * 60 * 1000, 40);          // ...time passes; the lost AirTag keeps riding along
+  snap("tracker_alert_autoopen");
+  hold(PIN_BTN_LEFT); snap("home_alert");
+  tap(PIN_BTN_LEFT); hold(PIN_BTN_RIGHT); snap("tracker_alert");
+  hold(PIN_BTN_RIGHT); snap("tracker_acknowledged");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;
 }

@@ -4,3 +4,4 @@
 
 Screen &homeScreen();
 Screen &menuScreen();
+Screen &trackerScreen();

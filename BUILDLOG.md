@@ -210,5 +210,49 @@ Placeholder faces drawn in code.
   resets cleanly when USB is plugged or unplugged. Tested with 15 simulated
   minutes of noisy readings: the raw % changed **818** times, the gauge
   **15** times, with zero upward ticks on battery.
-- [ ] Brightness change survives a power cycle
-- [ ] Sleepy after 2 minutes idle
+- (Not yet checked on device: brightness surviving a power cycle, sleepy after 2 min.)
+
+---
+
+## Checkpoint 4: Tracker Watch
+
+**Goal:** passively listen for item trackers and alert when one keeps being
+seen over a configurable window (default 30 min), even as addresses rotate.
+
+### What we did
+
+- **Research first.** Rather than guess at byte formats, we used the source
+  code of **AirGuard** (TU Darmstadt's open-source anti-stalking app) as the
+  reference, plus Google's Find Hub spec. Full table + sources:
+  `docs/TRACKERS.md`.
+- **The key insight: "with owner" vs "separated".** Trackers broadcast
+  differently when they're away from their owner's phone. Jerry only counts
+  separated ones. Your passenger's keys and your own AirTag never set him off.
+- **Detector** (`src/tracker_detect.cpp`): recognises AirTag, other Find My
+  accessories/AirPods, Tile, Samsung SmartTag and Google Find Hub trackers
+  from the raw broadcast bytes.
+- **Persistence brain** (`src/tracker_watch.cpp`): per tracker *kind*, a
+  64-minute strip of "seen this minute?". A streak (gaps ≤ 2 min forgiven)
+  as long as the alert window = alert. Works even though addresses rotate.
+- **Passive radio** (`src/ble_scanner.cpp`, NimBLE): listen-only scan. The
+  radio's callback just drops tracker sightings into a queue; the main loop
+  picks them up, so the two never fight over memory.
+- **Screens:** Tracker Watch (status + one row per kind + "seen for"), a
+  per-kind device list, an auto-open alert, a blinking red **!** on every
+  screen, and shocked-Jerry on the home screen. Hold R on a red row = "ok".
+- **Tested before flashing:** 41 unit checks (with memory-error checking on)
+  and a simulator run of a full 30-minute "followed" scenario with
+  screenshots.
+
+### What broke / how we fixed it
+
+- My first "find the oldest entry" line in the radio code was unreadable
+  and probably wrong. Rewrote it plainly before it ever compiled.
+- I'd used a cast to dodge a C++ ordering problem in the screens file.
+  Replaced it with a proper declaration.
+
+### On the real device (Steve fills this in)
+
+- [ ] Tracker Watch shows a "BLE nearby" count that changes
+- [ ] Own AirTag (if any) listed as `own`, not counted
+- [ ] Separated-AirTag test: WATCHING → FOLLOWED? → acknowledged

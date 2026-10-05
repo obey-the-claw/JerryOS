@@ -6,6 +6,7 @@
 #include "power.h"
 #include "screen.h"
 #include "settings.h"
+#include "tracker_watch.h"
 
 class Shell {
  public:
@@ -24,6 +25,7 @@ class Shell {
   // Shared services for screens.
   JerryFace &jerry() { return jerry_; }
   Settings &settings() { return settings_; }
+  TrackerWatch &tracker() { return tracker_; }
   const PowerStatus &power() const { return power_; }
   void applyBrightness();
   uint32_t idleMs() const { return millis() - lastInput_; }
@@ -42,6 +44,7 @@ class Shell {
   Settings settings_;
   PowerStatus power_;
   power::BatteryGauge gauge_;
+  TrackerWatch tracker_;
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

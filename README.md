@@ -20,8 +20,8 @@ stays physically stock (no soldering).
 |---|---|---|
 | 1 | Firmware backup confirmed | ✅ 2026-10-04 |
 | 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
-| 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | 🟡 ready to test ([guide](docs/CHECKPOINT3.md)) |
-| 4 | Tracker Watch working | ⏳ |
+| 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
+| 4 | Tracker Watch working | 🟡 ready to test ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
 | 5 | Art spec + PNG converter | ⏳ |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
@@ -70,3 +70,5 @@ Lite before us. Full details are in [docs/HARDWARE.md](docs/HARDWARE.md#sources-
 - Robert Lipe's AIPI-Lite teardown
 - Espressif: [esptool](https://github.com/espressif/esptool), [Arduino-ESP32](https://github.com/espressif/arduino-esp32)
 - lovyan03: [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
+- h2zero: [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
+- SEEMOO lab, TU Darmstadt: [AirGuard](https://github.com/seemoo-lab/AirGuard) (tracker signatures)

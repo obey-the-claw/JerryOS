@@ -3,6 +3,8 @@
 
 #include "shell.h"
 
+#include "ble_scanner.h"
+#include "screens.h"
 #include "theme.h"
 
 void Screen::onLeftShort(Shell &shell) { shell.back(); }
@@ -30,6 +32,7 @@ void Shell::begin() {
   Serial.printf("[shell] JerryOS %s up. brightness %u%%, alert window %u min, sound %s\n",
                 JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes(),
                 settings_.sound ? "on" : "off");
+  ble::begin();  // Tracker Watch listens in the background on every screen
   current().enter(*this);
   logScreen("boot");
 }
@@ -94,10 +97,20 @@ void Shell::loop() {
   }
   if (now - lastLog_ >= 10000) {
     lastLog_ = now;
-    Serial.printf("[status] %s | batt %.2fV %s | usb %d chg %d | mood %s | up %lus\n",
+    Serial.printf("[status] %s | batt %.2fV %s | usb %d chg %d | mood %s | ble %d nearby, "
+                  "%lu adverts, %lu tracker | up %lus\n",
                   current().tag(), power_.battV,
                   power_.batteryPresent ? (String(power_.percent) + "%").c_str() : "none?",
-                  power_.usb, power_.charging, moodName(jerry_.mood()), now / 1000);
+                  power_.usb, power_.charging, moodName(jerry_.mood()), ble::nearbyDevices(),
+                  (unsigned long)ble::advertsHeard(), (unsigned long)ble::trackerAdverts(), now / 1000);
+  }
+
+  // Tracker Watch: take in what the radio heard, check for new alerts.
+  ble::drain(tracker_);
+  if (tracker_.tick(now, settings_.alertMinutes())) {
+    Serial.println(F("[tracker] ALERT: a tracker has been following for the whole alert window"));
+    lastInput_ = now;  // wake Jerry up
+    if (&current() != &trackerScreen()) open(trackerScreen());
   }
 
   jerry_.update(now);
@@ -121,6 +134,13 @@ void Shell::drawStatusBar(lgfx::LovyanGFX &g) {
   g.setTextColor(GOLD);
   g.setCursor(3, 2);
   g.print(current().tag());
+  if (tracker_.anyAlert() && (millis() / 500) % 2) {  // blinking "!" = tracker alert
+    const int x = 3 + g.textWidth(current().tag()) + 3;
+    g.fillRoundRect(x, 1, 9, 10, 2, ALERT);
+    g.setTextColor(TFT_WHITE);
+    g.setCursor(x + 2, 2);
+    g.print('!');
+  }
 
   // Battery: icon + percent, or "USB" when there's no battery.
   const int bx = W - 18, by = 2;

@@ -1,6 +1,6 @@
 // screens.cpp - every JerryOS v0 screen.
 //
-//   Home ─ L ─> Menu ─┬─> Tracker Watch   (Checkpoint 4)
+//   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
 //                     ├─> Rig Dashboard   (coming soon)
 //                     └─> Settings ─┬─> Diagnostics
 //                                   └─> About
@@ -10,6 +10,7 @@
 
 #include "screens.h"
 
+#include "ble_scanner.h"
 #include "shell.h"
 #include "theme.h"
 
@@ -78,7 +79,8 @@ class HomeScreen : public Screen {
     // Jerry reacts: sleepy on low battery, or after 2 minutes of no buttons.
     const PowerStatus &p = shell.power();
     const bool lowBatt = p.batteryPresent && !p.usb && p.percent <= 15;
-    shell.jerry().setMood(lowBatt || shell.idleMs() > 120000 ? Mood::Sleepy : Mood::Idle);
+    if (shell.tracker().anyAlert()) shell.jerry().setMood(Mood::Alert);
+    else shell.jerry().setMood(lowBatt || shell.idleMs() > 120000 ? Mood::Sleepy : Mood::Idle);
   }
 
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) override {
@@ -87,20 +89,130 @@ class HomeScreen : public Screen {
 };
 
 // ---------------------------------------------------------------------------
-// Tracker Watch: placeholder until Checkpoint 4
+// Tracker Watch
 // ---------------------------------------------------------------------------
-class TrackerScreen : public InfoScreen {
+// One row per tracker kind: how many separated ones are around right now,
+// and how long that kind has kept up with you. Hold R on a row to see the
+// individual devices; on an alerting row, hold R to acknowledge ("ok").
+Screen &trackerList(TrackerKind k);  // the per-kind device list, below
+
+const char *ago(char *buf, size_t n, int minutes) {
+  if (minutes <= 0) snprintf(buf, n, "-");
+  else if (minutes < 60) snprintf(buf, n, "%dm", minutes);
+  else snprintf(buf, n, "%dh%02d", minutes / 60, minutes % 60);
+  return buf;
+}
+
+class TrackerScreen : public Screen {
  public:
   const char *tag() const override { return "TRACKER"; }
-  Hints hints() const override { return {"back", nullptr, nullptr}; }
-  void update(Shell &shell, uint32_t) override { shell.jerry().setMood(Mood::Scanning); }
-  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
-    drawJerrySmall(shell, g, y0);
-    centered(g, y0 + 60, GOLD, "Tracker Watch");
-    centered(g, y0 + 74, CREAM, "arrives at");
-    centered(g, y0 + 86, CREAM, "Checkpoint 4");
+  Hints hints() const override {
+    return {"back", "next", rowAlerting_ ? "ok" : "list"};
   }
+  void onRightShort(Shell &) override { cursor_ = (cursor_ + 1) % TRACKER_KINDS; }
+  void onRightLong(Shell &shell) override {
+    const TrackerKind k = static_cast<TrackerKind>(cursor_);
+    if (shell.tracker().summary(k, millis()).alerting) {
+      shell.tracker().acknowledge(k, millis(), shell.settings().alertMinutes());
+      Serial.printf("[tracker] %s alert acknowledged for %u min\n", trackerName(k),
+                    shell.settings().alertMinutes());
+      return;
+    }
+    shell.open(trackerList(k));
+  }
+
+  void update(Shell &shell, uint32_t now) override {
+    TrackerWatch &w = shell.tracker();
+    // Jerry's face says it all: alert, scanning (separated trackers around
+    // but not following yet), or approved (all clear).
+    shell.jerry().setMood(w.anyAlert() ? Mood::Alert
+                          : w.anySeparatedNow(now) ? Mood::Scanning
+                                                   : Mood::Approved);
+    // Jump the cursor to an alerting row so "hold R = ok" is one press away.
+    for (int k = 0; k < TRACKER_KINDS; k++)
+      if (w.summary(static_cast<TrackerKind>(k), now).alerting && !jumped_) {
+        cursor_ = k;
+        jumped_ = true;
+      }
+    if (!w.anyAlert()) jumped_ = false;
+    rowAlerting_ = w.summary(static_cast<TrackerKind>(cursor_), now).alerting;
+  }
+
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    TrackerWatch &w = shell.tracker();
+    shell.jerry().draw(g, 22, y0 + 20, 0.36f);
+
+    // Headline
+    const bool alert = w.anyAlert();
+    const bool around = w.anySeparatedNow(now);
+    text(g, 46, y0 + 3, alert ? ALERT : around ? GOLD : GOOD,
+         alert ? "FOLLOWED?" : around ? "WATCHING" : "ALL CLEAR");
+    char buf[24];
+    snprintf(buf, sizeof buf, "%d BLE nearby", ble::nearbyDevices());
+    text(g, 46, y0 + 15, CREAM, buf);
+    snprintf(buf, sizeof buf, "alert at %um", shell.settings().alertMinutes());
+    text(g, 46, y0 + 26, DIM, buf);
+
+    // One row per kind
+    for (int k = 0; k < TRACKER_KINDS; k++) {
+      const TrackerKind kind = static_cast<TrackerKind>(k);
+      const KindSummary sm = w.summary(kind, now);
+      const int y = y0 + 40 + k * 12;
+      const bool sel = k == cursor_;
+      uint16_t bg = sm.alerting ? ALERT : sel ? GOLD : BARK;
+      if (sm.alerting || sel) g.fillRoundRect(2, y - 1, W - 4, 11, 2, bg);
+      if (sm.alerting && sel) g.drawRoundRect(2, y - 1, W - 4, 11, 2, GOLD);
+      const uint16_t fg = (sm.alerting || sel) ? (sm.alerting ? TFT_WHITE : BARK) : CREAM;
+      text(g, 6, y + 1, fg, trackerName(kind));
+      snprintf(buf, sizeof buf, "%d", sm.devicesNow);
+      text(g, 68, y + 1, sm.devicesNow ? fg : (sel ? BARK : DIM), buf);
+      ago(buf, sizeof buf, sm.streakMin);
+      text(g, W - 6 - g.textWidth(buf), y + 1, fg, buf);
+    }
+  }
+
+ private:
+  int cursor_ = 0;
+  bool jumped_ = false;
+  bool rowAlerting_ = false;
 };
+
+// Individual devices of one kind: short address, signal, how long seen.
+class TrackerListScreen : public Screen {
+ public:
+  void setKind(TrackerKind k) { kind_ = k; }
+  const char *tag() const override { return trackerName(kind_); }
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    const TrackedDevice *list[8];
+    const int n = shell.tracker().listDevices(kind_, now, list, 8);
+    text(g, 4, y0 + 3, DIM, "addr   sig  seen");
+    if (n == 0) centered(g, y0 + 44, CREAM, "none seen (10 min)");
+    for (int i = 0; i < n; i++) {
+      const TrackedDevice &d = *list[i];
+      const int y = y0 + 15 + i * 11;
+      const bool stale = now - d.lastSeenMs > TrackerWatch::RECENT_MS;
+      char buf[28], seen[10];
+      // Bluetooth addresses arrive least-significant byte first: show the
+      // last two bytes as they'd be printed, e.g. "c4:3a".
+      snprintf(buf, sizeof buf, "%02x:%02x %4d %s", d.addr[1], d.addr[0], d.rssi,
+               ago(seen, sizeof seen, (int)((d.lastSeenMs - d.firstSeenMs) / 60000) + 1));
+      text(g, 4, y, stale ? DIM : (d.separated ? CREAM : DIM), buf);
+      if (!d.separated) text(g, W - 22, y, DIM, "own");
+    }
+  }
+
+ private:
+  TrackerKind kind_ = TrackerKind::AirTag;
+};
+
+TrackerListScreen trackerListObj;
+Screen &trackerList(TrackerKind k) {
+  trackerListObj.setKind(k);
+  return trackerListObj;
+}
 
 // ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
@@ -137,7 +249,7 @@ class DiagScreen : public Screen {
     snprintf(buf, sizeof(buf), "usb %s  chg %s", p.usb ? "yes" : "no", p.charging ? "yes" : "no");
     row(buf);
     snprintf(buf, sizeof(buf), "heap %u KB", ESP.getFreeHeap() / 1024); row(buf);
-    snprintf(buf, sizeof(buf), "psram %u KB", ESP.getPsramSize() / 1024); row(buf);
+    snprintf(buf, sizeof(buf), "ble %s %d near", ble::listening() ? "on" : "OFF", ble::nearbyDevices()); row(buf);
     snprintf(buf, sizeof(buf), "up %lu s", millis() / 1000); row(buf);
     snprintf(buf, sizeof(buf), "jerry %s", moodName(shell.jerry().mood())); row(buf);
     snprintf(buf, sizeof(buf), "JerryOS %s", JERRYOS_VERSION); row(buf);
@@ -163,7 +275,7 @@ class AboutScreen : public Screen {
   }
 
  private:
-  static constexpr int kLines = 16;
+  static constexpr int kLines = 18;
   const char *const kText[kLines] = {
       "*JerryOS v" JERRYOS_VERSION,
       "Jerry the Squatch",
@@ -173,8 +285,10 @@ class AboutScreen : public Screen {
       "*Built with",
       "LovyanGFX (lovyan03)",
       "Espressif ESP32",
-      "PlatformIO",
+      "PlatformIO, NimBLE",
       "",
+      "*Tracker research",
+      "AirGuard (SEEMOO lab)",
       "*AIPI Lite research",
       "delacerda-mrd",
       "DaveMath (@GGDM)",
@@ -261,7 +375,7 @@ class SettingsScreen : public Screen {
   Settings before_;
 };
 
-TrackerScreen trackerScreen;
+TrackerScreen trackerScreenObj;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
 
@@ -274,7 +388,7 @@ struct ModeEntry {
 };
 
 const ModeEntry kModes[] = {
-    {"Tracker Watch", &trackerScreen},
+    {"Tracker Watch", &trackerScreenObj},
     {"Rig Dashboard", &rigScreen},
     {"Settings", &settingsScreen},
 };
@@ -304,3 +418,4 @@ MenuScreen menuScreenObj;
 
 Screen &homeScreen() { return homeScreenObj; }
 Screen &menuScreen() { return menuScreenObj; }
+Screen &trackerScreen() { return trackerScreenObj; }

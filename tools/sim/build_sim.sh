@@ -14,7 +14,8 @@ rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots"
 
 # Firmware sources, with the real display driver swapped for an off-screen image.
 cp "$REPO"/src/*.h "$REPO"/src/*.cpp "$REPO"/include/*.h "$OUT/src/"
-rm "$OUT/src/main.cpp"
+rm "$OUT/src/main.cpp" "$OUT/src/ble_scanner.cpp"
+cp "$SIM/ble_scanner_sim.cpp" "$OUT/src/"
 cp "$SIM/display_host.h" "$OUT/src/display.h"
 
 # LovyanGFX's C parts (fonts, image decoders).
