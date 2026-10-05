@@ -15,6 +15,7 @@ struct WifiNet {
   int8_t bestRssi;    // strongest signal this session
   uint32_t firstMs, lastMs;
   uint16_t sightings;
+  uint32_t loggedIn;  // recording session it was last saved in (0 = not saved)
   bool used;
 };
 
@@ -37,7 +38,7 @@ class WifiTable {
   static constexpr int MAX = 96;
   static constexpr uint32_t WINDOW_MS = 90000;  // "around now" = heard in the last 90 s
 
-  // Returns true the first time this network is seen (that's when it's logged).
+  // Returns true the first time this network is seen since power-on.
   bool update(const uint8_t bssid[6], const char *ssid, uint8_t channel, uint8_t auth, int rssi,
               uint32_t now);
   int count(uint32_t now) const;
@@ -45,6 +46,9 @@ class WifiTable {
   // Networks heard recently, strongest first. Returns how many.
   int snapshot(WifiNet *out, int max, uint32_t now) const;
   const WifiNet *find(const uint8_t bssid[6]) const;
+  WifiNet *find(const uint8_t bssid[6]) {
+    return const_cast<WifiNet *>(static_cast<const WifiTable *>(this)->find(bssid));
+  }
 
  private:
   WifiNet net_[MAX] = {};

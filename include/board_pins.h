@@ -25,5 +25,12 @@ constexpr int PIN_CHARGING   = 21; // 0 = charger is charging
 // Battery divider multiplier. Community value; calibrate with a multimeter.
 constexpr float BATT_DIVIDER = 2.5f;
 
-// --- Audio (not used yet) ---
-constexpr int PIN_SPK_AMP_EN = 9;
+// --- Audio: ES8311 chip (I2C address 0x18) -> amp -> speaker ---
+constexpr int PIN_I2C_SDA    = 5;
+constexpr int PIN_I2C_SCL    = 4;
+constexpr int PIN_I2S_MCLK   = 6;
+constexpr int PIN_I2S_BCLK   = 14;
+constexpr int PIN_I2S_WS     = 12;
+constexpr int PIN_I2S_DOUT   = 11;  // ESP32 -> speaker
+constexpr int PIN_I2S_DIN    = 13;  // microphone -> ESP32 (not used)
+constexpr int PIN_SPK_AMP_EN = 9;   // HIGH = amplifier on

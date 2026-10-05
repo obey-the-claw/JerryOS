@@ -3,6 +3,7 @@
 
 #include "shell.h"
 
+#include "audio.h"
 #include "ble_scanner.h"
 #include "screens.h"
 #include "theme.h"
@@ -32,7 +33,9 @@ void Shell::begin() {
   lastInput_ = millis();
   Serial.printf("[shell] JerryOS %s up. brightness %u%%, alert window %u min, sound %s\n",
                 JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes(),
-                settings_.sound ? "on" : "off");
+                Settings::volumeName(settings_.volumeIdx));
+  audio::setVolume(settings_.volumeIdx);
+  if (audio::begin()) audio::play(audio::Sound::Boot);
   ble::begin();  // Tracker Watch listens in the background on every screen
   wifi::setEnabled(settings_.wifiScan);
   wifi::begin();  // ...and so does the Wi-Fi scanner/logger
@@ -60,7 +63,44 @@ void Shell::pollConsole() {
   }
 }
 
-void Shell::applyBrightness() { lcd_.setBrightness(settings_.brightnessPct() * 255 / 100); }
+void Shell::applyBrightness() {
+  backlight_ = Backlight::On;
+  lcd_.setBrightness(settings_.brightnessPct() * 255 / 100);
+}
+
+// On battery, save power when nobody's looking: dim after 1 min without a
+// button press, backlight off after 5 min. On USB the screen stays on.
+// A tracker alert wakes the screen (it resets the idle timer).
+void Shell::updateBacklight(uint32_t now) {
+  const uint32_t idle = now - lastInput_;
+  Backlight want = Backlight::On;
+  if (!power_.usb) {
+    if (idle > 5 * 60000) want = Backlight::Off;
+    else if (idle > 60000) want = Backlight::Dim;
+  }
+  if (want == backlight_) return;
+  if (want == Backlight::On) {
+    applyBrightness();
+  } else {
+    backlight_ = want;
+    lcd_.setBrightness(want == Backlight::Off ? 0 : max(12, settings_.brightnessPct() * 255 / 400));
+  }
+}
+
+// Beeps that aren't tied to a button: tracker alerts, low battery.
+void Shell::soundEvents(uint32_t now) {
+  if (tracker_.anyAlert() && now - lastAlertSound_ >= 60000) {  // repeat each minute until "ok"
+    lastAlertSound_ = now;
+    audio::play(audio::Sound::Alert);
+  }
+  if (!tracker_.anyAlert()) lastAlertSound_ = now - 60000;  // next alert beeps straight away
+  const bool low = power_.batteryPresent && !power_.usb && power_.percent <= 15;
+  if (low && !lowBattWarned_) {
+    lowBattWarned_ = true;
+    audio::play(audio::Sound::LowBatt);
+  }
+  if (power_.usb) lowBattWarned_ = false;
+}
 
 void Shell::open(Screen &s) {
   if (depth_ >= MAX_DEPTH) return;
@@ -90,7 +130,12 @@ void Shell::logScreen(const char *why) {
 void Shell::handleButtons() {
   const ButtonEvent l = left_.update();
   const ButtonEvent r = right_.update();
-  if (l != ButtonEvent::None || r != ButtonEvent::None) lastInput_ = millis();
+  if (l == ButtonEvent::None && r == ButtonEvent::None) return;
+  lastInput_ = millis();
+  if (backlight_ != Backlight::On) {  // screen was dimmed/off: this press just wakes it
+    applyBrightness();
+    return;
+  }
 
   if (l == ButtonEvent::Long) {
     Serial.println(F("[button] LEFT long -> home"));
@@ -135,14 +180,17 @@ void Shell::loop() {
   ble::drain(tracker_);
   if (tracker_.tick(now, settings_.alertMinutes())) {
     Serial.println(F("[tracker] ALERT: a tracker has been following for the whole alert window"));
-    lastInput_ = now;  // wake Jerry up
+    lastInput_ = now;  // wake Jerry (and the screen) up
     if (&current() != &trackerScreen()) open(trackerScreen());
   }
+  soundEvents(now);
+  updateBacklight(now);
 
   jerry_.update(now);
   current().update(*this, now);
 
   if (now - lastFrame_ < 33) return;  // ~30 frames per second
+  if (backlight_ == Backlight::Off) return;  // nobody can see it: don't draw
   lastFrame_ = now;
   frame_.fillScreen(theme::BARK);
   current().draw(*this, frame_, theme::CONTENT_Y, theme::CONTENT_H);
@@ -167,6 +215,9 @@ void Shell::drawStatusBar(lgfx::LovyanGFX &g) {
     g.setCursor(x + 2, 2);
     g.print('!');
   }
+
+  // Red dot = Wi-Fi log recording.
+  if (wifi::recording() && (millis() / 700) % 3) g.fillCircle(W - 50, 6, 3, ALERT);
 
   // Battery: icon + percent, or "USB" when there's no battery.
   const int bx = W - 18, by = 2;

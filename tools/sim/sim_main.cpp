@@ -29,7 +29,11 @@ int main() {
   g_pin[PIN_CHARGING] = 1;                      // not charging
   shell.begin(); run(600); snap("home");
   tap(PIN_BTN_RIGHT); run(100); snap("home_poke");
-  run(2000);
+  run(2600);
+  hold(PIN_BTN_RIGHT); run(300); snap("home_rec");
+  run(2600); snap("home_recording");
+  hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
+  run(2600);
   tap(PIN_BTN_LEFT); snap("menu");
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(2100); snap("nearby");

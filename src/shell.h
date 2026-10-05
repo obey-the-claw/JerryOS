@@ -29,6 +29,7 @@ class Shell {
   const PowerStatus &power() const { return power_; }
   void applyBrightness();
   uint32_t idleMs() const { return millis() - lastInput_; }
+  void wake() { lastInput_ = millis(); }
 
  private:
   void handleButtons();
@@ -36,6 +37,8 @@ class Shell {
   void drawHintBar(lgfx::LovyanGFX &g, const Hints &h);
   void logScreen(const char *why);
   void pollConsole();  // commands typed over USB (used by tools/pull_wifi_log.py)
+  void updateBacklight(uint32_t now);
+  void soundEvents(uint32_t now);
 
   JerryDisplay &lcd_;
   LGFX_Sprite frame_;
@@ -55,6 +58,10 @@ class Shell {
   uint32_t lastPowerRead_ = 0;
   uint32_t lastFrame_ = 0;
   uint32_t lastLog_ = 0;
+  // Screen saver on battery: dim after a minute, off after five.
+  enum class Backlight : uint8_t { On, Dim, Off } backlight_ = Backlight::On;
+  uint32_t lastAlertSound_ = 0;
+  bool lowBattWarned_ = false;
   char cmd_[32] = {};
   int cmdLen_ = 0;
 };

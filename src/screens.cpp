@@ -14,6 +14,7 @@
 
 #include <string.h>
 
+#include "audio.h"
 #include "ble_scanner.h"
 #include "shell.h"
 #include "theme.h"
@@ -74,27 +75,130 @@ class InfoScreen : public Screen {
 // ---------------------------------------------------------------------------
 // Home: Jerry's face
 // ---------------------------------------------------------------------------
+// Jerry, plus everything at a glance along the bottom:
+//   [TAG ok] [BT 18] [WiFi 12]     (or [REC 34] while saving the Wi-Fi log)
+// Tap R = poke (Jerry says something), hold R = start/stop recording.
 class HomeScreen : public Screen {
  public:
   const char *tag() const override { return "JERRY"; }
-  Hints hints() const override { return {"menu", "poke", nullptr}; }
+  Hints hints() const override { return {"menu", "poke", wifi::recording() ? "stop" : "rec"}; }
 
   void onLeftShort(Shell &shell) override { shell.open(menuScreen()); }
+
   void onRightShort(Shell &shell) override {
-    shell.jerry().flash(Mood::Approved, 1500);  // a poke makes Jerry grin
+    shell.jerry().flash(Mood::Approved, 1500);  // a poke makes Jerry grin...
+    audio::play(audio::Sound::Happy);
+    quip(shell);                                 // ...and talk
+  }
+
+  void onRightLong(Shell &shell) override {
+    if (wifi::recording()) {
+      const unsigned long n = wifi::savedThisSession();
+      wifi::setRecording(false);
+      audio::play(audio::Sound::RecOff);
+      say(n == 1 ? "Saved 1 network" : "Saved %lu networks", n);
+    } else if (!wifi::enabled()) {
+      say("WiFi scan is off");
+    } else if (wifi::logFull()) {
+      say("Log full! Pull it.");
+    } else {
+      wifi::setRecording(true);
+      audio::play(audio::Sound::RecOn);
+      shell.jerry().flash(Mood::Approved, 1200);
+      say("Recording WiFi...");
+    }
   }
 
   void update(Shell &shell, uint32_t) override {
-    // Jerry reacts: sleepy on low battery, or after 2 minutes of no buttons.
+    // Jerry reacts: shocked when followed, sleepy on low battery or after
+    // 2 minutes of no buttons, eyes sweeping while he records.
     const PowerStatus &p = shell.power();
     const bool lowBatt = p.batteryPresent && !p.usb && p.percent <= 15;
     if (shell.tracker().anyAlert()) shell.jerry().setMood(Mood::Alert);
-    else shell.jerry().setMood(lowBatt || shell.idleMs() > 120000 ? Mood::Sleepy : Mood::Idle);
+    else if (lowBatt || shell.idleMs() > 120000) shell.jerry().setMood(Mood::Sleepy);
+    else if (wifi::recording()) shell.jerry().setMood(Mood::Scanning);
+    else shell.jerry().setMood(Mood::Idle);
   }
 
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) override {
-    shell.jerry().draw(g, W / 2, y0 + h / 2 - 8, 0.8f, /*shoulders=*/true);
+    shell.jerry().draw(g, W / 2, y0 + h / 2 - 10, 0.76f, /*shoulders=*/true);
+    drawPills(shell, g, y0 + h - 13);
+    if ((int32_t)(millis() - bubbleUntil_) < 0) drawBubble(g, y0 + 1);
   }
+
+ private:
+  // Small rounded labels along the bottom.
+  struct Pill {
+    char text[12];
+    uint16_t fg, bg;
+    void set(uint16_t f, uint16_t b, const char *fmt, unsigned long n = 0) {
+      fg = f;
+      bg = b;
+      snprintf(text, sizeof text, fmt, n);
+    }
+  };
+
+  void drawPills(Shell &shell, lgfx::LovyanGFX &g, int y) {
+    const uint32_t now = millis();
+    Pill pills[3];
+    TrackerWatch &w = shell.tracker();
+    if (w.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "TAG !");
+    else if (w.anySeparatedNow(now)) pills[0].set(BARK, GOLD, "TAG ?");
+    else pills[0].set(GOOD, INK, "TAG ok");
+    pills[1].set(CREAM, INK, "BT %lu", (unsigned long)ble::nearbyDevices());
+    if (wifi::recording()) pills[2].set(TFT_WHITE, ALERT, "REC %lu", (unsigned long)wifi::savedThisSession());
+    else if (!wifi::enabled()) pills[2].set(DIM, INK, "WiFi off");
+    else pills[2].set(CREAM, INK, "WiFi %lu", (unsigned long)wifi::nearby());
+    int total = 0;
+    for (const Pill &p : pills) total += g.textWidth(p.text) + 6;
+    const int gap = 3;
+    int x = (W - total - 2 * gap) / 2;
+    for (const Pill &p : pills) {
+      const int pw = g.textWidth(p.text) + 6;
+      g.fillRoundRect(x, y, pw, 11, 3, p.bg);
+      text(g, x + 3, y + 2, p.fg, p.text);
+      x += pw + gap;
+    }
+  }
+
+  // Jerry's speech bubble across the top.
+  void say(const char *fmt, unsigned long n = 0) {
+    snprintf(bubble_, sizeof bubble_, fmt, n);
+    bubbleUntil_ = millis() + 2500;
+  }
+
+  void drawBubble(lgfx::LovyanGFX &g, int y) {
+    const int tw = g.textWidth(bubble_);
+    const int bw = tw + 8, bx = (W - bw) / 2;
+    g.fillRoundRect(bx, y, bw, 12, 4, CREAM);
+    g.fillTriangle(W / 2 + 6, y + 11, W / 2 + 14, y + 11, W / 2 + 8, y + 16, CREAM);  // tail
+    text(g, bx + 4, y + 2, BARK, bubble_);
+  }
+
+  void quip(Shell &shell) {
+    const uint32_t now = millis();
+    if (shell.tracker().anyAlert()) return say("Being followed?!");
+    static const char *const kLines[] = {
+        "Gear approved!",   "%lu gadgets nearby", "Inspector on duty", "%lu WiFi nets here",
+        "Squatch mode: ON", "No trackers. Nice.", "Leave no trace!",   "I'm not blurry.",
+        "Stay wild.",       "Believe.",
+    };
+    constexpr int n = sizeof kLines / sizeof kLines[0];
+    for (int tries = 0; tries < n; tries++) {
+      const char *line = kLines[next_++ % n];
+      if (line == kLines[5] && shell.tracker().anySeparatedNow(now)) continue;  // not true now
+      if (line == kLines[1]) return say(line, (unsigned long)ble::nearbyDevices());
+      if (line == kLines[3]) {
+        if (!wifi::enabled()) continue;
+        return say(line, (unsigned long)wifi::nearby());
+      }
+      return say(line);
+    }
+  }
+
+  char bubble_[24] = "";
+  uint32_t bubbleUntil_ = 0;
+  unsigned next_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -402,10 +506,13 @@ class WifiScreen : public Screen {
   void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
     char buf[28], size[10];
     logSize(size, sizeof size);
+    const bool rec = wifi::recording();
     if (!wifi::enabled()) snprintf(buf, sizeof buf, "scan OFF (Settings)");
     else if (wifi::logFull()) snprintf(buf, sizeof buf, "%d nets  log FULL", n_);
+    else if (rec) snprintf(buf, sizeof buf, "%d nets  REC %lu", n_, (unsigned long)wifi::savedThisSession());
     else snprintf(buf, sizeof buf, "%d nets  log %s", n_, size);
-    text(g, 4, y0 + 3, wifi::logFull() ? ALERT : DIM, buf);
+    if (rec) g.fillCircle(W - 7, y0 + 6, 3, ALERT);
+    text(g, 4, y0 + 3, (wifi::logFull() || rec) ? ALERT : DIM, buf);
     if (!n_) {
       centered(g, y0 + 44, CREAM, wifi::enabled() ? "listening..." : "Wi-Fi scan is off");
       return;
@@ -481,7 +588,9 @@ class WifiDetailScreen : public Screen {
              ago(seen, sizeof seen, (int)((net_.lastMs - net_.firstMs) / 60000) + 1));
     text(g, 4, y0 + 72, CREAM, buf);
     if (gone_) text(g, 4, y0 + 86, ALERT, "out of range");
-    else text(g, 4, y0 + 86, DIM, "logged");
+    else if (net_.loggedIn && net_.loggedIn == wifi::session() && wifi::recording())
+      text(g, 4, y0 + 86, ALERT, "saved (REC)");
+    else text(g, 4, y0 + 86, DIM, "not saved");
   }
 
  private:
@@ -519,7 +628,8 @@ class RigScreen : public InfoScreen {
 class DiagScreen : public Screen {
  public:
   const char *tag() const override { return "DIAG"; }
-  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  Hints hints() const override { return {"back", nullptr, "beep"}; }
+  void onRightLong(Shell &) override { audio::play(audio::Sound::Boot); }  // speaker test
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     const PowerStatus &p = shell.power();
     char buf[28];
@@ -531,8 +641,11 @@ class DiagScreen : public Screen {
     snprintf(buf, sizeof(buf), "usb %s  chg %s", p.usb ? "yes" : "no", p.charging ? "yes" : "no");
     row(buf);
     snprintf(buf, sizeof(buf), "heap %u KB", ESP.getFreeHeap() / 1024); row(buf);
-    snprintf(buf, sizeof(buf), "ble %s %d near", ble::listening() ? "on" : "OFF", ble::nearbyDevices()); row(buf);
-    snprintf(buf, sizeof(buf), "wifi %s %d near", wifi::scanning() ? "on" : "off", wifi::nearby());
+    snprintf(buf, sizeof(buf), "ble %d  wifi %d%s", ble::listening() ? ble::nearbyDevices() : -1,
+             wifi::nearby(), wifi::recording() ? " REC" : "");
+    row(buf);
+    snprintf(buf, sizeof(buf), "audio %s  vol %s", audio::ready() ? "ok" : "NONE",
+             Settings::volumeName(shell.settings().volumeIdx));
     row(buf);
     snprintf(buf, sizeof(buf), "up %lu s", millis() / 1000); row(buf);
     snprintf(buf, sizeof(buf), "jerry %s", moodName(shell.jerry().mood())); row(buf);
@@ -559,18 +672,22 @@ class AboutScreen : public Screen {
   }
 
  private:
-  static constexpr int kLines = 18;
+  static constexpr int kLines = 22;
   const char *const kText[kLines] = {
       "*JerryOS v" JERRYOS_VERSION,
       "Jerry the Squatch",
       "Chief Gear Inspector",
       "5quatchrated.com",
       "",
+      "*Personal monitor",
+      "Trackers, BLE, WiFi",
+      "Listen-only. Saves",
+      "only when you REC.",
+      "",
       "*Built with",
       "LovyanGFX (lovyan03)",
       "Espressif ESP32",
       "PlatformIO, NimBLE",
-      "",
       "*Tracker research",
       "AirGuard (SEEMOO lab)",
       "*AIPI Lite research",
@@ -608,6 +725,7 @@ class SettingsScreen : public Screen {
     if (!editing_) return shell.back();
     shell.settings() = before_;  // undo
     shell.applyBrightness();
+    audio::setVolume(before_.volumeIdx);
     editing_ = false;
   }
 
@@ -624,7 +742,11 @@ class SettingsScreen : public Screen {
         shell.applyBrightness();  // preview live
         break;
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
-      case 2: s.sound = !s.sound; break;
+      case 2:
+        s.volumeIdx = (s.volumeIdx + 1) % Settings::N_VOLUME;
+        audio::setVolume(s.volumeIdx);  // preview
+        audio::play(audio::Sound::Tick);
+        break;
       case 3: s.wifiScan = !s.wifiScan; break;
     }
   }
@@ -632,6 +754,7 @@ class SettingsScreen : public Screen {
   void onRightLong(Shell &shell) override {
     if (erasing_) {  // second hold: really erase
       wifi::clearLog();
+      audio::play(audio::Sound::Erase);
       erasing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       return;
@@ -639,8 +762,10 @@ class SettingsScreen : public Screen {
     if (editing_) {
       shell.settings().save();
       wifi::setEnabled(shell.settings().wifiScan);
+      if (!shell.settings().wifiScan) wifi::setRecording(false);
       editing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
+      audio::play(audio::Sound::Happy);
       Serial.println(F("[settings] saved"));
       return;
     }
@@ -664,7 +789,7 @@ class SettingsScreen : public Screen {
     logSize(log, sizeof log);
     static const char *const labels[kItems] = {"Brightness", "Alert after", "Sound", "WiFi scan",
                                                "WiFi log", "Diagnostics", "About"};
-    const char *values[kItems] = {bright, alert, s.sound ? "on" : "off", s.wifiScan ? "on" : "off",
+    const char *values[kItems] = {bright, alert, Settings::volumeName(s.volumeIdx), s.wifiScan ? "on" : "off",
                                   erasing_ ? "erase?" : log, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }

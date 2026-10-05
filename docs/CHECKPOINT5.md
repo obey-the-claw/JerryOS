@@ -60,14 +60,17 @@ too; the two share the radio.
 
 ## The log
 
-Each network gets **one line the first time it's heard after power-on**.
-Next power-on is a new "session", so a network you pass every day shows up
-once per trip, not every 20 seconds.
+> **Changed in v0.6:** saving is now **opt-in**. Hold R on the home screen
+> to start/stop recording (REC). `session` = recording number. See
+> [CHECKPOINT6.md](CHECKPOINT6.md).
+
+Each network gets **one line the first time it's heard in a session**, so a
+network you pass every day shows up once per trip, not every 20 seconds.
 
 | Column | Meaning |
 |---|---|
-| `session` | Power-on number. Each boot/trip gets a new one. |
-| `uptime_s` | Seconds since that power-on when it was first heard |
+| `session` | Recording number. Each REC press starts a new one. |
+| `uptime_s` | Seconds since power-on when it was saved |
 | `bssid` | The router's hardware address |
 | `ssid` | Network name (`""` = hidden) |
 | `auth` | Security: open, WEP, WPA, WPA2, WPA3... |

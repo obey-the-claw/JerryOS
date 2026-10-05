@@ -4,13 +4,20 @@ Custom firmware for the **AIPI Lite** (ESP32-S3) that turns it into Jerry the
 Squatch's pocket/dash sidekick, "Chief Gear Inspector" for the
 [5quatch Rated](https://5quatchrated.com) rig.
 
+It's a **personal, on-the-spot monitor**: it warns you about trackers
+following you and shows the Bluetooth and Wi-Fi around you. It only
+listens (never transmits) and only saves when you press REC. It's also the
+handheld starting point for the Pi Zero box (Scanner v0).
+
 Jerry's animated head lives on the screen. The v0 modes are:
 
 - **Tracker Watch:** passive BLE scan for AirTag / Tile / SmartTag-style
   trackers that keep following you.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
-- **WiFi Scan:** listen-only Wi-Fi scanner that logs every network it hears
-  (copy the log to your PC with `tools/pull_wifi_log.py`).
+- **WiFi Scan:** listen-only Wi-Fi scanner. Hold R on the home screen to
+  record networks to a log (copy it to your PC with `tools/pull_wifi_log.py`).
+- **Home screen:** Jerry plus live counts (trackers, Bluetooth, Wi-Fi),
+  sounds, and a battery-saving screen timeout.
 - **Rig Dashboard:** placeholder for the Scanner v0 Pi Zero link.
 - **Settings.**
 
@@ -25,11 +32,12 @@ stays physically stock (no soldering).
 | 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
 | 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
-| 5 | Wi-Fi scanner + logger | 🟡 ready to test ([guide](docs/CHECKPOINT5.md)) |
+| 5 | Wi-Fi scanner + logger | ✅ 2026-10-05 ([guide](docs/CHECKPOINT5.md)) |
+| 6 | Personal monitor: home screen, sound, REC, screen saver | 🟡 ready to test ([guide](docs/CHECKPOINT6.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 
-![Jerry's moods](docs/img/jerry-moods.png)
+![JerryOS](docs/img/cp6-monitor.png)
 
 ## Repo layout
 

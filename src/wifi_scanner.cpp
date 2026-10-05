@@ -27,8 +27,8 @@ SemaphoreHandle_t tableLock = nullptr;  // guards `table`
 SemaphoreHandle_t fileLock = nullptr;   // guards the log file
 WifiTable table;
 std::atomic<bool> on{true}, running{false}, mounted{false}, full{false};
-std::atomic<uint32_t> bytes{0};
-uint32_t sessionNo = 0;
+std::atomic<bool> rec{false}, scanNow{false};
+std::atomic<uint32_t> bytes{0}, saved{0}, sessionNo{0};
 
 struct Lock {  // holds a lock until the end of the { } block
   explicit Lock(SemaphoreHandle_t m) : m_(m) { xSemaphoreTake(m_, portMAX_DELAY); }
@@ -56,8 +56,7 @@ void mountLog() {
   if (f) f.close();
   full = bytes >= MAX_LOG_BYTES;
   mounted = true;
-  Serial.printf("[wifi] log ready: %lu bytes, session %lu\n", (unsigned long)bytes,
-                (unsigned long)sessionNo);
+  Serial.printf("[wifi] log ready: %lu bytes\n", (unsigned long)bytes);
 }
 
 void appendLines(const String &lines) {
@@ -86,11 +85,16 @@ void scanOnce() {
       int32_t rssi, channel;
       uint8_t *bssid;
       if (!WiFi.getNetworkInfo(i, ssid, auth, rssi, bssid, channel) || !bssid) continue;
-      if (table.update(bssid, ssid.c_str(), (uint8_t)channel, auth, rssi, now)) {
+      table.update(bssid, ssid.c_str(), (uint8_t)channel, auth, rssi, now);
+      WifiNet *net = table.find(bssid);
+      const uint32_t sess = sessionNo;
+      if (rec && !full && net && net->loggedIn != sess) {  // first time this recording
+        net->loggedIn = sess;
         char line[160];
-        formatLogLine(line, sizeof line, sessionNo, now / 1000, *table.find(bssid));
+        formatLogLine(line, sizeof line, sess, now / 1000, *net);
         newLines += line;
         newLines += '\n';
+        saved++;
       }
     }
   }
@@ -114,7 +118,7 @@ void task(void *) {
       WiFi.mode(WIFI_OFF);
       radioUp = false;
     }
-    if (radioUp && millis() - lastScan >= SCAN_EVERY_MS) {
+    if (radioUp && (scanNow.exchange(false) || millis() - lastScan >= SCAN_EVERY_MS)) {
       lastScan = millis();
       scanOnce();
     }
@@ -128,12 +132,6 @@ void begin() {
   if (tableLock) return;
   tableLock = xSemaphoreCreateMutex();
   fileLock = xSemaphoreCreateMutex();
-  Preferences p;  // count power-ons so log lines from different trips can be told apart
-  if (p.begin("jerryos", false)) {
-    sessionNo = p.getUInt("wsess", 0) + 1;
-    p.putUInt("wsess", sessionNo);
-    p.end();
-  }
   xTaskCreatePinnedToCore(task, "wifi", 6144, nullptr, 1, nullptr, 0);
   Serial.println(F("[wifi] passive scan task started"));
 }
@@ -155,6 +153,27 @@ uint32_t seenThisBoot() {
 }
 
 uint32_t session() { return sessionNo; }
+
+void setRecording(bool r) {
+  if (r == rec) return;
+  if (r) {
+    Preferences p;  // number each recording so trips can be told apart in the log
+    if (p.begin("jerryos", false)) {
+      sessionNo = p.getUInt("wsess", 0) + 1;
+      p.putUInt("wsess", sessionNo);
+      p.end();
+    } else {
+      sessionNo = sessionNo + 1;
+    }
+    saved = 0;
+    scanNow = true;  // save what's around right away
+  }
+  rec = r;
+  Serial.printf("[wifi] recording %s (session %lu)\n", r ? "ON" : "off", (unsigned long)sessionNo);
+}
+
+bool recording() { return rec; }
+uint32_t savedThisSession() { return saved; }
 
 int snapshot(WifiNet *out, int max) {
   if (!tableLock) return 0;

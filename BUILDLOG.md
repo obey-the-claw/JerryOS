@@ -354,3 +354,55 @@ can go to a PC. Still listen-only.
 - [ ] `py tools\pull_wifi_log.py COM7` saves a CSV that opens in Excel
 - [ ] Erase works
 - [ ] Tracker Watch and BLE Nearby still work alongside Wi-Fi
+
+---
+
+## Checkpoint 6: The personal monitor
+
+**What Steve said JerryOS really is:** "personal on the spot monitoring...
+saving when you want but not default w/o GPS to remember where... a great
+handheld starting point for the pizero box project." This checkpoint makes
+it feel like that.
+
+### What we did
+
+- **Home screen = dashboard.** Jerry plus three live pills along the
+  bottom: tracker status (ok / ? / !), Bluetooth count, Wi-Fi count. Poke
+  him and he chirps and says something in a speech bubble, sometimes with
+  live numbers.
+- **REC is opt-in.** Scanning shows networks live, but the log only saves
+  while you're recording: hold R on home. REC always starts off at power-on.
+  Each recording gets its own session number, and it saves what's in range
+  straight away. Red REC pill, blinking red dot on every screen, and Jerry's
+  eyes sweep while he records.
+- **Sound.** First use of the speaker: ES8311 audio chip set up over I2C
+  (sequence checked against Espressif's own driver), tones made on the
+  chip in a background task, amp only on while playing. Sounds for boot,
+  poke, REC on/off, tracker alert (repeats every minute until "ok"), low
+  battery and erase. Settings → Sound is now off/low/med/high, with a
+  preview tick.
+- **Screen saver on battery:** dim after 1 min, off after 5 min. Any button
+  (or a tracker alert) wakes it, and the waking press is swallowed so it
+  doesn't also do something.
+- **Diagnostics:** audio status + hold R = beep test. **About** says what
+  Jerry is.
+
+### What broke / how we fixed it
+
+- Pasting in the new home screen, my edit cut the old one off at the wrong
+  `};` (one inside a line of code). The simulator build caught it straight
+  away.
+- The ESP32's compiler (older than the PC one) rejected a shorthand for
+  filling in the pills. Rewrote it the plain way.
+- In the simulator, the REC pill sat at 0 because the fake radio only
+  "scanned" when asked for a count. Simulator-only; fixed so the
+  screenshots are honest.
+
+### On the real device (Steve fills this in)
+
+- [ ] Boot sound, poke chirp, REC blips
+- [ ] Volume off/low/med/high; Diagnostics beep
+- [ ] Home pills show sensible counts
+- [ ] REC → walk → stop → pull log: new lines share one session number
+- [ ] Screen dims at ~1 min and goes off at ~5 min on battery; a button wakes it
+- [ ] Tracker Watch, BLE Nearby, WiFi Scan still fine

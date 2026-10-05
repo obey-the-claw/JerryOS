@@ -9,7 +9,8 @@
 namespace wifi {
 namespace {
 WifiTable table;
-bool on = true, started = false;
+bool on = true, started = false, rec = false;
+uint32_t sess = 0, savedCount = 0;
 uint32_t lastScan = 0;
 std::string logText = std::string(LOG_HEADER) + "\n";
 
@@ -28,9 +29,13 @@ void scan() {
   int i = 0;
   for (const Fake &f : kScene) {
     uint8_t bssid[6] = {0x3c, 0x52, 0x82, 0x10, 0x00, (uint8_t)i++};
-    if (table.update(bssid, f.ssid, f.ch, f.auth, f.rssi + (int)(now / 20000 % 3), now)) {
+    table.update(bssid, f.ssid, f.ch, f.auth, f.rssi + (int)(now / 20000 % 3), now);
+    WifiNet *n = table.find(bssid);
+    if (rec && n->loggedIn != sess) {
+      n->loggedIn = sess;
+      savedCount++;
       char line[160];
-      formatLogLine(line, sizeof line, 7, now / 1000, *table.find(bssid));
+      formatLogLine(line, sizeof line, sess, now / 1000, *n);
       logText += line;
       logText += '\n';
     }
@@ -50,7 +55,16 @@ int nearby() {
   return table.count(millis());
 }
 uint32_t seenThisBoot() { return table.uniqueSeen(); }
-uint32_t session() { return 7; }
+uint32_t session() { return sess; }
+void setRecording(bool r) {
+  if (r && !rec) { sess++; savedCount = 0; lastScan = 0; }
+  rec = r;
+}
+bool recording() { return rec; }
+uint32_t savedThisSession() {
+  nearby();  // the sim "scans" whenever someone looks
+  return savedCount;
+}
 int snapshot(WifiNet *out, int max) {
   nearby();  // the sim "scans" whenever someone looks
   return table.snapshot(out, max, millis());

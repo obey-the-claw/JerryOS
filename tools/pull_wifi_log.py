@@ -4,8 +4,8 @@
     py tools\\pull_wifi_log.py COM7 --clear    ...then erase the log on the device
 
 Open the CSV in Excel / Google Sheets. Columns:
-    session   power-on number (each trip / boot is a new session)
-    uptime_s  seconds since that power-on when the network was first heard
+    session   recording number (each REC press on Jerry starts a new one)
+    uptime_s  seconds since power-on when the network was saved
     bssid     the access point's hardware address
     ssid      network name ("" = hidden)
     auth      security: open, WEP, WPA2, WPA3...

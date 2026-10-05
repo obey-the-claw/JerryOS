@@ -4,9 +4,10 @@
 // broadcasts ~10 times a second. He never sends probe requests, never joins
 // a network, and never transmits. (The ESP32-S3 hears 2.4 GHz only.)
 //
-// Every network seen for the first time since power-on gets one line in
-// /wifi.csv on the chip's storage area. The log survives power-off. Copy it
-// to a PC with tools/pull_wifi_log.py.
+// Saving is OFF until you ask for it (hold R on the home screen = REC).
+// While recording, each network gets one line in /wifi.csv on the chip's
+// storage area, once per recording session. The log survives power-off.
+// Copy it to a PC with tools/pull_wifi_log.py.
 #pragma once
 #include <stdint.h>
 
@@ -21,10 +22,13 @@ bool scanning();                 // task running and radio up
 
 int nearby();                    // networks heard in the last 90 s
 uint32_t seenThisBoot();         // different networks since power-on
-uint32_t session();              // power-on counter, written in each log line
+uint32_t session();              // recording session number, written in each log line
 int snapshot(WifiNet *out, int max);  // heard recently, strongest first
 
 // The log file
+void setRecording(bool rec);     // start/stop saving networks (starts a new session)
+bool recording();
+uint32_t savedThisSession();     // networks saved since REC was pressed
 bool logReady();                 // storage mounted
 bool logFull();                  // hit the size cap, no longer logging
 uint32_t logBytes();
