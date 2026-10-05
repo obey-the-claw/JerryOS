@@ -347,7 +347,7 @@ can go to a PC. Still listen-only.
 
 ### On the real device (Steve fills this in)
 
-- [ ] WiFi Scan lists networks; your router is near the top
+- [x] WiFi Scan lists networks on the real device (v0.5.0, 2026-10-05)
 - [ ] Signal changes as you walk around
 - [ ] WiFi scan off/on in Settings works
 - [ ] Log size survives a power cycle
