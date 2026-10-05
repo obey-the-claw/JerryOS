@@ -118,6 +118,27 @@ log all work before building JerryOS on top.
   compiler version doesn't support. I swapped it for a plain helper function.
 - I referenced a reset-reason name (`ESP_RST_USB`) that doesn't exist in this
   ESP-IDF version. Removed it.
+- **The big one: first flash boot-looped.** The flash "succeeded", but the
+  screen never changed and the COM port kept vanishing. The serial log
+  showed the chip's built-in boot ROM giving up and resetting over and over:
+  ```
+  rst:0x7 (TG0WDT_SYS_RST),boot:0xa (SPI_FAST_FLASH_BOOT)
+  mode:QIO, clock div:1
+  load:0x3fce3808,len:0x4bc
+  ets_loader.c 78
+  ```
+  **Cause:** when I packed the firmware into one file, I told the packer to
+  stamp the bootloader as **QIO** (4-wire, the fastest flash-reading mode).
+  The compiler had *correctly* stamped it **DIO** (2-wire). This board's flash
+  chip won't boot in QIO, so the boot ROM couldn't even load the bootloader,
+  and the watchdog reset it, forever.
+  **Fix:** rebuilt the file keeping the compiler's DIO setting, and set
+  `board_build.flash_mode = dio` in `platformio.ini` so self-builds can't
+  repeat it. *(Plain English: the chip has a tiny permanent program, the boot
+  ROM, that reads the first few kilobytes of memory. We told it to read those
+  kilobytes in a mode the memory chip doesn't support at power-up.)*
+  **Why it wasn't really bricked:** the boot ROM lives inside the chip and
+  can't be overwritten, so esptool can always reach it and re-flash.
 
 ### On the real device (Steve fills this in)
 
