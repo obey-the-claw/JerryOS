@@ -42,9 +42,9 @@ model 0x10000 · ota_0 0x100000 (6 MB) · ota_1 0x700000 (6 MB).
 | DC | GPIO 7 | [A][B][C][D] |
 | RST | GPIO 18 | [A][B][C][D] |
 | Backlight | GPIO 3, PWM-dimmable | [A][B][C][D] |
-| Orientation | swap XY + mirror X (MADCTL `0x68`), offsets 0,0 | [A][B] |
-| Colour order | BGR | [A][B] |
-| Colour inversion | **Conflict:** OFF per [A][B] (both verified on hardware); ON per [C] | settle at CP2 with a colour test card |
+| Orientation | LovyanGFX rotation 1, offsets 0,0. ✅ verified CP2 (upright, all edges visible) | [A][B] |
+| Colour order | ✅ **RGB** in LovyanGFX (`rgb_order = false`). Verified CP2: the community's BGR setting swapped red and blue on Steve's unit | [A][B] |
+| Colour inversion | ✅ **OFF**, verified CP2 (ON per [C] was wrong for this unit) | [A][B] |
 
 ## Buttons
 

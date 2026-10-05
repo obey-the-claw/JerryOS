@@ -131,10 +131,10 @@ static void drawFrame() {
   // Live readouts
   frame.setTextColor(C_CREAM);
   lineY = 32;
-  line("L %-4s s%lu l%lu", btnLeft.isPressed() ? "DOWN" : "up", leftShorts, leftLongs);
+  line("L %-4s S:%lu L:%lu", btnLeft.isPressed() ? "DOWN" : "up", leftShorts, leftLongs);
   if (btnLeft.isPressed()) line("  held %.1fs", btnLeft.heldMs() / 1000.0f);
   else line("  max hold %.1fs", leftMaxHoldMs / 1000.0f);
-  line("R %-4s s%lu l%lu", btnRight.isPressed() ? "DOWN" : "up", rightShorts, rightLongs);
+  line("R %-4s S:%lu L:%lu", btnRight.isPressed() ? "DOWN" : "up", rightShorts, rightLongs);
   line("last: %s", lastEvent);
   if (pwr.batteryPresent) line("batt %.2fV %d%%", pwr.battV, pwr.percent);
   else line("batt: none? (USB)");
@@ -168,7 +168,7 @@ void setup() {
   logBootFacts();
 
   lcd.init();
-  lcd.setRotation(1);  // community-verified orientation (MADCTL 0x68 with BGR)
+  lcd.setRotation(1);  // verified on Steve's unit: upright, corners correct
   lcd.setBrightness(200);
   frame.setColorDepth(16);
   if (!frame.createSprite(128, 128)) Serial.println(F("!! sprite allocation failed"));

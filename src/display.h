@@ -46,8 +46,8 @@ class JerryDisplay : public lgfx::LGFX_Device {
       cfg.offset_y = 0;
       cfg.offset_rotation = 0;
       cfg.readable = false;
-      cfg.invert = false;      // community: OFF (two hardware-verified sources)
-      cfg.rgb_order = true;    // community: BGR panel
+      cfg.invert = false;      // verified on Steve's unit: OFF is correct
+      cfg.rgb_order = false;   // verified on Steve's unit: true swapped red/blue
       cfg.dlen_16bit = false;
       cfg.bus_shared = false;
       panel_.config(cfg);

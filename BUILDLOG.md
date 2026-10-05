@@ -140,10 +140,16 @@ log all work before building JerryOS on top.
   **Why it wasn't really bricked:** the boot ROM lives inside the chip and
   can't be overwritten, so esptool can always reach it and re-flash.
 
-### On the real device (Steve fills this in)
+### On the real device (2026-10-04)
 
-- [ ] Test card: all 4 edges visible? Corners in the right places?
-- [ ] Colours match the letters? Inversion off or on looks right?
+- ✅ After the DIO fix: **the test card appeared.** First JerryOS pixels!
+- ✅ Orientation correct, all 4 edges visible, inversion OFF is right.
+- ❌→✅ **Red and blue were swapped.** The "R" box was blue, gold looked
+  light blue, and brown looked navy. The community setting said "BGR"; this
+  panel actually wants RGB in LovyanGFX's terms. Changed one setting
+  (`rgb_order = false`). *Lesson: "verified" community values still need
+  checking on your own unit.*
+- [ ] Re-flash: colours now match the letters?
 - [ ] Buttons: short/long counts work? Holding LEFT 5 s on USB: stays on?
 - [ ] Unplug USB: stays on battery? Battery voltage: ______
 - [ ] Holding LEFT 5 s on battery only: ______
