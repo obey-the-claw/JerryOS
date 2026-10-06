@@ -20,7 +20,7 @@ also the handheld starting point for the Pi Zero box (Scanner v0).
    powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7
    ```
    (Picks `jerryos-cp6-monitor.bin` automatically.)
-3. You should hear a little **three-note "hello"** at boot. (If not, see
+3. You should hear Jerry **whoop** at boot. (If not, see
    *If there's no sound* below.)
 
 ## What's new
@@ -55,21 +55,32 @@ also the handheld starting point for the Pi Zero box (Scanner v0).
 - WiFi Scan's top line shows `REC 34` in red while recording; a network's
   detail page says `saved (REC)` or `not saved`.
 
-### Sound
+### Sound: Jerry's Sasquatch voice
 
-Jerry has a voice now (the speaker was unused until this version):
+Jerry doesn't beep, he **sounds like a Squatch** (v0.6.1). Every sound is
+made live on the chip from the classic Bigfoot repertoire: the rising-and-
+falling **whoop call**, **wood knocks** and low **grunts / huffs**.
 
-| When | Sound |
+| When | Jerry |
 |---|---|
-| Power on | rising three notes |
-| Poke, settings saved | happy two-note chirp |
-| REC on / off | up blip / down blip |
-| **Tracker following you** | urgent hi-lo ×3, **repeats every minute until you hold R = ok** |
-| Battery hits 15% | sad falling notes (once) |
-| Log erased | two low notes |
+| Power on | a big **whoop**, then knock-knock |
+| Poke, settings saved | grunty chuckle: "huh-huh-hmm" |
+| REC on | **knock knock** + an "uh-huh" grunt |
+| REC off | "hmmph" + one knock |
+| **Tracker following you** | **three urgent whoops**, repeated every minute until you hold R = ok |
+| Battery hits 15% | a tired, falling moan (once) |
+| Log erased | two low huffs |
+
+🎧 **Hear them on the laptop first:** `docs/sounds/jerry_*.wav` (double-click
+to play).
 
 **Settings → Sound**: off / low / med / high. While editing, each tap plays
-a tick at the new volume.
+a knock at the new volume.
+
+**Want him to actually talk?** Record your own lines ("Recording WiFi!",
+"Gear approved!") as `.wav` files in the `voice/` folder; see
+[voice/README.md](../voice/README.md). Moments with a recording play it;
+the rest keep the Squatch sounds.
 
 ### Battery saver (screen)
 
@@ -88,7 +99,7 @@ do something). A tracker alert wakes it too. On USB the screen stays on.
 
 ## Tests
 
-1. 🎬 **Boot sound:** power on, hear the three-note hello.
+1. 🎬 **Boot sound:** power on, hear Jerry's whoop + knock-knock.
 2. 🎬 **Poke:** tap R on home a few times. Chirp + speech bubble each time.
 3. **Pills:** BT and WiFi counts look sensible; TAG says ok.
 4. 🎬 **REC:** hold R → "Recording WiFi...", red pill + red dot. Walk around a

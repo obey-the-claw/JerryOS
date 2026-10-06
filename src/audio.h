@@ -1,4 +1,4 @@
-// audio.h - Jerry's voice: short beeps and chirps through the speaker.
+// audio.h - Jerry's voice through the speaker (sounds: squatch_voice.h).
 //
 // Hardware: ES8311 audio chip (set up over I2C), fed sound over I2S, then a
 // small amplifier (enable pin GPIO 9) into the speaker. The amp is only
@@ -9,18 +9,10 @@
 #pragma once
 #include <stdint.h>
 
+#include "squatch_voice.h"  // the Sound list + Jerry's voice
+
 namespace audio {
 
-enum class Sound : uint8_t {
-  Boot,      // rising three-note "hello"
-  Happy,     // poke / saved: two-note chirp up
-  RecOn,     // logging started
-  RecOff,    // logging stopped
-  Alert,     // tracker following you: urgent hi-lo x3
-  LowBatt,   // sad falling three notes
-  Tick,      // volume preview
-  Erase,     // log erased: two low notes
-};
 
 bool begin();                  // set up the audio chip; false = chip didn't answer
 bool ready();                  // chip found and running

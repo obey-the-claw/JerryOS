@@ -406,3 +406,29 @@ it feel like that.
 - [ ] REC → walk → stop → pull log: new lines share one session number
 - [ ] Screen dims at ~1 min and goes off at ~5 min on battery; a button wakes it
 - [ ] Tracker Watch, BLE Nearby, WiFi Scan still fine
+
+### v0.6.1: "just a beep sound, no squatch voice"
+
+Fair point: Jerry beeped like a microwave. Now he sounds like a Sasquatch.
+
+- **Squatch sounds from math** (`src/squatch_voice.cpp`): the classic Bigfoot
+  whoop call (pitch glides up then down, with a throaty wobble), wood knocks
+  (a hollow thump + click) and grunts (a buzzy low tone, roughened). The
+  speaker is tiny, so everything carries lots of overtones, and the ear fills
+  in the low notes.
+- No microphone or recordings needed. The same code renders the sounds to
+  `docs/sounds/*.wav` on a PC, so Steve can hear them before flashing.
+  (I can't listen myself, so I checked them as spectrograms: smooth whoop
+  arcs, buzzy grunt stacks, sharp knocks.)
+- **Real voice lines, optional:** drop `.wav` files in `voice/` named after
+  the moment (`rec_on.wav` = "Recording WiFi!"). `tools/make_voice.py`
+  trims them, evens out the volume and builds them in. Several clips for one
+  moment take turns. Tested with a 44.1 kHz stereo file and a badly named one.
+- Unit tests 76 → 101 (every sound ends, is under 3 s, and is loud enough).
+
+**What broke:** the memory checker flagged a "shift of a negative number"
+in the clip player (works on the chip, but technically undefined in C++).
+Changed it to a multiply.
+
+- [x] Sound works on the device (boot hello heard 2026-10-06)
+- [ ] v0.6.1 Squatch voice: whoop at boot, knock-knock on REC

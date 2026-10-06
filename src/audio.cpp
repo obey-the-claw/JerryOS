@@ -11,7 +11,6 @@
 #include <Wire.h>
 #include <driver/i2s.h>
 #include <freertos/queue.h>
-#include <math.h>
 
 #include <atomic>
 
@@ -21,7 +20,7 @@ namespace audio {
 namespace {
 
 constexpr uint8_t ES8311_ADDR = 0x18;
-constexpr int RATE = 16000;
+constexpr int RATE = VoiceSynth::RATE;
 constexpr i2s_port_t PORT = I2S_NUM_0;
 
 QueueHandle_t queue = nullptr;
@@ -108,55 +107,23 @@ bool initI2S() {
   return i2s_set_pin(PORT, &pins) == ESP_OK;
 }
 
-// --- Sounds: lists of (frequency Hz, milliseconds); 0 Hz = a short rest ---
-struct Note { uint16_t hz, ms; };
-struct Tune { const Note *notes; uint8_t count; };
+// --- Playing: the voice synth makes the samples, we send them to the chip ---
+VoiceSynth synth;
 
-const Note kBoot[] = {{523, 80}, {659, 80}, {784, 130}};
-const Note kHappy[] = {{784, 70}, {1047, 120}};
-const Note kRecOn[] = {{880, 60}, {0, 30}, {1319, 100}};
-const Note kRecOff[] = {{1319, 60}, {0, 30}, {880, 100}};
-const Note kAlert[] = {{1760, 150}, {0, 50}, {1175, 150}, {0, 120}, {1760, 150}, {0, 50},
-                       {1175, 150}, {0, 120}, {1760, 150}, {0, 50}, {1175, 200}};
-const Note kLowBatt[] = {{659, 150}, {523, 150}, {392, 260}};
-const Note kTick[] = {{1047, 60}};
-const Note kErase[] = {{392, 120}, {262, 200}};
-
-Tune tuneFor(Sound s) {
-  switch (s) {
-    case Sound::Boot: return {kBoot, 3};
-    case Sound::Happy: return {kHappy, 2};
-    case Sound::RecOn: return {kRecOn, 3};
-    case Sound::RecOff: return {kRecOff, 3};
-    case Sound::Alert: return {kAlert, sizeof kAlert / sizeof kAlert[0]};
-    case Sound::LowBatt: return {kLowBatt, 3};
-    case Sound::Tick: return {kTick, 1};
-    case Sound::Erase: return {kErase, 2};
-  }
-  return {kTick, 1};
-}
-
-int16_t sineTable[256];
-
-void playNote(const Note &n) {
-  static int16_t buf[256 * 2];  // stereo frames
-  const int total = RATE * n.ms / 1000;
-  const int ramp = RATE * 4 / 1000;  // 4 ms fade in/out: no clicks
-  const uint32_t step = (uint32_t)((uint64_t)n.hz * 256 * 65536 / RATE);
-  uint32_t phase = 0;
-  for (int done = 0; done < total;) {
-    const int chunk = min(256, total - done);
-    for (int i = 0; i < chunk; i++, done++) {
-      int32_t v = 0;
-      if (n.hz) {
-        const int env = min(min(done, total - done), ramp);
-        v = (int32_t)sineTable[(phase >> 16) & 0xFF] * env / ramp;
-        phase += step;
-      }
-      buf[2 * i] = buf[2 * i + 1] = (int16_t)v;
+void playSound(Sound s) {
+  static int16_t mono[256];
+  static int16_t stereo[256 * 2];
+  synth.start(s);
+  for (int tail = 0; tail < 2;) {
+    int n = synth.render(mono, 256);
+    if (n == 0) {  // finished: send a little silence so the end isn't cut off
+      n = 256;
+      for (int i = 0; i < n; i++) mono[i] = 0;
+      tail++;
     }
+    for (int i = 0; i < n; i++) stereo[2 * i] = stereo[2 * i + 1] = mono[i];
     size_t written;
-    i2s_write(PORT, buf, chunk * 4, &written, portMAX_DELAY);
+    i2s_write(PORT, stereo, n * 4, &written, portMAX_DELAY);
   }
 }
 
@@ -171,9 +138,7 @@ void task(void *) {
         delay(40);  // let the amp wake up
         ampOn = true;
       }
-      const Tune t = tuneFor((Sound)id);
-      for (int i = 0; i < t.count; i++) playNote(t.notes[i]);
-      playNote({0, 60});  // a little silence so the end isn't cut off
+      playSound((Sound)id);
     } else if (ampOn) {   // quiet for 1.5 s: amp off
       i2s_zero_dma_buffer(PORT);
       digitalWrite(PIN_SPK_AMP_EN, LOW);
@@ -187,7 +152,6 @@ void task(void *) {
 bool begin() {
   pinMode(PIN_SPK_AMP_EN, OUTPUT);
   digitalWrite(PIN_SPK_AMP_EN, LOW);
-  for (int i = 0; i < 256; i++) sineTable[i] = (int16_t)(sinf(i * 2 * PI / 256) * 14000);
 
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000);
   const int id1 = readReg(0xFD), id2 = readReg(0xFE);  // chip ID: 0x83 0x11
@@ -202,7 +166,7 @@ bool begin() {
   }
   if (!initCodec()) Serial.println(F("[audio] some audio chip settings didn't take"));
   queue = xQueueCreate(4, sizeof(uint8_t));
-  xTaskCreatePinnedToCore(task, "audio", 3072, nullptr, 2, nullptr, 1);
+  xTaskCreatePinnedToCore(task, "audio", 4096, nullptr, 2, nullptr, 1);
   found = true;
   Serial.println(F("[audio] ready"));
   return true;
