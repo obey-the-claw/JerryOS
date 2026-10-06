@@ -431,4 +431,15 @@ in the clip player (works on the chip, but technically undefined in C++).
 Changed it to a multiply.
 
 - [x] Sound works on the device (boot hello heard 2026-10-06)
-- [ ] v0.6.1 Squatch voice: whoop at boot, knock-knock on REC
+
+### v0.6.2: silent and cute
+
+Steve's verdict on the Squatch sounds: "terrible... rather it be silent and
+cute." Fair. All sound is gone: the synth, the voice-clip tools, the Sound
+setting and the Diagnostics beep. The speaker amp is driven OFF at boot so
+it can't hiss or waste battery. Jerry reacts on screen instead (grins,
+speech bubbles, the shocked face, the blinking red !).
+
+The lesson: a quick "does this sound good?" listen before building a whole
+voice system would have saved a round trip. The working ES8311 driver is
+kept in git history (commit 2b89171) if real voice lines are ever wanted.

@@ -9,7 +9,6 @@
 #include "tracker_detect.h"
 #include "tracker_watch.h"
 #include "wifi_nets.h"
-#include "squatch_voice.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -295,31 +294,11 @@ static void testWifi() {
   CHECK(fresh == 300 && crowd.count(2000) == WifiTable::MAX && crowd.uniqueSeen() == 300);
 }
 
-static void testVoice() {
-  printf("Jerry's voice\n");
-  int16_t buf[256];
-  for (int i = 0; i < (int)audio::Sound::COUNT; i++) {
-    audio::VoiceSynth v;
-    v.start((audio::Sound)i);
-    long n = 0;
-    int peak = 0;
-    for (int k; (k = v.render(buf, 256)) > 0;) {
-      n += k;
-      for (int j = 0; j < k; j++) peak = buf[j] > peak ? buf[j] : -buf[j] > peak ? -buf[j] : peak;
-    }
-    CHECK(n > 0 && n < 3 * audio::VoiceSynth::RATE);  // every sound ends, under 3 s
-    CHECK(peak > 10000);                              // and is loud enough to hear
-    CHECK(!v.playing() && v.render(buf, 256) == 0);
-  }
-  CHECK(strcmp(audio::soundName(audio::Sound::RecOn), "rec_on") == 0);  // = voice/ file names
-}
-
 int main() {
   testDetection();
   testPersistence();
   testNearby();
   testWifi();
-  testVoice();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

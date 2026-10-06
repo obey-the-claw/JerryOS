@@ -26,6 +26,8 @@ constexpr int PIN_CHARGING   = 21; // 0 = charger is charging
 constexpr float BATT_DIVIDER = 2.5f;
 
 // --- Audio: ES8311 chip (I2C address 0x18) -> amp -> speaker ---
+// JerryOS is silent (v0.6.2): only the amp pin is used, to keep it OFF.
+// A working ES8311 driver is in git history (commit 2b89171, src/audio.cpp).
 constexpr int PIN_I2C_SDA    = 5;
 constexpr int PIN_I2C_SCL    = 4;
 constexpr int PIN_I2S_MCLK   = 6;

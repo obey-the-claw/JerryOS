@@ -50,7 +50,7 @@ int main() {
   hold(PIN_BTN_RIGHT); snap("settings_edit");
   tap(PIN_BTN_RIGHT); snap("settings_edit_next");
   hold(PIN_BTN_RIGHT); snap("settings_saved");
-  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
   hold(PIN_BTN_RIGHT); snap("diagnostics");

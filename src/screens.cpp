@@ -14,7 +14,6 @@
 
 #include <string.h>
 
-#include "audio.h"
 #include "ble_scanner.h"
 #include "shell.h"
 #include "theme.h"
@@ -87,7 +86,6 @@ class HomeScreen : public Screen {
 
   void onRightShort(Shell &shell) override {
     shell.jerry().flash(Mood::Approved, 1500);  // a poke makes Jerry grin...
-    audio::play(audio::Sound::Happy);
     quip(shell);                                 // ...and talk
   }
 
@@ -95,7 +93,6 @@ class HomeScreen : public Screen {
     if (wifi::recording()) {
       const unsigned long n = wifi::savedThisSession();
       wifi::setRecording(false);
-      audio::play(audio::Sound::RecOff);
       say(n == 1 ? "Saved 1 network" : "Saved %lu networks", n);
     } else if (!wifi::enabled()) {
       say("WiFi scan is off");
@@ -103,7 +100,6 @@ class HomeScreen : public Screen {
       say("Log full! Pull it.");
     } else {
       wifi::setRecording(true);
-      audio::play(audio::Sound::RecOn);
       shell.jerry().flash(Mood::Approved, 1200);
       say("Recording WiFi...");
     }
@@ -628,8 +624,7 @@ class RigScreen : public InfoScreen {
 class DiagScreen : public Screen {
  public:
   const char *tag() const override { return "DIAG"; }
-  Hints hints() const override { return {"back", nullptr, "beep"}; }
-  void onRightLong(Shell &) override { audio::play(audio::Sound::Boot); }  // speaker test
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     const PowerStatus &p = shell.power();
     char buf[28];
@@ -643,9 +638,6 @@ class DiagScreen : public Screen {
     snprintf(buf, sizeof(buf), "heap %u KB", ESP.getFreeHeap() / 1024); row(buf);
     snprintf(buf, sizeof(buf), "ble %d  wifi %d%s", ble::listening() ? ble::nearbyDevices() : -1,
              wifi::nearby(), wifi::recording() ? " REC" : "");
-    row(buf);
-    snprintf(buf, sizeof(buf), "audio %s  vol %s", audio::ready() ? "ok" : "NONE",
-             Settings::volumeName(shell.settings().volumeIdx));
     row(buf);
     snprintf(buf, sizeof(buf), "up %lu s", millis() / 1000); row(buf);
     snprintf(buf, sizeof(buf), "jerry %s", moodName(shell.jerry().mood())); row(buf);
@@ -704,7 +696,7 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, sound, Wi-Fi scan, Wi-Fi log, diag, about
+// Settings: brightness, alert window, Wi-Fi scan, Wi-Fi log, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
@@ -725,7 +717,6 @@ class SettingsScreen : public Screen {
     if (!editing_) return shell.back();
     shell.settings() = before_;  // undo
     shell.applyBrightness();
-    audio::setVolume(before_.volumeIdx);
     editing_ = false;
   }
 
@@ -742,19 +733,13 @@ class SettingsScreen : public Screen {
         shell.applyBrightness();  // preview live
         break;
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
-      case 2:
-        s.volumeIdx = (s.volumeIdx + 1) % Settings::N_VOLUME;
-        audio::setVolume(s.volumeIdx);  // preview
-        audio::play(audio::Sound::Tick);
-        break;
-      case 3: s.wifiScan = !s.wifiScan; break;
+      case 2: s.wifiScan = !s.wifiScan; break;
     }
   }
 
   void onRightLong(Shell &shell) override {
     if (erasing_) {  // second hold: really erase
       wifi::clearLog();
-      audio::play(audio::Sound::Erase);
       erasing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       return;
@@ -765,7 +750,6 @@ class SettingsScreen : public Screen {
       if (!shell.settings().wifiScan) wifi::setRecording(false);
       editing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
-      audio::play(audio::Sound::Happy);
       Serial.println(F("[settings] saved"));
       return;
     }
@@ -774,7 +758,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 5) {
+    } else if (cursor_ == 4) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -787,17 +771,17 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "Sound", "WiFi scan",
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "WiFi scan",
                                                "WiFi log", "Diagnostics", "About"};
-    const char *values[kItems] = {bright, alert, Settings::volumeName(s.volumeIdx), s.wifiScan ? "on" : "off",
+    const char *values[kItems] = {bright, alert, s.wifiScan ? "on" : "off",
                                   erasing_ ? "erase?" : log, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 7;
-  static constexpr int kWifiLog = 4;
-  static bool isValue(int i) { return i <= 3; }
+  static constexpr int kItems = 6;
+  static constexpr int kWifiLog = 3;
+  static bool isValue(int i) { return i <= 2; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;

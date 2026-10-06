@@ -17,8 +17,7 @@ Jerry's animated head lives on the screen. The v0 modes are:
 - **WiFi Scan:** listen-only Wi-Fi scanner. Hold R on the home screen to
   record networks to a log (copy it to your PC with `tools/pull_wifi_log.py`).
 - **Home screen:** Jerry plus live counts (trackers, Bluetooth, Wi-Fi),
-  his Sasquatch voice (whoops, wood knocks, grunts, or your own recorded
-  lines in `voice/`), and a battery-saving screen timeout.
+  speech bubbles, and a battery-saving screen timeout. Silent by design.
 - **Rig Dashboard:** placeholder for the Scanner v0 Pi Zero link.
 - **Settings.**
 
@@ -34,7 +33,7 @@ stays physically stock (no soldering).
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
 | 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
 | 5 | Wi-Fi scanner + logger | ✅ 2026-10-05 ([guide](docs/CHECKPOINT5.md)) |
-| 6 | Personal monitor: home screen, sound, REC, screen saver | 🟡 ready to test ([guide](docs/CHECKPOINT6.md)) |
+| 6 | Personal monitor: home screen, REC, screen saver | 🟡 ready to test ([guide](docs/CHECKPOINT6.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 
@@ -50,7 +49,6 @@ include/        board_pins.h - every pin in one place
 src/            the firmware source
 tools/          backup / restore / flash / inspect / pull-log scripts, PC simulator (tools/sim)
 logs/           Wi-Fi logs pulled off the device (not in git)
-voice/          optional recorded voice lines for Jerry (voice/README.md)
 platformio.ini  build settings (PlatformIO)
 BUILDLOG.md     checkpoint-by-checkpoint build diary
 ```

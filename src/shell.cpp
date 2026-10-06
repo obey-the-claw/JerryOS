@@ -3,7 +3,6 @@
 
 #include "shell.h"
 
-#include "audio.h"
 #include "ble_scanner.h"
 #include "screens.h"
 #include "theme.h"
@@ -18,6 +17,8 @@ Shell::Shell(JerryDisplay &lcd, Screen &home) : lcd_(lcd), frame_(&lcd) {
 void Shell::begin() {
   power::holdOn();  // first: keep the board powered on battery
   power::begin();
+  pinMode(PIN_SPK_AMP_EN, OUTPUT);  // Jerry is silent: keep the speaker amp off
+  digitalWrite(PIN_SPK_AMP_EN, LOW);
   left_.begin();
   right_.begin();
   settings_.load();
@@ -31,11 +32,8 @@ void Shell::begin() {
 
   power_ = gauge_.update(power::read());
   lastInput_ = millis();
-  Serial.printf("[shell] JerryOS %s up. brightness %u%%, alert window %u min, sound %s\n",
-                JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes(),
-                Settings::volumeName(settings_.volumeIdx));
-  audio::setVolume(settings_.volumeIdx);
-  if (audio::begin()) audio::play(audio::Sound::Boot);
+  Serial.printf("[shell] JerryOS %s up. brightness %u%%, alert window %u min\n",
+                JERRYOS_VERSION, settings_.brightnessPct(), settings_.alertMinutes());
   ble::begin();  // Tracker Watch listens in the background on every screen
   wifi::setEnabled(settings_.wifiScan);
   wifi::begin();  // ...and so does the Wi-Fi scanner/logger
@@ -85,21 +83,6 @@ void Shell::updateBacklight(uint32_t now) {
     backlight_ = want;
     lcd_.setBrightness(want == Backlight::Off ? 0 : max(12, settings_.brightnessPct() * 255 / 400));
   }
-}
-
-// Beeps that aren't tied to a button: tracker alerts, low battery.
-void Shell::soundEvents(uint32_t now) {
-  if (tracker_.anyAlert() && now - lastAlertSound_ >= 60000) {  // repeat each minute until "ok"
-    lastAlertSound_ = now;
-    audio::play(audio::Sound::Alert);
-  }
-  if (!tracker_.anyAlert()) lastAlertSound_ = now - 60000;  // next alert beeps straight away
-  const bool low = power_.batteryPresent && !power_.usb && power_.percent <= 15;
-  if (low && !lowBattWarned_) {
-    lowBattWarned_ = true;
-    audio::play(audio::Sound::LowBatt);
-  }
-  if (power_.usb) lowBattWarned_ = false;
 }
 
 void Shell::open(Screen &s) {
@@ -183,7 +166,6 @@ void Shell::loop() {
     lastInput_ = now;  // wake Jerry (and the screen) up
     if (&current() != &trackerScreen()) open(trackerScreen());
   }
-  soundEvents(now);
   updateBacklight(now);
 
   jerry_.update(now);

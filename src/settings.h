@@ -9,7 +9,6 @@
 struct Settings {
   static constexpr uint8_t N_BRIGHTNESS = 5;
   static constexpr uint8_t N_ALERT = 6;
-  static constexpr uint8_t N_VOLUME = 4;
   static uint8_t brightnessChoice(uint8_t i) {
     static const uint8_t pct[N_BRIGHTNESS] = {20, 40, 60, 80, 100};
     return pct[i < N_BRIGHTNESS ? i : 0];
@@ -19,27 +18,18 @@ struct Settings {
     return minutes[i < N_ALERT ? i : 0];
   }
 
-  static const char *volumeName(uint8_t i) {
-    static const char *const names[N_VOLUME] = {"off", "low", "med", "high"};
-    return names[i < N_VOLUME ? i : 0];
-  }
-
   uint8_t brightnessIdx = 3;  // 80%
   uint8_t alertIdx = 3;       // 30 minutes (brief default)
-  uint8_t volumeIdx = 2;     // sound: 0 off, 1 low, 2 med, 3 high
   bool wifiScan = true;       // passive Wi-Fi scanner + logger
 
   uint8_t brightnessPct() const { return brightnessChoice(brightnessIdx); }
   uint8_t alertMinutes() const { return alertChoice(alertIdx); }
-  bool soundOn() const { return volumeIdx > 0; }
 
   void load() {
     Preferences p;
     if (!p.begin("jerryos", true)) return;  // nothing saved yet: keep defaults
     brightnessIdx = clampIdx(p.getUChar("bright", brightnessIdx), N_BRIGHTNESS);
     alertIdx = clampIdx(p.getUChar("alert", alertIdx), N_ALERT);
-    if (p.isKey("vol")) volumeIdx = clampIdx(p.getUChar("vol", volumeIdx), N_VOLUME);
-    else if (p.isKey("sound")) volumeIdx = p.getBool("sound", true) ? 2 : 0;  // v0.4 setting
     wifiScan = p.getBool("wifi", wifiScan);
     p.end();
   }
@@ -49,7 +39,6 @@ struct Settings {
     if (!p.begin("jerryos", false)) return;
     p.putUChar("bright", brightnessIdx);
     p.putUChar("alert", alertIdx);
-    p.putUChar("vol", volumeIdx);
     p.putBool("wifi", wifiScan);
     p.end();
   }
