@@ -400,7 +400,7 @@ it feel like that.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Boot sound, poke chirp, REC blips
+- [x] Boot sound works: "jerry says hello!" (2026-10-06). First time the speaker was used.
 - [ ] Volume off/low/med/high; Diagnostics beep
 - [ ] Home pills show sensible counts
 - [ ] REC → walk → stop → pull log: new lines share one session number
