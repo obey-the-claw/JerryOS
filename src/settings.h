@@ -22,6 +22,7 @@ struct Settings {
   uint8_t alertIdx = 3;       // 30 minutes (brief default)
   bool wifiScan = true;       // passive Wi-Fi scanner + logger
   uint8_t ledMode = 2;        // colour LED: 0 off, 1 alerts only, 2 all (LedMode)
+  bool pocketDark = true;     // pocket mode keeps the screen dark (LED only)
 
   uint8_t brightnessPct() const { return brightnessChoice(brightnessIdx); }
   uint8_t alertMinutes() const { return alertChoice(alertIdx); }
@@ -33,6 +34,7 @@ struct Settings {
     alertIdx = clampIdx(p.getUChar("alert", alertIdx), N_ALERT);
     wifiScan = p.getBool("wifi", wifiScan);
     ledMode = clampIdx(p.getUChar("led", ledMode), 3);
+    pocketDark = p.getBool("pdark", pocketDark);
     p.end();
   }
 
@@ -43,6 +45,7 @@ struct Settings {
     p.putUChar("alert", alertIdx);
     p.putBool("wifi", wifiScan);
     p.putUChar("led", ledMode);
+    p.putBool("pdark", pocketDark);
     p.end();
   }
 

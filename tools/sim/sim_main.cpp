@@ -18,7 +18,8 @@ static void snap(const char *name) {
   fprintf(f, "P6\n%d %d\n255\n", 128 * sc, (128 + led) * sc);
   for (int y = 0; y < 128 * sc; y++) for (int x = 0; x < 128 * sc; x++) {
     uint16_t c = lcd.readPixel(x / sc, y / sc);
-    unsigned char rgb[3] = {(unsigned char)(((c >> 11) & 31) * 255 / 31), (unsigned char)(((c >> 5) & 63) * 255 / 63), (unsigned char)((c & 31) * 255 / 31)};
+    const int lit = lcd.brightness;  // what you'd actually see (backlight off = black)
+    unsigned char rgb[3] = {(unsigned char)(((c >> 11) & 31) * 255 / 31 * lit / 255), (unsigned char)(((c >> 5) & 63) * 255 / 63 * lit / 255), (unsigned char)((c & 31) * 255 / 31 * lit / 255)};
     fwrite(rgb, 1, 3, f);
   }
   for (int y = 0; y < led * sc; y++) for (int x = 0; x < 128 * sc; x++) {
@@ -45,13 +46,15 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
   run(2600);
   tap(PIN_BTN_LEFT); snap("menu");
-  // Menu: Tracker Watch, Followers, Shield, Cameras, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
+  // Menu: Tracker Watch, Followers, Shield, Cameras, Sound, BLE Nearby, WiFi Scan, Rig, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("shield_quiet");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("cameras_none");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(3000); snap("sound");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
@@ -68,6 +71,7 @@ int main() {
   tap(PIN_BTN_RIGHT); snap("settings_edit_next");
   hold(PIN_BTN_RIGHT); snap("settings_saved");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
+  tap(PIN_BTN_RIGHT); snap("settings_pocket");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");
@@ -80,7 +84,7 @@ int main() {
   // Hidden-camera check at home (menu cursor is on Settings: 4 taps wrap to Cameras).
   tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);
   hold(PIN_BTN_RIGHT); run(300); snap("cameras_home");
-  tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);  // back to Settings
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 5; i++) tap(PIN_BTN_RIGHT);  // back to Settings
   hold(PIN_BTN_LEFT);
   // Tracker Watch: open it from the menu (cursor is on Settings; wrap to Tracker).
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
@@ -105,6 +109,13 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("shield_after");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("cameras_after");
   hold(PIN_BTN_LEFT); run(500); snap("home_end");
+  // Pocket mode: hold both buttons 1 s.
+  g_pin[PIN_BTN_LEFT] = 0; g_pin[PIN_BTN_RIGHT] = 0; run(1200);
+  g_pin[PIN_BTN_LEFT] = 1; g_pin[PIN_BTN_RIGHT] = 1; run(300); snap("pocket_locked");
+  run(4000); snap("pocket_dark");
+  tap(PIN_BTN_RIGHT); run(300); snap("pocket_peek");
+  g_pin[PIN_BTN_LEFT] = 0; g_pin[PIN_BTN_RIGHT] = 0; run(1200);
+  g_pin[PIN_BTN_LEFT] = 1; g_pin[PIN_BTN_RIGHT] = 1; run(300); snap("pocket_unlocked");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;
 }

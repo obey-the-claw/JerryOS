@@ -151,6 +151,14 @@ void Shell::applyBrightness() {
 void Shell::updateBacklight(uint32_t now) {
   const uint32_t idle = now - lastInput_;
   Backlight want = Backlight::On;
+  if (pocket_ && settings_.pocketDark && (int32_t)(now - peekUntil_) >= 0) {
+    // Pocket mode, dark: screen stays off (even for alerts; the LED tells you).
+    if (backlight_ != Backlight::Off) {
+      backlight_ = Backlight::Off;
+      lcd_.setBrightness(0);
+    }
+    return;
+  }
   if (!power_.usb) {
     if (idle > 5 * 60000) want = Backlight::Off;
     else if (idle > 60000) want = Backlight::Dim;
@@ -189,11 +197,46 @@ void Shell::logScreen(const char *why) {
   Serial.printf("[shell] %s -> %s (depth %d)\n", why, current().tag(), depth_);
 }
 
+void Shell::setPocket(bool on) {
+  pocket_ = on;
+  peekUntil_ = millis() + 2500;  // show the message, then (if dark) go black
+  lastInput_ = millis();
+  applyBrightness();
+  toast(on ? "Pocket mode: locked" : "Unlocked", 2500);
+  jerry_.flash(on ? Mood::Sleepy : Mood::Approved, 1500);
+  Serial.printf("[pocket] %s\n", on ? "locked" : "unlocked");
+}
+
 void Shell::handleButtons() {
   const ButtonEvent l = left_.update();
   const ButtonEvent r = right_.update();
+
+  // Both buttons together = pocket-mode toggle. While both are (or were)
+  // down, single-button events are swallowed so nothing else happens.
+  const uint32_t now = millis();
+  const bool both = left_.isPressed() && right_.isPressed();
+  if (both && !combo_) {
+    combo_ = true;
+    comboFired_ = false;
+    comboStart_ = now;
+  }
+  if (combo_) {
+    if (both && !comboFired_ && now - comboStart_ >= COMBO_MS) {
+      comboFired_ = true;
+      setPocket(!pocket_);
+    }
+    if (!left_.isPressed() && !right_.isPressed()) combo_ = false;
+    return;
+  }
+
   if (l == ButtonEvent::None && r == ButtonEvent::None) return;
-  lastInput_ = millis();
+  lastInput_ = now;
+  if (pocket_) {  // locked: a press only peeks at the screen
+    peekUntil_ = now + 4000;
+    applyBrightness();
+    toast("Locked: hold both", 2000);
+    return;
+  }
   if (backlight_ != Backlight::On) {  // screen was dimmed/off: this press just wakes it
     applyBrightness();
     return;
@@ -306,6 +349,13 @@ void Shell::drawStatusBar(lgfx::LovyanGFX &g) {
     g.print('!');
   }
 
+  // Padlock = pocket mode.
+  if (pocket_) {
+    const int x = W - 62;
+    g.drawRoundRect(x + 1, 1, 5, 6, 2, CREAM);
+    g.fillRect(x, 4, 7, 6, CREAM);
+  }
+
   // Red dot = Wi-Fi log recording.
   if (wifi::recording() && (millis() / 700) % 3) g.fillCircle(W - 50, 6, 3, ALERT);
 
@@ -354,6 +404,12 @@ void Shell::drawHintBar(lgfx::LovyanGFX &g, const Hints &h) {
   g.fillRect(0, H - HINT_H, W, HINT_H, BAR);
   g.setFont(&fonts::Font0);
   g.setTextSize(1);
+  if (pocket_) {  // buttons are locked: say how to unlock instead
+    g.setTextColor(CREAM);
+    g.setCursor(3, H - HINT_H + 3);
+    g.print("locked: hold L+R");
+    return;
+  }
   int x = 2;
   if (h.tapL) x = drawChip(g, x, 'L', false, h.tapL);
   if (h.tapR) x = drawChip(g, x, 'R', false, h.tapR);

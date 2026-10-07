@@ -623,3 +623,35 @@ One checkpoint each, tested on the device in between.
 
 - [ ] Own camera / doorbell shows as "<brand> cam?" within a minute
 - [ ] Bars grow when walking closer
+
+---
+
+## Checkpoint 12: Pocket mode + sound meter
+
+Steve: "keep going and build everything". He'll test at night from the home
+office and take Jerry out the next day. So checkpoints 11 and 12 ship
+together with one test plan: `docs/TEST-PLAN.md`.
+
+### What we did
+
+- **Pocket mode:** both buttons held 1 s toggles a lock. While both are
+  down, single-button events are swallowed, so L-long (home) and R-long
+  don't fire by accident. Locked: presses only peek (4 s). Settings →
+  Pocket `dark` keeps the screen off even for alerts (LED only); `lit`
+  doesn't. Padlock icon; the hint bar says "locked: hold L+R".
+- **Sound meter:** the ES8311's microphone side (ADC) over I2S RX, using the
+  clock setup already proven on this board in v0.6. It runs in its own task
+  and only while the Sound screen keeps asking (it turns itself off after
+  3 s). Level maths is pure and tested: DC removed, RMS → dBFS, a meter that
+  rises fast and falls slowly, a peak hold. Shown as rough dB (an uncalibrated
+  +110 offset) with everyday words.
+- Simulator: backlight now dims the screenshots (so "dark" really is black),
+  a pocket-mode demo, and a fake talking room for the meter.
+- Unit tests 176 → 187.
+
+### What broke / how we fixed it
+
+- In pocket mode the bottom bar still offered "menu / poke / rec", which
+  is wrong while locked. It now says how to unlock.
+
+### On the real device: see docs/TEST-PLAN.md

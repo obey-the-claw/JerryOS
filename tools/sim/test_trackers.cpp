@@ -1,5 +1,6 @@
 // Unit tests for tracker detection + persistence + BLE Nearby labels (runs on a PC).
 //   run with tools/sim/run_tests.sh
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -14,6 +15,7 @@
 #include "status_led.h"
 #include "camera_watch.h"
 #include "camera_ouis.h"
+#include "sound_level.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -625,6 +627,36 @@ static void testCameras() {
   CHECK(v.nearbyFlock(4000) == 1);
 }
 
+static void testSound() {
+  printf("Sound level\n");
+  int16_t silence[1600] = {}, tone[1600], dc[1600], loud[1600];
+  for (int i = 0; i < 1600; i++) {
+    tone[i] = (int16_t)(3276 * sinf(i * 0.2f));      // 1/10 of full scale
+    dc[i] = 5000;                                     // a constant offset is not sound
+    loud[i] = (int16_t)(32000 * sinf(i * 0.2f));
+  }
+  CHECK(blockDbfs(silence, 1600) <= -89);
+  CHECK(blockDbfs(dc, 1600) <= -89);
+  const float t = blockDbfs(tone, 1600);
+  CHECK(t > -25 && t < -21);                          // 0.1 amplitude sine = -23 dBFS
+  CHECK(blockDbfs(loud, 1600) > -4);
+  CHECK(blockDbfs(tone, 0) <= -89);
+  LevelMeter m;
+  CHECK(!m.hasData());
+  for (int i = 0; i < 50; i++) m.add(-60);
+  const int quiet = m.db();
+  m.add(-10);                                         // a bang: rises fast...
+  CHECK(m.db() > quiet + 20 && m.peak() >= (int)(-10 + LevelMeter::SPL_OFFSET));
+  m.add(-60);
+  CHECK(m.db() > quiet + 10);                         // ...falls slowly
+  for (int i = 0; i < 60; i++) m.add(-60);
+  CHECK(m.db() <= quiet + 1);
+  m.resetPeak();
+  CHECK(m.peak() <= quiet + 1);
+  CHECK(strcmp(loudnessName(30), "very quiet") == 0 && strcmp(loudnessName(65), "talking") == 0 &&
+        strcmp(loudnessName(120), "painful!") == 0);
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -634,6 +666,7 @@ int main() {
   testAttacks();
   testLed();
   testCameras();
+  testSound();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

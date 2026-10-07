@@ -42,6 +42,7 @@ class Shell {
   void applyBrightness();
   uint32_t idleMs() const { return millis() - lastInput_; }
   void wake() { lastInput_ = millis(); }
+  bool pocket() const { return pocket_; }  // buttons locked (hold both to toggle)
 
  private:
   void handleButtons();
@@ -72,6 +73,12 @@ class Shell {
   void checkFollowers(uint32_t now);
   void updateLed(uint32_t now);
   uint32_t lastLed_ = 0;
+  // Pocket mode: hold both buttons 1 s to lock / unlock.
+  static constexpr uint32_t COMBO_MS = 1000;
+  bool pocket_ = false;
+  bool combo_ = false, comboFired_ = false;
+  uint32_t comboStart_ = 0, peekUntil_ = 0;
+  void setPocket(bool on);
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

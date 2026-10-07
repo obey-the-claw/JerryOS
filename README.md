@@ -20,6 +20,8 @@ Jerry's animated head lives on the screen. The v0 modes are:
 - **Cameras:** spots Flock licence-plate cameras, their battery packs and
   Raven sensors as you pass (signatures from flock-you / flock-you-go), and
   lists hidden-camera hints (camera-brand Wi-Fi, spy-cam hotspots).
+- **Pocket mode:** hold both buttons to lock (screen dark, LED only).
+- **Sound:** rough dB meter from the built-in microphone.
 - **Colour LED:** red blink = look at Jerry, amber = watching, blue blip =
   recording, soft green = all clear. Works with the screen off.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
@@ -48,6 +50,9 @@ stays physically stock (no soldering).
 | 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/CHECKPOINT9.md)) |
 | 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/CHECKPOINT10.md)) |
 | 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/CHECKPOINT11.md)) |
+| 12 | Pocket mode + sound meter | 🟡 ready to test ([guide](docs/CHECKPOINT12.md)) |
+
+**Testing checkpoints 7-12 together:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md) (tonight at home, tomorrow out).
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 

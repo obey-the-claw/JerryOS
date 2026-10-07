@@ -4,6 +4,7 @@
 //                     ├─> Followers ──────> one follower ("mine")
 //                     ├─> Shield           (Wi-Fi kick-offs, BT spam, fake networks)
 //                     ├─> Cameras          (Flock licence-plate cameras + hidden-cam hints)
+//                     ├─> Sound            (rough dB meter, built-in microphone)
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
@@ -19,6 +20,7 @@
 #include <string.h>
 
 #include "ble_scanner.h"
+#include "mic.h"
 #include "shell.h"
 #include "status_led.h"
 #include "theme.h"
@@ -829,6 +831,62 @@ class CamerasScreen : public Screen {
 };
 
 // ---------------------------------------------------------------------------
+// Sound: how loud it is around you (rough dB from the built-in microphone)
+// ---------------------------------------------------------------------------
+class SoundScreen : public Screen {
+ public:
+  const char *tag() const override { return "SOUND"; }
+  Hints hints() const override { return {"back", nullptr, "reset"}; }
+  void onRightLong(Shell &) override { mic::resetPeak(); }  // start the peak over
+  void update(Shell &shell, uint32_t) override {
+    mic::use();  // keeps the microphone on while this screen is open
+    const int db = mic::meter().db();
+    shell.wake();  // a meter you're watching shouldn't dim
+    shell.jerry().setMood(!mic::meter().hasData() ? Mood::Scanning
+                          : db >= 85             ? Mood::Alert
+                          : db < 45              ? Mood::Sleepy
+                                                 : Mood::Idle);
+  }
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    if (!mic::chipFound()) {
+      centered(g, y0 + 40, ALERT, "microphone not found");
+      return;
+    }
+    const LevelMeter &m = mic::meter();
+    if (!m.hasData()) {
+      centered(g, y0 + 40, DIM, "listening...");
+      return;
+    }
+    shell.jerry().draw(g, 20, y0 + 20, 0.34f);
+    const int db = m.db();
+    char buf[20];
+    snprintf(buf, sizeof buf, "~%d dB", db);
+    g.setTextSize(2);
+    const uint16_t col = db >= 85 ? ALERT : db >= 70 ? GOLD : GOOD;
+    text(g, 44, y0 + 6, col, buf);
+    g.setTextSize(1);
+    text(g, 44, y0 + 26, CREAM, loudnessName(db));
+
+    // Meter bar 30..110 dB, with tick marks and a peak line.
+    const int bx = 6, by = y0 + 50, bw = W - 12, bh = 14;
+    auto xOf = [&](int d) { return bx + (d < 30 ? 0 : d > 110 ? bw : (d - 30) * bw / 80); };
+    g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, DIM);
+    for (int d = 30; d < db && d < 110; d += 2) {
+      const uint16_t c = d >= 85 ? ALERT : d >= 70 ? GOLD : GOOD;
+      g.fillRect(xOf(d), by, max(1, xOf(d + 2) - xOf(d) - 1), bh, c);
+    }
+    g.fillRect(xOf(m.peak()), by - 3, 2, bh + 6, CREAM);
+    for (int d = 40; d <= 100; d += 20) {
+      snprintf(buf, sizeof buf, "%d", d);
+      text(g, xOf(d) - g.textWidth(buf) / 2, by + bh + 4, DIM, buf);
+    }
+    snprintf(buf, sizeof buf, "peak ~%d dB", m.peak());
+    text(g, 6, y0 + 86, DIM, buf);
+    text(g, W - 6 - g.textWidth("rough"), y0 + 86, DIM, "rough");
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
@@ -929,7 +987,8 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, LED, Wi-Fi scan, Wi-Fi log, my devices, diag, about
+// Settings: brightness, alert window, LED, pocket, Wi-Fi scan, Wi-Fi log, my devices,
+// diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
@@ -968,7 +1027,8 @@ class SettingsScreen : public Screen {
         break;
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
       case 2: s.ledMode = (s.ledMode + 1) % 3; break;  // the LED shows it live
-      case 3: s.wifiScan = !s.wifiScan; break;
+      case 3: s.pocketDark = !s.pocketDark; break;
+      case 4: s.wifiScan = !s.wifiScan; break;
     }
   }
 
@@ -998,7 +1058,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog || cursor_ == kMine) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 6) {
+    } else if (cursor_ == 7) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -1011,22 +1071,23 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED", "WiFi scan",
-                                               "WiFi log", "My devices", "Diagnostics", "About"};
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",       "Pocket",
+                                               "WiFi scan",  "WiFi log",    "My devices", "Diagnostics",
+                                               "About"};
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
-                                  s.wifiScan ? "on" : "off",
+                                  s.pocketDark ? "dark" : "lit", s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
                                   erasing_ && cursor_ == kMine ? "clear?" : mine, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 8;
-  static constexpr int kWifiLog = 4;
-  static constexpr int kMine = 5;  // devices marked "mine" in Followers
-  static bool isValue(int i) { return i <= 3; }
+  static constexpr int kItems = 9;
+  static constexpr int kWifiLog = 5;
+  static constexpr int kMine = 6;  // devices marked "mine" in Followers
+  static bool isValue(int i) { return i <= 4; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;
@@ -1038,6 +1099,7 @@ NearbyScreen nearbyScreen;
 FollowersScreen followersScreenObj;
 ShieldScreen shieldScreenObj;
 CamerasScreen camerasScreenObj;
+SoundScreen soundScreenObj;
 WifiScreen wifiScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
@@ -1055,6 +1117,7 @@ const ModeEntry kModes[] = {
     {"Followers", &followersScreenObj},
     {"Shield", &shieldScreenObj},
     {"Cameras", &camerasScreenObj},
+    {"Sound", &soundScreenObj},
     {"BLE Nearby", &nearbyScreen},
     {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
