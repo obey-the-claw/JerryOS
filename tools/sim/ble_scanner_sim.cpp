@@ -5,6 +5,7 @@
 //   - minute 3-6 : a Tile you drive past
 //   - minute 0-8 : at home: a Windows laptop, earbuds, AirPods, a Samsung
 //                  phone and 14 iPhones (addresses change every 12 min)
+//   - minute 10  : someone with a Flipper sprays fake AirPods pop-ups
 //   - always     : your JBL speaker and a mystery gadget, which ride along
 //                  on the drive from minute 8 (see wifi_scanner_sim.cpp)
 #include <Arduino.h>
@@ -31,7 +32,7 @@ void feed(TrackerWatch &w, const uint8_t *payload, size_t len, uint8_t a5, uint8
 
 void begin() { started = true; }
 
-void drain(TrackerWatch &w) {
+void drain(TrackerWatch &w, AttackWatch &attacks) {
   const uint32_t now = millis();
   if (fedOnce && now - lastFeed < 20000) return;  // a burst every 20 s
   fedOnce = true;
@@ -65,6 +66,13 @@ void drain(TrackerWatch &w) {
     feed(w, airpods, sizeof airpods, 0x05, 0x13, -57);
     feed(w, galaxy, sizeof galaxy, 0x05, 0x14, -79);
   }
+  if (minute == 10)  // 30 "AirPods" from 30 different addresses in one go
+    for (int i = 0; i < 30; i++) {
+      const uint8_t spam[] = {0x08, 0xFF, 0x4C, 0x00, 0x07, 0x19, 0x01, 0x0E, 0x20};
+      const uint8_t addr[6] = {(uint8_t)i, 0xF1, 0x1B, 0x9E, (uint8_t)(now >> 8), 0xC2};
+      table.update(addr, -60, spam, sizeof spam, now);
+      attacks.onPopup(addr, popupKind(spam, sizeof spam), now);
+    }
   feed(w, speaker, sizeof speaker, 0x05, 0x10, -52);
   feed(w, mystery, sizeof mystery, 0x05, 0x15, home ? -92 : -64);
 }

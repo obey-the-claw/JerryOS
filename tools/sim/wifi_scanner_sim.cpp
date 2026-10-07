@@ -1,6 +1,8 @@
 // Fake Wi-Fi radio for the PC simulator: a street's worth of networks run
 // through the real WifiTable, with an in-memory "log file". From minute 8
-// you "drive": the networks around change every 2 minutes.
+// you "drive": the networks around change every 2 minutes. Minute 12:
+// someone floods "disconnect" frames. From minute 15: an open copy of
+// "5quatch HQ" shows up next to the real one (evil twin).
 #include <Arduino.h>
 
 #include <string>
@@ -25,23 +27,33 @@ const Fake kScene[] = {
     {"Starbucks WiFi", 0, 11, -90},  {"FBI Van #3", 3, 4, -93},
 };
 
+// One network heard: into the table, and into the log while recording.
+void add(const uint8_t *bssid, const char *ssid, uint8_t auth, uint8_t ch, int rssi, uint32_t now) {
+  table.update(bssid, ssid, ch, auth, rssi, now);
+  WifiNet *n = table.find(bssid);
+  if (rec && n->loggedIn != sess) {
+    n->loggedIn = sess;
+    savedCount++;
+    char line[160];
+    formatLogLine(line, sizeof line, sess, now / 1000, *n);
+    logText += line;
+    logText += '\n';
+  }
+}
+
 void scan() {
   const uint32_t now = millis();
   const uint32_t minute = now / 60000;
   const uint8_t place = minute < 8 ? 0 : (uint8_t)(1 + (minute - 8) / 2);
   int i = 0;
   for (const Fake &f : kScene) {
-    uint8_t bssid[6] = {0x3c, 0x52, 0x82, 0x10, place, (uint8_t)i++};
-    table.update(bssid, f.ssid, f.ch, f.auth, f.rssi + (int)(now / 20000 % 3), now);
-    WifiNet *n = table.find(bssid);
-    if (rec && n->loggedIn != sess) {
-      n->loggedIn = sess;
-      savedCount++;
-      char line[160];
-      formatLogLine(line, sizeof line, sess, now / 1000, *n);
-      logText += line;
-      logText += '\n';
-    }
+    const uint8_t bssid[6] = {0x3c, (uint8_t)(0x50 + i * 7), 0x82, (uint8_t)(0x10 + i), place, (uint8_t)i};
+    i++;
+    add(bssid, f.ssid, f.auth, f.ch, f.rssi + (int)(now / 20000 % 3), now);
+  }
+  if (minute >= 15) {  // evil twin: an open "5quatch HQ"
+    const uint8_t twin[6] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x01};
+    add(twin, "5quatch HQ", 0, 6, -58, now);
   }
 }
 }  // namespace
@@ -59,6 +71,8 @@ int nearby() {
 }
 uint32_t seenThisBoot() { return table.uniqueSeen(); }
 uint32_t session() { return sess; }
+uint32_t takeKickoffs() { return millis() / 60000 == 12 ? 5 : 0; }  // flood in minute 12
+bool sniffing() { return false; }
 void setRecording(bool r) {
   if (r && !rec) { sess++; savedCount = 0; lastScan = 0; }
   rec = r;

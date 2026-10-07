@@ -2,7 +2,7 @@
 #pragma once
 #include <LovyanGFX.hpp>
 
-#define JERRYOS_VERSION "0.7.0"
+#define JERRYOS_VERSION "0.8.0"
 
 namespace theme {
 

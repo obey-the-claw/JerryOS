@@ -6,6 +6,7 @@
 #include "power.h"
 #include "screen.h"
 #include "settings.h"
+#include "attack_watch.h"
 #include "follow_watch.h"
 #include "tracker_watch.h"
 
@@ -28,9 +29,10 @@ class Shell {
   Settings &settings() { return settings_; }
   TrackerWatch &tracker() { return tracker_; }
   FollowWatch &follow() { return follow_; }
+  AttackWatch &attacks() { return attack_; }
   const SceneTracker &scene() const { return scene_; }
   void saveTrusted();                     // after "it's mine" / clearing the list
-  bool anyAlert() const { return tracker_.anyAlert() || follow_.anyAlert(); }
+  bool anyAlert() const { return tracker_.anyAlert() || follow_.anyAlert() || attack_.anyAlert(); }
   const PowerStatus &power() const { return power_; }
   void applyBrightness();
   uint32_t idleMs() const { return millis() - lastInput_; }
@@ -54,6 +56,8 @@ class Shell {
   power::BatteryGauge gauge_;
   TrackerWatch tracker_;
   FollowWatch follow_;
+  AttackWatch attack_;
+  uint32_t lastKickoffRead_ = 0;
   SceneTracker scene_;
   uint32_t lastFollowCheck_ = 0;
   void checkFollowers(uint32_t now);

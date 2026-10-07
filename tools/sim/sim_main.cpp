@@ -35,9 +35,11 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
   run(2600);
   tap(PIN_BTN_LEFT); snap("menu");
-  // Menu: Tracker Watch, Followers, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
+  // Menu: Tracker Watch, Followers, Shield, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("shield_quiet");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
@@ -68,6 +70,7 @@ int main() {
   tap(PIN_BTN_LEFT); hold(PIN_BTN_LEFT);
   // ...time passes. From minute 8 you "drive": the speaker and a mystery
   // gadget ride along (Followers alert), the lost AirTag too (tracker alert).
+  // Minute 10 a Flipper sprays pop-ups, 12 a kick-off flood, 15 an evil twin.
   run(27 * 60 * 1000, 40);
   snap("tracker_alert_autoopen");
   hold(PIN_BTN_LEFT); snap("home_alert");
@@ -76,6 +79,7 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("followers");
   hold(PIN_BTN_RIGHT); snap("follower_detail");
   hold(PIN_BTN_RIGHT); snap("followers_after_mine");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("shield_after");
   hold(PIN_BTN_LEFT); run(500); snap("home_end");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;

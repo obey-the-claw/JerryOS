@@ -11,6 +11,7 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <freertos/semphr.h>
 
 #include <atomic>
@@ -102,6 +103,41 @@ void scanOnce() {
   appendLines(newLines);
 }
 
+// --- Kick-off (deauth) listening ---
+// After each scan, Jerry listens to raw Wi-Fi management frames for a few
+// seconds, hopping across channels 1-13. Still receive-only. Each
+// "deauthentication" or "disassociation" frame counts; a flood of them is
+// someone knocking devices off their Wi-Fi.
+constexpr uint32_t SNIFF_MS = 6500;
+constexpr uint32_t HOP_MS = 500;
+std::atomic<uint32_t> kickoffs{0};
+std::atomic<bool> sniffingNow{false};
+
+void onFrame(void *buf, wifi_promiscuous_pkt_type_t type) {
+  if (type != WIFI_PKT_MGMT) return;
+  const auto *pkt = (const wifi_promiscuous_pkt_t *)buf;
+  if (pkt->rx_ctrl.sig_len < 24) return;
+  const uint8_t frameType = pkt->payload[0];
+  if (frameType == 0xC0 || frameType == 0xA0) kickoffs++;  // deauth / disassoc
+}
+
+void sniff() {
+  wifi_promiscuous_filter_t filter = {};
+  filter.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT;
+  esp_wifi_set_promiscuous_filter(&filter);
+  esp_wifi_set_promiscuous_rx_cb(onFrame);
+  if (esp_wifi_set_promiscuous(true) != ESP_OK) return;
+  sniffingNow = true;
+  static uint8_t ch = 1;
+  for (uint32_t t = 0; t < SNIFF_MS && on; t += HOP_MS) {
+    esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
+    ch = ch % 13 + 1;
+    vTaskDelay(pdMS_TO_TICKS(HOP_MS));
+  }
+  esp_wifi_set_promiscuous(false);
+  sniffingNow = false;
+}
+
 void task(void *) {
   mountLog();
   WiFi.persistent(false);  // don't save anything Wi-Fi related to flash
@@ -121,6 +157,7 @@ void task(void *) {
     if (radioUp && (scanNow.exchange(false) || millis() - lastScan >= SCAN_EVERY_MS)) {
       lastScan = millis();
       scanOnce();
+      sniff();
     }
     vTaskDelay(pdMS_TO_TICKS(250));
   }
@@ -138,6 +175,9 @@ void begin() {
 
 void setEnabled(bool v) { on = v; }
 bool enabled() { return on; }
+uint32_t takeKickoffs() { return kickoffs.exchange(0); }
+bool sniffing() { return sniffingNow; }
+
 bool scanning() { return running && on; }  // (radio follows `on` within 250 ms)
 
 int nearby() {

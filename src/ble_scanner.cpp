@@ -29,7 +29,14 @@ struct Sighting {
   uint32_t ms;
 };
 
+struct PopupSighting {
+  uint8_t addr[6];
+  Popup kind;
+  uint32_t ms;
+};
+
 QueueHandle_t queue = nullptr;
+QueueHandle_t popupQueue = nullptr;  // pop-up style broadcasts (for spam detection)
 SemaphoreHandle_t nearbyLock = nullptr;
 NearbyTable nearbyTable;  // every device heard lately (guarded by nearbyLock)
 std::atomic<uint32_t> adverts{0}, trackerCount{0}, dropped{0};
@@ -45,6 +52,15 @@ class Listener : public NimBLEAdvertisedDeviceCallbacks {
     xSemaphoreTake(nearbyLock, portMAX_DELAY);
     nearbyTable.update(addr, dev->getRSSI(), payload, len, now);
     xSemaphoreGive(nearbyLock);
+
+    const Popup popup = popupKind(payload, len);
+    if (popup != Popup::None) {
+      PopupSighting p;
+      memcpy(p.addr, addr, 6);
+      p.kind = popup;
+      p.ms = now;
+      xQueueSend(popupQueue, &p, 0);  // full = we're already flooded; dropping is fine
+    }
 
     TrackerAdvert adv;
     if (!classifyAdvert(payload, len, adv)) return;
@@ -75,6 +91,7 @@ void startScan() {
 void begin() {
   if (started) return;
   queue = xQueueCreate(64, sizeof(Sighting));
+  popupQueue = xQueueCreate(48, sizeof(PopupSighting));
   nearbyLock = xSemaphoreCreateMutex();
   NimBLEDevice::init("");  // no name: we never advertise
   startScan();
@@ -82,10 +99,12 @@ void begin() {
   Serial.println(F("[ble] passive tracker scan started"));
 }
 
-void drain(TrackerWatch &watch) {
+void drain(TrackerWatch &watch, AttackWatch &attacks) {
   if (!started) return;
   Sighting s;
   while (xQueueReceive(queue, &s, 0) == pdTRUE) watch.onSighting(s.addr, s.adv, s.rssi, s.ms);
+  PopupSighting p;
+  while (xQueueReceive(popupQueue, &p, 0) == pdTRUE) attacks.onPopup(p.addr, p.kind, p.ms);
 
   // If the stack ever stops scanning (it shouldn't), quietly restart it.
   static uint32_t lastCheck = 0;

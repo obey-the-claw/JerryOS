@@ -21,6 +21,8 @@ bool enabled();
 bool scanning();                 // task running and radio up
 
 int nearby();                    // networks heard in the last 90 s
+uint32_t takeKickoffs();          // "disconnect" frames heard since the last call
+bool sniffing();                  // listening for kick-offs right now
 uint32_t seenThisBoot();         // different networks since power-on
 uint32_t session();              // recording session number, written in each log line
 int snapshot(WifiNet *out, int max);  // heard recently, strongest first

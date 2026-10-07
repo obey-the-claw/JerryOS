@@ -483,6 +483,44 @@ One checkpoint each, tested on the device in between.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Followers: home for an hour = nobody, "moved" stays low
+- [x] Followers at home: "nobody following" (2026-10-07)
 - [ ] Drive 30+ min: "moved" goes up; own static gear shows up; "mine" works
 - [ ] My devices count survives a power cycle
+
+---
+
+## Checkpoint 8: Shield (attack detector)
+
+### What we did
+
+- **Wi-Fi kick-offs:** after each 20-s scan, ~6.5 s of listening to raw
+  Wi-Fi management frames ("promiscuous mode", still receive-only),
+  hopping channels 1-13 every 0.5 s. Deauth/disassoc frames are counted;
+  30+ in 10 s = flood.
+- **Bluetooth pop-up spam:** the radio task flags pop-up style broadcasts
+  (Apple proximity pairing / nearby action, Google Fast Pair, Microsoft
+  Swift Pair, Samsung easy-setup) and queues them to the main loop. 12+
+  *different* addresses in 10 s = spam. One AirPods case all day never
+  counts.
+- **Fake networks:** on every scan, an open network with the same name as a
+  locked one (evil twin), or 8+ names from one box (Pineapple-style).
+- **Shield screen** with the three rows; opens itself on a new threat; home
+  pill and the red **!** cover it.
+- Unit tests 91 → 107, including the "must stay quiet" cases (own AirPods,
+  occasional disconnects, a mesh network, an office access point with 5
+  names, xfinitywifi next to XFINITY).
+
+### What broke / how we fixed it
+
+- The simulator flagged "1 box, 12 names" because I'd given all the fake
+  neighbours almost the same hardware address. Fake data, not a firmware
+  bug, but it showed the rule works. Fixed the fake data.
+- The details line and "18m ago" ran into other text on the little screen:
+  shortened both. A compiler warning about a cut-off message: fixed.
+
+### On the real device (Steve fills this in)
+
+- [ ] Shield stays "all quiet" for a normal day
+- [ ] BLE Nearby / Tracker Watch counts look the same as before
+- [ ] (optional) Flipper pop-up spam → ATTACK NEARBY
+- [ ] (optional) open phone hotspot named like the home Wi-Fi → Fake networks

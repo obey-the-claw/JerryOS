@@ -10,6 +10,7 @@
 #include "tracker_watch.h"
 #include "wifi_nets.h"
 #include "follow_watch.h"
+#include "attack_watch.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -409,12 +410,102 @@ static void testFollow() {
   }
 }
 
+static WifiNet net(const char *ssid, uint8_t auth, uint8_t b4, uint8_t b5) {
+  WifiNet n = {};
+  const uint8_t b[6] = {0x10, 0x20, 0x30, 0x40, b4, b5};
+  memcpy(n.bssid, b, 6);
+  snprintf(n.ssid, sizeof n.ssid, "%s", ssid);
+  n.auth = auth;
+  n.used = true;
+  return n;
+}
+
+static void testAttacks() {
+  printf("Attack detector\n");
+  // Pop-up broadcast types.
+  const Bytes airpods = {0x08, 0xFF, 0x4C, 0x00, 0x07, 0x19, 0x01, 0x0E, 0x20};
+  const Bytes iphone = {0x02, 0x01, 0x1A, 0x0A, 0xFF, 0x4C, 0x00, 0x10, 0x05, 0x01, 0x18, 0, 0, 0};
+  const Bytes swift = {0x07, 0xFF, 0x06, 0x00, 0x03, 0x00, 0x80, 0x01};
+  const Bytes samsung = {0x07, 0xFF, 0x75, 0x00, 0x42, 0x09, 0x81, 0x02};
+  CHECK(popupKind(airpods.data(), airpods.size()) == Popup::Apple);
+  CHECK(popupKind(iphone.data(), iphone.size()) == Popup::None);
+  CHECK(popupKind(swift.data(), swift.size()) == Popup::Windows);
+  CHECK(popupKind(samsung.data(), samsung.size()) == Popup::Samsung);
+  const Bytes fastpair = serviceData(0xFE2C, {0x00, 0x12, 0x34});
+  CHECK(popupKind(fastpair.data(), fastpair.size()) == Popup::Android);
+  const Bytes cut = {0x08, 0xFF, 0x4C};
+  CHECK(popupKind(cut.data(), cut.size()) == Popup::None);
+
+  {  // Your AirPods all day: one address, never spam.
+    AttackWatch a;
+    const uint8_t mine[6] = {1, 2, 3, 4, 5, 6};
+    int alerts = 0;
+    for (uint32_t t = 0; t < 3600000; t += 200) {
+      a.onPopup(mine, Popup::Apple, t);
+      alerts += a.tick(t);
+    }
+    CHECK(alerts == 0 && !a.anyAlert());
+  }
+  {  // A Flipper: a new address every 100 ms for 20 s.
+    AttackWatch a;
+    int alerts = 0;
+    for (uint32_t t = 0; t < 20000; t += 100) {
+      const uint8_t addr[6] = {0xC0, (uint8_t)(t >> 8), (uint8_t)t, 9, 9, 9};
+      a.onPopup(addr, Popup::Apple, t);
+      alerts += a.tick(t);
+    }
+    CHECK(alerts == 1 && a.anyAlert() && a.state(Threat::Popup).active);
+    CHECK(strncmp(a.state(Threat::Popup).detail, "Apple x", 7) == 0);
+    a.acknowledgeAll();
+    a.tick(20000 + AttackWatch::QUIET_MS + 1);
+    CHECK(!a.anyAlert() && !a.state(Threat::Popup).active);  // over after a calm minute
+  }
+  {  // Wi-Fi kick-offs: a few now and then is normal; a flood isn't.
+    AttackWatch a;
+    int alerts = 0;
+    for (uint32_t s = 0; s < 600; s++) {
+      a.onKickoffs(s % 30 == 0 ? 3 : 0, s * 1000);
+      alerts += a.tick(s * 1000);
+    }
+    CHECK(alerts == 0);
+    for (uint32_t s = 600; s < 610; s++) {
+      a.onKickoffs(25, s * 1000);
+      alerts += a.tick(s * 1000);
+    }
+    CHECK(alerts == 1 && a.state(Threat::Kickoff).active && a.state(Threat::Kickoff).peak >= 30);
+  }
+  {  // Networks: a normal street, a mesh, an office AP with 5 names: all fine.
+    AttackWatch a;
+    WifiNet street[] = {net("Home", 3, 1, 1), net("Home", 3, 2, 1), net("Home", 3, 3, 1),
+                        net("xfinitywifi", 0, 9, 1), net("XFINITY", 3, 9, 2),
+                        net("Corp", 3, 7, 1), net("Corp-Guest", 0, 7, 2), net("Corp-IoT", 3, 7, 3),
+                        net("Corp-Voice", 3, 7, 4), net("eduroam", 5, 7, 5)};
+    a.checkNetworks(street, sizeof street / sizeof street[0], 1000);
+    CHECK(!a.tick(1000) && !a.anyActive());
+    // Evil twin: an open "Home" appears.
+    WifiNet twin[] = {net("Home", 3, 1, 1), net("Home", 0, 0x66, 1)};
+    a.checkNetworks(twin, 2, 2000);
+    CHECK(a.tick(2000) && a.state(Threat::Fake).active);
+    CHECK(strstr(a.state(Threat::Fake).detail, "Home") != nullptr);
+  }
+  {  // One box shouting 10 names (Pineapple-style).
+    AttackWatch a;
+    WifiNet box[10];
+    const char *names[] = {"attwifi", "Starbucks", "Free WiFi", "linksys", "NETGEAR",
+                           "Airport", "Hotel", "McDonalds", "Guest", "Free Public WiFi"};
+    for (int i = 0; i < 10; i++) box[i] = net(names[i], 0, 0x77, (uint8_t)i);
+    a.checkNetworks(box, 10, 5000);
+    CHECK(a.tick(5000) && strstr(a.state(Threat::Fake).detail, "10 names") != nullptr);
+  }
+}
+
 int main() {
   testDetection();
   testPersistence();
   testNearby();
   testWifi();
   testFollow();
+  testAttacks();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

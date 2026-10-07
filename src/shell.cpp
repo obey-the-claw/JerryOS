@@ -90,6 +90,7 @@ void Shell::checkFollowers(uint32_t now) {
   const int nn = wifi::enabled() ? wifi::snapshot(nets, SceneTracker::MAX) : 0;
   for (int i = 0; i < nn; i++) memcpy(bssids[i], nets[i].bssid, 6);
   scene_.onScan(bssids, nn, now);
+  attack_.checkNetworks(nets, nn, now);  // evil twins, many-names boxes
 
   static NearbyDevice devs[NearbyTable::MAX];
   const int nd = ble::nearbySnapshot(devs, NearbyTable::MAX);
@@ -199,13 +200,23 @@ void Shell::loop() {
   }
 
   // Tracker Watch: take in what the radio heard, check for new alerts.
-  ble::drain(tracker_);
+  ble::drain(tracker_, attack_);
   if (tracker_.tick(now, settings_.alertMinutes())) {
     Serial.println(F("[tracker] ALERT: a tracker has been following for the whole alert window"));
     lastInput_ = now;  // wake Jerry (and the screen) up
     if (&current() != &trackerScreen()) open(trackerScreen());
   }
   checkFollowers(now);
+  // Attacks: Wi-Fi kick-off frames heard (once a second), then any new threat?
+  if (now - lastKickoffRead_ >= 1000) {
+    lastKickoffRead_ = now;
+    attack_.onKickoffs(wifi::takeKickoffs(), now);
+  }
+  if (attack_.tick(now)) {
+    Serial.println(F("[shield] ALERT: radio attack nearby"));
+    lastInput_ = now;  // wake the screen
+    if (&current() != &shieldScreen()) open(shieldScreen());
+  }
   updateBacklight(now);
 
   jerry_.update(now);

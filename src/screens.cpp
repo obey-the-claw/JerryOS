@@ -2,6 +2,7 @@
 //
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
 //                     ├─> Followers ──────> one follower ("mine")
+//                     ├─> Shield           (Wi-Fi kick-offs, BT spam, fake networks)
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
@@ -141,7 +142,7 @@ class HomeScreen : public Screen {
     TrackerWatch &w = shell.tracker();
     // Safety at a glance: trackers + followers.
     if (shell.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "ALERT");
-    else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() ||
+    else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() || shell.attacks().anyActive() ||
              shell.follow().candidates(now) >= 3)
       pills[0].set(BARK, GOLD, "WATCH");
     else pills[0].set(GOOD, INK, "SAFE");
@@ -725,6 +726,52 @@ Screen &followerDetail(const Follower &f) {
 }
 
 // ---------------------------------------------------------------------------
+// Shield: Wi-Fi kick-offs, Bluetooth pop-up spam, fake networks
+// ---------------------------------------------------------------------------
+class ShieldScreen : public Screen {
+ public:
+  const char *tag() const override { return "SHIELD"; }
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  void enter(Shell &shell) override { shell.attacks().acknowledgeAll(); }
+  void update(Shell &shell, uint32_t) override {
+    shell.attacks().acknowledgeAll();  // you're looking at it
+    shell.jerry().setMood(shell.attacks().anyActive() ? Mood::Alert : Mood::Approved);
+  }
+
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    const AttackWatch &a = shell.attacks();
+    const bool active = a.anyActive();
+    shell.jerry().draw(g, 16, y0 + 12, 0.26f);
+    text(g, 32, y0 + 3, active ? ALERT : GOOD, active ? "ATTACK NEARBY" : "all quiet");
+    text(g, 32, y0 + 13, DIM, wifi::enabled() ? "listening..." : "WiFi scan off!");
+    static const char *const kWhat[] = {"deauth floods", "Flipper-style spam", "evil twins"};
+    for (int t = 0; t < (int)Threat::COUNT; t++) {
+      const ThreatState &s = a.state((Threat)t);
+      const int y = y0 + 28 + t * 25;
+      char st[12];
+      uint16_t col;
+      if (s.active) {
+        snprintf(st, sizeof st, "NOW");
+        col = ALERT;
+      } else if (s.lastMs) {
+        ago(st, sizeof st, (int)((now - s.lastMs) / 60000) + 1);  // how long ago
+        col = GOLD;
+      } else {
+        snprintf(st, sizeof st, "ok");
+        col = GOOD;
+      }
+      if (s.active) g.fillRoundRect(2, y - 2, W - 4, 23, 3, lgfx::color565(0x50, 0x10, 0x10));
+      text(g, 5, y, CREAM, threatName((Threat)t));
+      text(g, W - 5 - g.textWidth(st), y, col, st);
+      const bool wifiThreat = t != (int)Threat::Popup;
+      const char *line2 = s.lastMs ? s.detail : (wifiThreat && !wifi::enabled()) ? "(needs WiFi scan)" : kWhat[t];
+      fitText(g, 9, y + 10, W - 12, s.lastMs ? (s.active ? CREAM : GOLD) : DIM, line2);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
@@ -927,6 +974,7 @@ class SettingsScreen : public Screen {
 TrackerScreen trackerScreenObj;
 NearbyScreen nearbyScreen;
 FollowersScreen followersScreenObj;
+ShieldScreen shieldScreenObj;
 WifiScreen wifiScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
@@ -942,6 +990,7 @@ struct ModeEntry {
 const ModeEntry kModes[] = {
     {"Tracker Watch", &trackerScreenObj},
     {"Followers", &followersScreenObj},
+    {"Shield", &shieldScreenObj},
     {"BLE Nearby", &nearbyScreen},
     {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
@@ -975,3 +1024,4 @@ Screen &homeScreen() { return homeScreenObj; }
 Screen &menuScreen() { return menuScreenObj; }
 Screen &trackerScreen() { return trackerScreenObj; }
 Screen &followersScreen() { return followersScreenObj; }
+Screen &shieldScreen() { return shieldScreenObj; }
