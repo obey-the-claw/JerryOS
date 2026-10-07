@@ -28,9 +28,10 @@ function Fail($msg) { Write-Host ''; Write-Host "STOP: $msg" -ForegroundColor Re
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $Firmware) {
-    # Newest checkpoint build (cp3 sorts after cp2, and so on).
+    # Newest checkpoint build.
     $latest = Get-ChildItem -Path (Join-Path $RepoRoot 'firmware') -Filter 'jerryos-cp*.bin' -ErrorAction SilentlyContinue |
-        Sort-Object Name -Descending | Select-Object -First 1
+        Sort-Object { [int]([regex]::Match($_.Name, 'cp(\d+)').Groups[1].Value) } -Descending |
+        Select-Object -First 1   # by checkpoint NUMBER, so cp10 beats cp9
     if (-not $latest) { Fail 'No firmware\jerryos-cp*.bin found. Pull the latest from GitHub.' }
     $Firmware = $latest.FullName
 }

@@ -45,11 +45,13 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
   run(2600);
   tap(PIN_BTN_LEFT); snap("menu");
-  // Menu: Tracker Watch, Followers, Shield, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
+  // Menu: Tracker Watch, Followers, Shield, Cameras, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("shield_quiet");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("cameras_none");
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
@@ -81,8 +83,13 @@ int main() {
   tap(PIN_BTN_LEFT); hold(PIN_BTN_LEFT);
   // ...time passes. From minute 8 you "drive": the speaker and a mystery
   // gadget ride along (Followers alert), the lost AirTag too (tracker alert).
-  // Minute 10 a Flipper sprays pop-ups, 12 a kick-off flood, 15 an evil twin.
-  run(27 * 60 * 1000, 40);
+  // Minute 10 a Flipper sprays pop-ups, 12 a kick-off flood, 15 an evil twin,
+  // 17-19 a Flock camera by the road.
+  const uint32_t end = g_fake_ms + 27 * 60 * 1000;
+  while (g_fake_ms < 17 * 60000) run(1000, 40);   // drive until the Flock camera...
+  while (!shell.toastShowing() && g_fake_ms < 19 * 60000) run(200, 40);
+  run(1500, 40); snap("toast_flock");              // ...and catch the message
+  run(end - g_fake_ms, 40);
   snap("tracker_alert_autoopen");
   hold(PIN_BTN_LEFT); snap("home_alert");
   tap(PIN_BTN_LEFT); hold(PIN_BTN_RIGHT); snap("tracker_alert");
@@ -91,6 +98,7 @@ int main() {
   hold(PIN_BTN_RIGHT); snap("follower_detail");
   hold(PIN_BTN_RIGHT); snap("followers_after_mine");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("shield_after");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("cameras_after");
   hold(PIN_BTN_LEFT); run(500); snap("home_end");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;

@@ -92,6 +92,13 @@ void Shell::checkFollowers(uint32_t now) {
   for (int i = 0; i < nn; i++) memcpy(bssids[i], nets[i].bssid, 6);
   scene_.onScan(bssids, nn, now);
   attack_.checkNetworks(nets, nn, now);  // evil twins, many-names boxes
+  bool newCam = false;
+  for (int i = 0; i < nn; i++) {          // Flock camera hotspots / addresses
+    CamMatch m;
+    if (matchCameraWifi(nets[i].bssid, nets[i].ssid, m))
+      newCam |= cams_.onSighting(nets[i].bssid, m, nets[i].rssi, now);
+  }
+  if (newCam) toast("Flock camera nearby!");
 
   static NearbyDevice devs[NearbyTable::MAX];
   const int nd = ble::nearbySnapshot(devs, NearbyTable::MAX);
@@ -108,9 +115,28 @@ void Shell::updateLed(uint32_t now) {
   lastLed_ = now;
   LedInputs in;
   in.alert = anyAlert();
-  in.watching = tracker_.anySeparatedNow(now) || follow_.flaggedCount() > 0 || attack_.anyActive();
+  in.watching = tracker_.anySeparatedNow(now) || follow_.flaggedCount() > 0 ||
+                attack_.anyActive() || cams_.nearby(now) > 0;
   in.recording = wifi::recording();
   led::show(ledColor(in, (LedMode)settings_.ledMode, now));
+}
+
+void Shell::toast(const char *text, uint32_t ms) {
+  snprintf(toast_, sizeof toast_, "%s", text);
+  toastUntil_ = millis() + ms;
+  lastInput_ = millis();  // wake the screen so you can read it
+}
+
+void Shell::drawToast(lgfx::LovyanGFX &g) {
+  using namespace theme;
+  if ((int32_t)(millis() - toastUntil_) >= 0) return;
+  g.setFont(&fonts::Font0);
+  const int w = g.textWidth(toast_) + 10, x = (W - w) / 2, y = CONTENT_Y + 2;
+  g.fillRoundRect(x, y, w, 13, 4, GOLD);
+  g.drawRoundRect(x, y, w, 13, 4, BARK);
+  g.setTextColor(BARK);
+  g.setCursor(x + 5, y + 3);
+  g.print(toast_);
 }
 
 void Shell::applyBrightness() {
@@ -212,7 +238,21 @@ void Shell::loop() {
   }
 
   // Tracker Watch: take in what the radio heard, check for new alerts.
-  ble::drain(tracker_, attack_);
+  ble::drain(tracker_, attack_, cams_);
+  {  // Flock cameras heard over Wi-Fi (their own frames, between scans)
+    uint8_t mac[6];
+    int8_t rssi;
+    int news = ble::takeNewCameras();
+    while (wifi::takeFlockFrame(mac, rssi)) {
+      const CamMatch m{CamKind::FlockCamera, true, "Flock WiFi"};
+      news += cams_.onSighting(mac, m, rssi, now);
+    }
+    if (news) {
+      Serial.println(F("[cams] Flock camera gear nearby"));
+      toast("Flock camera nearby!");
+      jerry_.flash(Mood::Scanning, 3000);
+    }
+  }
   if (tracker_.tick(now, settings_.alertMinutes())) {
     Serial.println(F("[tracker] ALERT: a tracker has been following for the whole alert window"));
     lastInput_ = now;  // wake Jerry (and the screen) up
@@ -240,6 +280,7 @@ void Shell::loop() {
   lastFrame_ = now;
   frame_.fillScreen(theme::BARK);
   current().draw(*this, frame_, theme::CONTENT_Y, theme::CONTENT_H);
+  drawToast(frame_);
   drawStatusBar(frame_);
   drawHintBar(frame_, current().hints());
   frame_.pushSprite(0, 0);

@@ -7,6 +7,7 @@
 #include "screen.h"
 #include "settings.h"
 #include "attack_watch.h"
+#include "camera_watch.h"
 #include "follow_watch.h"
 #include "tracker_watch.h"
 
@@ -30,6 +31,10 @@ class Shell {
   TrackerWatch &tracker() { return tracker_; }
   FollowWatch &follow() { return follow_; }
   AttackWatch &attacks() { return attack_; }
+  CameraWatch &cameras() { return cams_; }
+  // A short message over any screen, e.g. "Flock camera nearby".
+  void toast(const char *text, uint32_t ms = 4000);
+  bool toastShowing() const { return (int32_t)(millis() - toastUntil_) < 0; }
   const SceneTracker &scene() const { return scene_; }
   void saveTrusted();                     // after "it's mine" / clearing the list
   bool anyAlert() const { return tracker_.anyAlert() || follow_.anyAlert() || attack_.anyAlert(); }
@@ -57,6 +62,10 @@ class Shell {
   TrackerWatch tracker_;
   FollowWatch follow_;
   AttackWatch attack_;
+  CameraWatch cams_;
+  char toast_[24] = "";
+  uint32_t toastUntil_ = 0;
+  void drawToast(lgfx::LovyanGFX &g);
   uint32_t lastKickoffRead_ = 0;
   SceneTracker scene_;
   uint32_t lastFollowCheck_ = 0;

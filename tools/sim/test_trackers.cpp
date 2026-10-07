@@ -12,6 +12,7 @@
 #include "follow_watch.h"
 #include "attack_watch.h"
 #include "status_led.h"
+#include "camera_watch.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -539,6 +540,56 @@ static void testLed() {
   CHECK(strcmp(ledModeName(LedMode::Alerts), "alerts") == 0);
 }
 
+static Bytes named(const char *name) {
+  Bytes b = {0x02, 0x01, 0x06, (uint8_t)(strlen(name) + 1), 0x09};
+  for (const char *c = name; *c; c++) b.push_back((uint8_t)*c);
+  return b;
+}
+
+static void testCameras() {
+  printf("Flock cameras\n");
+  CamMatch m;
+  auto ble = [&](const Bytes &b) { return matchCameraBle(b.data(), b.size(), m); };
+  CHECK(ble(named("Penguin-1234567890")) && m.kind == CamKind::FlockBattery && m.sure);
+  CHECK(ble(named("PENGUIN-0000000001")) && m.sure);
+  CHECK(ble(named("FS Ext Battery")) && m.kind == CamKind::FlockBattery && m.sure);
+  CHECK(!ble(named("Penguin-12345")));           // too few digits
+  CHECK(!ble(named("Penguin-12345678901")));     // too many
+  CHECK(!ble(named("Penguin Speaker")));
+  CHECK(!ble(named("5551234567")));              // a bare number isn't enough
+  CHECK(!ble(named("FS Ext Battery Pro")));
+  Bytes svc = {0x02, 0x01, 0x06, 0x11, 0x07, 0x6f, 0x2e, 0x17, 0xdf, 0x14, 0x18, 0xe5, 0x9f,
+               0xa8, 0x46, 0x32, 0x95, 0x38, 0xbb, 0xcc, 0xe8};
+  CHECK(ble(svc) && m.kind == CamKind::FlockCamera && m.sure);
+  svc[6] ^= 1;  // one byte off: not Flock
+  CHECK(!ble(svc));
+  const Bytes raven = {0x02, 0x01, 0x06, 0x05, 0x03, 0x0F, 0x18, 0x00, 0x32};  // 0x180F, 0x3200
+  CHECK(ble(raven) && m.kind == CamKind::Raven && !m.sure);
+  const Bytes xuntong = {0x05, 0xFF, 0xC8, 0x09, 0x01, 0x02};
+  CHECK(ble(xuntong) && m.kind == CamKind::FlockBattery && !m.sure);
+  const Bytes battery = {0x02, 0x0A, 0x00, 0x03, 0x03, 0x0F, 0x18};  // ordinary battery service
+  CHECK(!ble(battery));
+  const Bytes broken = {0x13, 0x09, 'P', 'e', 'n'};
+  CHECK(!ble(broken));
+
+  const uint8_t flockMac[6] = {0xb4, 0x1e, 0x52, 1, 2, 3}, other[6] = {0x3c, 0x71, 0xbf, 1, 2, 3};
+  CHECK(matchCameraWifi(flockMac, "", m) && m.sure);
+  CHECK(matchCameraWifi(other, "Flock-1a2b3c", m) && m.kind == CamKind::FlockCamera);
+  CHECK(!matchCameraWifi(other, "Flockton Library", m));
+  CHECK(!matchCameraWifi(other, "NETGEAR47", m) && !isFlockWifiAddr(other));
+
+  CameraWatch w;
+  const uint8_t a[6] = {0xb4, 0x1e, 0x52, 9, 9, 9};
+  CamMatch sure{CamKind::FlockCamera, true, "Flock WiFi"};
+  CHECK(w.onSighting(a, sure, -70, 1000));            // new: tell
+  CHECK(!w.onSighting(a, sure, -65, 20000));          // same one, still around: quiet
+  CHECK(w.nearby(30000) == 1 && w.nearby(20000 + CameraWatch::NEAR_MS) == 0);
+  CHECK(w.onSighting(a, sure, -70, 20000 + 11 * 60000));  // back after 11 min: tell again
+  CHECK(w.passedToday() == 1);
+  const CamSighting *list[4];
+  CHECK(w.list(list, 4) == 1 && list[0]->rssi == -70);
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -547,6 +598,7 @@ int main() {
   testFollow();
   testAttacks();
   testLed();
+  testCameras();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

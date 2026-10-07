@@ -51,6 +51,10 @@ void scan() {
     i++;
     add(bssid, f.ssid, f.auth, f.ch, f.rssi + (int)(now / 20000 % 3), now);
   }
+  if (minute >= 17 && minute < 19) {  // a Flock camera's setup hotspot
+    const uint8_t flock[6] = {0xb4, 0x1e, 0x52, 0x0a, 0x1b, 0x2c};
+    add(flock, "Flock-0A1B2C", 3, 11, -80, now);
+  }
   if (minute >= 15) {  // evil twin: an open "5quatch HQ"
     const uint8_t twin[6] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x01};
     add(twin, "5quatch HQ", 0, 6, -58, now);
@@ -73,6 +77,7 @@ uint32_t seenThisBoot() { return table.uniqueSeen(); }
 uint32_t session() { return sess; }
 uint32_t takeKickoffs() { return millis() / 60000 == 12 ? 5 : 0; }  // flood in minute 12
 bool sniffing() { return false; }
+bool takeFlockFrame(uint8_t *, int8_t &) { return false; }
 void setRecording(bool r) {
   if (r && !rec) { sess++; savedCount = 0; lastScan = 0; }
   rec = r;

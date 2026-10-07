@@ -3,6 +3,7 @@
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
 //                     ├─> Followers ──────> one follower ("mine")
 //                     ├─> Shield           (Wi-Fi kick-offs, BT spam, fake networks)
+//                     ├─> Cameras          (Flock licence-plate cameras)
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
@@ -144,6 +145,7 @@ class HomeScreen : public Screen {
     // Safety at a glance: trackers + followers.
     if (shell.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "ALERT");
     else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() || shell.attacks().anyActive() ||
+             shell.cameras().nearby(now) ||
              shell.follow().candidates(now) >= 3)
       pills[0].set(BARK, GOLD, "WATCH");
     else pills[0].set(GOOD, INK, "SAFE");
@@ -773,6 +775,47 @@ class ShieldScreen : public Screen {
 };
 
 // ---------------------------------------------------------------------------
+// Cameras: Flock licence-plate cameras and their gear
+// ---------------------------------------------------------------------------
+class CamerasScreen : public Screen {
+ public:
+  const char *tag() const override { return "CAMERAS"; }
+  Hints hints() const override { return {"back", nullptr, nullptr}; }
+  void update(Shell &shell, uint32_t now) override {
+    shell.jerry().setMood(shell.cameras().nearby(now) ? Mood::Scanning : Mood::Approved);
+  }
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    const CameraWatch &c = shell.cameras();
+    char buf[28];
+    const int near = c.nearby(now);
+    snprintf(buf, sizeof buf, "%d near  %lu passed", near, (unsigned long)c.passedToday());
+    text(g, 4, y0 + 3, near ? GOLD : DIM, buf);
+    const CamSighting *list[8];
+    const int n = c.list(list, 8);
+    if (!n) {
+      shell.jerry().draw(g, W / 2, y0 + 40, 0.42f);
+      centered(g, y0 + 66, GOOD, "no Flock cameras");
+      centered(g, y0 + 80, DIM, wifi::enabled() ? "listening..." : "(WiFi scan helps)");
+      return;
+    }
+    for (int i = 0; i < n && i < 8; i++) {
+      const CamSighting &s = *list[i];
+      const int y = y0 + 14 + i * 11;
+      const bool here = now - s.lastMs < CameraWatch::NEAR_MS;
+      signalBars(g, 5, y, s.rssi, here ? GOLD : DIM, BAR);
+      char when[10];
+      if (here) snprintf(when, sizeof when, "now");
+      else ago(when, sizeof when, (int)((now - s.lastMs) / 60000));
+      snprintf(buf, sizeof buf, "%s%s", camKindName(s.kind), s.sure ? "" : "?");
+      const int ww = g.textWidth(when);
+      fitText(g, 20, y + 1, W - 26 - ww, here ? CREAM : DIM, buf);
+      text(g, W - 5 - ww, y + 1, here ? GOLD : DIM, when);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
@@ -838,7 +881,7 @@ class AboutScreen : public Screen {
   }
 
  private:
-  static constexpr int kLines = 22;
+  static constexpr int kLines = 25;
   const char *const kText[kLines] = {
       "*JerryOS v" JERRYOS_VERSION,
       "Jerry the Squatch",
@@ -856,6 +899,9 @@ class AboutScreen : public Screen {
       "PlatformIO, NimBLE",
       "*Tracker research",
       "AirGuard (SEEMOO lab)",
+      "*Flock signatures",
+      "flock-you, flock-you-go",
+      "@NitekryDPaul",
       "*AIPI Lite research",
       "delacerda-mrd",
       "DaveMath (@GGDM)",
@@ -978,6 +1024,7 @@ TrackerScreen trackerScreenObj;
 NearbyScreen nearbyScreen;
 FollowersScreen followersScreenObj;
 ShieldScreen shieldScreenObj;
+CamerasScreen camerasScreenObj;
 WifiScreen wifiScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
@@ -994,6 +1041,7 @@ const ModeEntry kModes[] = {
     {"Tracker Watch", &trackerScreenObj},
     {"Followers", &followersScreenObj},
     {"Shield", &shieldScreenObj},
+    {"Cameras", &camerasScreenObj},
     {"BLE Nearby", &nearbyScreen},
     {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
@@ -1028,3 +1076,4 @@ Screen &menuScreen() { return menuScreenObj; }
 Screen &trackerScreen() { return trackerScreenObj; }
 Screen &followersScreen() { return followersScreenObj; }
 Screen &shieldScreen() { return shieldScreenObj; }
+Screen &camerasScreen() { return camerasScreenObj; }

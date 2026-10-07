@@ -17,6 +17,8 @@ Jerry's animated head lives on the screen. The v0 modes are:
   (car, watch, hidden gadget), using Wi-Fi changes as a "you moved" signal.
 - **Shield:** listen-only attack detector: Wi-Fi "deauth" floods, Flipper-style
   Bluetooth pop-up spam, evil-twin and many-names fake networks.
+- **Cameras:** spots Flock licence-plate cameras, their battery packs and
+  Raven sensors as you pass (signatures from flock-you / flock-you-go).
 - **Colour LED:** red blink = look at Jerry, amber = watching, blue blip =
   recording, soft green = all clear. Works with the screen off.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
@@ -42,7 +44,8 @@ stays physically stock (no soldering).
 | 6 | Personal monitor: home screen, REC, screen saver | ✅ 2026-10-06 ([guide](docs/CHECKPOINT6.md)) |
 | 7 | Followers: any Bluetooth device that moves with you | 🟡 home test ✅, drive test pending ([guide](docs/CHECKPOINT7.md)) |
 | 8 | Shield: Wi-Fi kick-offs, Bluetooth pop-up spam, fake networks | ✅ quiet-day test 2026-10-07 ([guide](docs/CHECKPOINT8.md)) |
-| 9 | Colour LED as a silent signal | 🟡 ready to test ([guide](docs/CHECKPOINT9.md)) |
+| 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/CHECKPOINT9.md)) |
+| 10 | Flock licence-plate cameras | 🟡 ready to test ([guide](docs/CHECKPOINT10.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 
@@ -93,3 +96,5 @@ Lite before us. Full details are in [docs/HARDWARE.md](docs/HARDWARE.md#sources-
 - lovyan03: [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
 - h2zero: [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
 - SEEMOO lab, TU Darmstadt: [AirGuard](https://github.com/seemoo-lab/AirGuard) (tracker signatures)
+- colonelpanichacks: [flock-you](https://github.com/colonelpanichacks/flock-you) (MIT), DaveMath:
+  flock-you-go, @NitekryDPaul (Flock camera signatures)

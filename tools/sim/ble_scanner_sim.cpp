@@ -32,7 +32,9 @@ void feed(TrackerWatch &w, const uint8_t *payload, size_t len, uint8_t a5, uint8
 
 void begin() { started = true; }
 
-void drain(TrackerWatch &w, AttackWatch &attacks) {
+int newCams = 0;
+
+void drain(TrackerWatch &w, AttackWatch &attacks, CameraWatch &cams) {
   const uint32_t now = millis();
   if (fedOnce && now - lastFeed < 20000) return;  // a burst every 20 s
   fedOnce = true;
@@ -73,10 +75,23 @@ void drain(TrackerWatch &w, AttackWatch &attacks) {
       table.update(addr, -60, spam, sizeof spam, now);
       attacks.onPopup(addr, popupKind(spam, sizeof spam), now);
     }
+  if (minute >= 17 && minute < 19) {  // drive past a Flock camera's battery pack
+    const uint8_t penguin[] = {0x02, 0x01, 0x06, 0x13, 0x09, 'P', 'e', 'n', 'g', 'u', 'i', 'n', '-',
+                               '4', '0', '4', '1', '2', '7', '7', '0', '0', '1'};
+    const uint8_t addr[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    table.update(addr, -77, penguin, sizeof penguin, now);
+    CamMatch m;
+    if (matchCameraBle(penguin, sizeof penguin, m) && cams.onSighting(addr, m, -77, now)) newCams++;
+  }
   feed(w, speaker, sizeof speaker, 0x05, 0x10, -52);
   feed(w, mystery, sizeof mystery, 0x05, 0x15, home ? -92 : -64);
 }
 
+int takeNewCameras() {
+  const int n = newCams;
+  newCams = 0;
+  return n;
+}
 int nearbyDevices() { return table.count(millis()); }
 int nearbySnapshot(NearbyDevice *out, int max) { return table.snapshot(out, max, millis()); }
 uint32_t advertsHeard() { return adverts; }

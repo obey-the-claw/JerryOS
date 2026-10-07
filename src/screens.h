@@ -7,3 +7,4 @@ Screen &menuScreen();
 Screen &trackerScreen();
 Screen &followersScreen();
 Screen &shieldScreen();
+Screen &camerasScreen();

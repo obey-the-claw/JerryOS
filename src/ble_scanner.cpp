@@ -37,10 +37,19 @@ struct PopupSighting {
 
 QueueHandle_t queue = nullptr;
 QueueHandle_t popupQueue = nullptr;  // pop-up style broadcasts (for spam detection)
+
+struct CamSightingMsg {
+  uint8_t addr[6];
+  CamMatch match;
+  int8_t rssi;
+  uint32_t ms;
+};
+QueueHandle_t camQueue = nullptr;  // Flock gear
 SemaphoreHandle_t nearbyLock = nullptr;
 NearbyTable nearbyTable;  // every device heard lately (guarded by nearbyLock)
 std::atomic<uint32_t> adverts{0}, trackerCount{0}, dropped{0};
 bool started = false;
+int newCameras_ = 0;  // new cameras found during drain() (main loop only)
 
 class Listener : public NimBLEAdvertisedDeviceCallbacks {
   void onResult(NimBLEAdvertisedDevice *dev) override {
@@ -60,6 +69,16 @@ class Listener : public NimBLEAdvertisedDeviceCallbacks {
       p.kind = popup;
       p.ms = now;
       xQueueSend(popupQueue, &p, 0);  // full = we're already flooded; dropping is fine
+    }
+
+    CamMatch cam;
+    if (matchCameraBle(payload, len, cam)) {
+      CamSightingMsg c;
+      memcpy(c.addr, addr, 6);
+      c.match = cam;
+      c.rssi = (int8_t)dev->getRSSI();
+      c.ms = now;
+      xQueueSend(camQueue, &c, 0);
     }
 
     TrackerAdvert adv;
@@ -92,6 +111,7 @@ void begin() {
   if (started) return;
   queue = xQueueCreate(64, sizeof(Sighting));
   popupQueue = xQueueCreate(48, sizeof(PopupSighting));
+  camQueue = xQueueCreate(16, sizeof(CamSightingMsg));
   nearbyLock = xSemaphoreCreateMutex();
   NimBLEDevice::init("");  // no name: we never advertise
   startScan();
@@ -99,12 +119,15 @@ void begin() {
   Serial.println(F("[ble] passive tracker scan started"));
 }
 
-void drain(TrackerWatch &watch, AttackWatch &attacks) {
+void drain(TrackerWatch &watch, AttackWatch &attacks, CameraWatch &cams) {
   if (!started) return;
   Sighting s;
   while (xQueueReceive(queue, &s, 0) == pdTRUE) watch.onSighting(s.addr, s.adv, s.rssi, s.ms);
   PopupSighting p;
   while (xQueueReceive(popupQueue, &p, 0) == pdTRUE) attacks.onPopup(p.addr, p.kind, p.ms);
+  CamSightingMsg c;
+  while (xQueueReceive(camQueue, &c, 0) == pdTRUE)
+    if (cams.onSighting(c.addr, c.match, c.rssi, c.ms)) newCameras_++;
 
   // If the stack ever stops scanning (it shouldn't), quietly restart it.
   static uint32_t lastCheck = 0;
@@ -115,6 +138,12 @@ void drain(TrackerWatch &watch, AttackWatch &attacks) {
       startScan();
     }
   }
+}
+
+int takeNewCameras() {
+  const int n = newCameras_;
+  newCameras_ = 0;
+  return n;
 }
 
 int nearbyDevices() {

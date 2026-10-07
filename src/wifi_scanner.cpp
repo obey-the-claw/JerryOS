@@ -16,6 +16,8 @@
 
 #include <atomic>
 
+#include "camera_watch.h"
+
 namespace wifi {
 namespace {
 
@@ -113,12 +115,27 @@ constexpr uint32_t HOP_MS = 500;
 std::atomic<uint32_t> kickoffs{0};
 std::atomic<bool> sniffingNow{false};
 
+// Frames sent by Flock cameras (their probe requests carry Flock's address
+// prefix), handed to the main loop.
+struct FlockFrame {
+  uint8_t mac[6];
+  int8_t rssi;
+};
+QueueHandle_t flockQueue = nullptr;
+
 void onFrame(void *buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT) return;
   const auto *pkt = (const wifi_promiscuous_pkt_t *)buf;
   if (pkt->rx_ctrl.sig_len < 24) return;
   const uint8_t frameType = pkt->payload[0];
   if (frameType == 0xC0 || frameType == 0xA0) kickoffs++;  // deauth / disassoc
+  const uint8_t *sender = pkt->payload + 10;
+  if (flockQueue && isFlockWifiAddr(sender)) {
+    FlockFrame f;
+    memcpy(f.mac, sender, 6);
+    f.rssi = (int8_t)pkt->rx_ctrl.rssi;
+    xQueueSend(flockQueue, &f, 0);
+  }
 }
 
 void sniff() {
@@ -169,6 +186,7 @@ void begin() {
   if (tableLock) return;
   tableLock = xSemaphoreCreateMutex();
   fileLock = xSemaphoreCreateMutex();
+  flockQueue = xQueueCreate(8, sizeof(FlockFrame));
   xTaskCreatePinnedToCore(task, "wifi", 6144, nullptr, 1, nullptr, 0);
   Serial.println(F("[wifi] passive scan task started"));
 }
@@ -176,6 +194,14 @@ void begin() {
 void setEnabled(bool v) { on = v; }
 bool enabled() { return on; }
 uint32_t takeKickoffs() { return kickoffs.exchange(0); }
+
+bool takeFlockFrame(uint8_t mac[6], int8_t &rssi) {
+  FlockFrame f;
+  if (!flockQueue || xQueueReceive(flockQueue, &f, 0) != pdTRUE) return false;
+  memcpy(mac, f.mac, 6);
+  rssi = f.rssi;
+  return true;
+}
 bool sniffing() { return sniffingNow; }
 
 bool scanning() { return running && on; }  // (radio follows `on` within 250 ms)

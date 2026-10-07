@@ -548,6 +548,40 @@ One checkpoint each, tested on the device in between.
 
 ### On the real device (Steve fills this in)
 
-- [ ] LED found, green breath visible, colours right (not swapped)
+- [x] LED breathing green on the device: colours right (2026-10-07)
 - [ ] Blue blip while REC; alerts / off modes work
 - [ ] Red blink on an alert, amber after looking
+
+---
+
+## Checkpoint 10: Flock cameras
+
+### What we did
+
+- Read the flock-you source (colonelpanichacks, MIT) and flock-you-go rather
+  than guessing. Kept only high-confidence signatures: Flock's own Wi-Fi
+  address prefix, "Flock-XXXXXX" hotspots, "Penguin-" + 10 digits and
+  "FS Ext Battery" battery names, the Flock Bluetooth service ID. "Maybe":
+  the battery chip maker's ID and the Raven service range.
+- Skipped the wider community address list on purpose: it includes generic
+  chip makers (Espressif, etc.) that would flag ordinary smart plugs, and
+  Jerry himself.
+- Three ways in: Bluetooth broadcasts (radio task → queue), Wi-Fi scan
+  results (every 20 s), and Flock-addressed frames heard during the
+  kick-off listening window.
+- New **toast**: a short message over any screen ("Flock camera nearby!")
+  that also wakes the screen. Cameras screen, LED amber and home WATCH while
+  one is near. Credits added to About and README.
+- Unit tests 115 → 139 (incl. near-misses: "Penguin Speaker", 9 or 11 digits,
+  a bare phone number, "Flockton Library", one byte off the service ID).
+
+### What broke / how we fixed it
+
+- **flash_prebuilt.ps1 sorted firmware files by name**, so `cp10` would have
+  sorted *before* `cp9` and Steve would have flashed the old version. Now it
+  sorts by checkpoint number. Checked with PowerShell against the real folder.
+
+### On the real device (Steve fills this in)
+
+- [ ] Cameras: "no Flock cameras" at home
+- [ ] Drive past a known Flock camera (deflock.me): pop-up + listed
