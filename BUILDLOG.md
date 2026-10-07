@@ -657,3 +657,5 @@ together with one test plan: `docs/TEST-PLAN.md`.
 ### On the real device: see docs/TEST-PLAN.md
 
 - [x] Pocket mode works on the device (2026-10-07)
+- [x] Sound meter works: shows "talking" when talking (first use of the microphone)
+- [ ] Sound calibration vs. a phone app (quiet / talking / loud)
