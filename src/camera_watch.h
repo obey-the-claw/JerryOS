@@ -1,4 +1,5 @@
-// camera_watch.h - Flock licence-plate (ALPR) cameras and their gear.
+// camera_watch.h - Flock licence-plate (ALPR) cameras and their gear, plus
+// "hidden camera?" hints.
 //
 // Flock Safety cameras (and their "Penguin" battery packs and Raven
 // gunshot sensors) leave radio fingerprints. Signatures come from the
@@ -17,13 +18,24 @@
 // includes generic chip makers (e.g. Espressif) used by thousands of
 // ordinary gadgets, and Jerry himself.
 //
+// Hidden-camera HINTS (for checking a hotel room or rental), quieter: they
+// are listed, but don't pop up or light the LED:
+//   - Wi-Fi made by a camera company (Hikvision, Dahua, Ring, Wyze, Reolink...;
+//     157 address prefixes from the IEEE registry, see camera_ouis.h). Heard
+//     as a network, or as a device sending Wi-Fi traffic (a camera streaming
+//     to the house Wi-Fi sends lots).
+//   - Wi-Fi hotspots named like cheap spy / IP cameras (HDWiFiCam, V380...).
+// A hint is not proof: a doorbell outside is a camera too, and a camera that
+// only records to a card sends nothing.
+//
 // Listen-only, like everything else. Pure logic, unit-tested on a PC.
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
 
-enum class CamKind : uint8_t { FlockCamera, FlockBattery, Raven };
-const char *camKindName(CamKind k);  // "Flock camera", "Flock battery", "Raven sensor"
+enum class CamKind : uint8_t { FlockCamera, FlockBattery, Raven, Hint };
+const char *camKindName(CamKind k);  // "Flock camera", "Flock battery", "Raven sensor", "Camera"
+inline bool isFlock(CamKind k) { return k != CamKind::Hint; }
 
 struct CamMatch {
   CamKind kind;
@@ -37,6 +49,10 @@ bool matchCameraBle(const uint8_t *payload, size_t len, CamMatch &out);
 bool matchCameraWifi(const uint8_t bssid[6], const char *ssid, CamMatch &out);
 // Any Wi-Fi frame's sender address -> Flock gear? (prefix check only)
 bool isFlockWifiAddr(const uint8_t mac[6]);
+// Camera company that owns this Wi-Fi address, or nullptr.
+const char *cameraMaker(const uint8_t mac[6]);
+// Hotspot named like a spy / IP camera? Returns a short label or nullptr.
+const char *cameraHotspotName(const char *ssid);
 
 struct CamSighting {
   uint8_t addr[6];
@@ -58,11 +74,14 @@ class CameraWatch {
   bool onSighting(const uint8_t addr[6], const CamMatch &m, int rssi, uint32_t now);
 
   int nearby(uint32_t now) const;          // heard in the last 2 min
-  uint32_t passedToday() const { return passed_; }  // different ones since power-on
+  int nearbyFlock(uint32_t now) const;     // ...Flock gear only
+  int nearbyHints(uint32_t now) const;     // ...camera hints only
+  uint32_t passedToday() const { return passed_; }  // different Flock ones since power-on
+  uint32_t hintsSeen() const { return hints_; }     // different camera hints since power-on
   // Most recent first. Returns how many.
   int list(const CamSighting **out, int max) const;
 
  private:
   CamSighting cam_[MAX] = {};
-  uint32_t passed_ = 0;
+  uint32_t passed_ = 0, hints_ = 0;
 };

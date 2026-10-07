@@ -95,8 +95,9 @@ void Shell::checkFollowers(uint32_t now) {
   bool newCam = false;
   for (int i = 0; i < nn; i++) {          // Flock camera hotspots / addresses
     CamMatch m;
-    if (matchCameraWifi(nets[i].bssid, nets[i].ssid, m))
-      newCam |= cams_.onSighting(nets[i].bssid, m, nets[i].rssi, now);
+    if (matchCameraWifi(nets[i].bssid, nets[i].ssid, m) &&
+        cams_.onSighting(nets[i].bssid, m, nets[i].rssi, now) && isFlock(m.kind))
+      newCam = true;  // only Flock pops up; camera hints are just listed
   }
   if (newCam) toast("Flock camera nearby!");
 
@@ -116,7 +117,7 @@ void Shell::updateLed(uint32_t now) {
   LedInputs in;
   in.alert = anyAlert();
   in.watching = tracker_.anySeparatedNow(now) || follow_.flaggedCount() > 0 ||
-                attack_.anyActive() || cams_.nearby(now) > 0;
+                attack_.anyActive() || cams_.nearbyFlock(now) > 0;
   in.recording = wifi::recording();
   led::show(ledColor(in, (LedMode)settings_.ledMode, now));
 }
@@ -239,13 +240,15 @@ void Shell::loop() {
 
   // Tracker Watch: take in what the radio heard, check for new alerts.
   ble::drain(tracker_, attack_, cams_);
-  {  // Flock cameras heard over Wi-Fi (their own frames, between scans)
+  {  // Cameras heard over Wi-Fi traffic (between scans) and Bluetooth
     uint8_t mac[6];
     int8_t rssi;
-    int news = ble::takeNewCameras();
-    while (wifi::takeFlockFrame(mac, rssi)) {
-      const CamMatch m{CamKind::FlockCamera, true, "Flock WiFi"};
-      news += cams_.onSighting(mac, m, rssi, now);
+    bool flock;
+    int news = ble::takeNewCameras();  // Bluetooth matches are all Flock gear
+    while (wifi::takeCameraFrame(mac, rssi, flock)) {
+      const CamMatch m = flock ? CamMatch{CamKind::FlockCamera, true, "Flock WiFi"}
+                               : CamMatch{CamKind::Hint, false, cameraMaker(mac)};
+      if (cams_.onSighting(mac, m, rssi, now) && flock) news++;  // hints stay quiet
     }
     if (news) {
       Serial.println(F("[cams] Flock camera gear nearby"));

@@ -18,7 +18,8 @@ Jerry's animated head lives on the screen. The v0 modes are:
 - **Shield:** listen-only attack detector: Wi-Fi "deauth" floods, Flipper-style
   Bluetooth pop-up spam, evil-twin and many-names fake networks.
 - **Cameras:** spots Flock licence-plate cameras, their battery packs and
-  Raven sensors as you pass (signatures from flock-you / flock-you-go).
+  Raven sensors as you pass (signatures from flock-you / flock-you-go), and
+  lists hidden-camera hints (camera-brand Wi-Fi, spy-cam hotspots).
 - **Colour LED:** red blink = look at Jerry, amber = watching, blue blip =
   recording, soft green = all clear. Works with the screen off.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
@@ -45,7 +46,8 @@ stays physically stock (no soldering).
 | 7 | Followers: any Bluetooth device that moves with you | 🟡 home test ✅, drive test pending ([guide](docs/CHECKPOINT7.md)) |
 | 8 | Shield: Wi-Fi kick-offs, Bluetooth pop-up spam, fake networks | ✅ quiet-day test 2026-10-07 ([guide](docs/CHECKPOINT8.md)) |
 | 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/CHECKPOINT9.md)) |
-| 10 | Flock licence-plate cameras | 🟡 ready to test ([guide](docs/CHECKPOINT10.md)) |
+| 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/CHECKPOINT10.md)) |
+| 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/CHECKPOINT11.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 

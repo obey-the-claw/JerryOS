@@ -116,31 +116,49 @@ std::atomic<uint32_t> kickoffs{0};
 std::atomic<bool> sniffingNow{false};
 
 // Frames sent by Flock cameras (their probe requests carry Flock's address
-// prefix), handed to the main loop.
-struct FlockFrame {
+// prefix) or by camera-maker devices (a camera streaming to the house Wi-Fi
+// sends lots of data frames), handed to the main loop. Each device is
+// reported at most once every 2 s so a busy camera can't flood the queue.
+struct CameraFrame {
   uint8_t mac[6];
   int8_t rssi;
+  bool flock;
 };
-QueueHandle_t flockQueue = nullptr;
+QueueHandle_t camFrameQueue = nullptr;
+
+bool recentlyReported(const uint8_t *mac) {  // only ever called from the Wi-Fi task
+  static struct { uint8_t mac[6]; uint32_t ms; } recent[8] = {};
+  static int next = 0;
+  const uint32_t now = millis();
+  for (auto &r : recent)
+    if (memcmp(r.mac, mac, 6) == 0 && now - r.ms < 2000) return true;
+  memcpy(recent[next].mac, mac, 6);
+  recent[next].ms = now;
+  next = (next + 1) % 8;
+  return false;
+}
 
 void onFrame(void *buf, wifi_promiscuous_pkt_type_t type) {
-  if (type != WIFI_PKT_MGMT) return;
+  if (type != WIFI_PKT_MGMT && type != WIFI_PKT_DATA) return;
   const auto *pkt = (const wifi_promiscuous_pkt_t *)buf;
   if (pkt->rx_ctrl.sig_len < 24) return;
   const uint8_t frameType = pkt->payload[0];
-  if (frameType == 0xC0 || frameType == 0xA0) kickoffs++;  // deauth / disassoc
+  if (type == WIFI_PKT_MGMT && (frameType == 0xC0 || frameType == 0xA0))
+    kickoffs++;  // deauth / disassoc
   const uint8_t *sender = pkt->payload + 10;
-  if (flockQueue && isFlockWifiAddr(sender)) {
-    FlockFrame f;
+  const bool flock = isFlockWifiAddr(sender);
+  if (camFrameQueue && (flock || cameraMaker(sender)) && !recentlyReported(sender)) {
+    CameraFrame f;
     memcpy(f.mac, sender, 6);
     f.rssi = (int8_t)pkt->rx_ctrl.rssi;
-    xQueueSend(flockQueue, &f, 0);
+    f.flock = flock;
+    xQueueSend(camFrameQueue, &f, 0);
   }
 }
 
 void sniff() {
   wifi_promiscuous_filter_t filter = {};
-  filter.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT;
+  filter.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_DATA;
   esp_wifi_set_promiscuous_filter(&filter);
   esp_wifi_set_promiscuous_rx_cb(onFrame);
   if (esp_wifi_set_promiscuous(true) != ESP_OK) return;
@@ -186,7 +204,7 @@ void begin() {
   if (tableLock) return;
   tableLock = xSemaphoreCreateMutex();
   fileLock = xSemaphoreCreateMutex();
-  flockQueue = xQueueCreate(8, sizeof(FlockFrame));
+  camFrameQueue = xQueueCreate(16, sizeof(CameraFrame));
   xTaskCreatePinnedToCore(task, "wifi", 6144, nullptr, 1, nullptr, 0);
   Serial.println(F("[wifi] passive scan task started"));
 }
@@ -195,11 +213,12 @@ void setEnabled(bool v) { on = v; }
 bool enabled() { return on; }
 uint32_t takeKickoffs() { return kickoffs.exchange(0); }
 
-bool takeFlockFrame(uint8_t mac[6], int8_t &rssi) {
-  FlockFrame f;
-  if (!flockQueue || xQueueReceive(flockQueue, &f, 0) != pdTRUE) return false;
+bool takeCameraFrame(uint8_t mac[6], int8_t &rssi, bool &flock) {
+  CameraFrame f;
+  if (!camFrameQueue || xQueueReceive(camFrameQueue, &f, 0) != pdTRUE) return false;
   memcpy(mac, f.mac, 6);
   rssi = f.rssi;
+  flock = f.flock;
   return true;
 }
 bool sniffing() { return sniffingNow; }

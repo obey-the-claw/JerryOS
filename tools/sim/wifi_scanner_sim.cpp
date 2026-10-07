@@ -5,6 +5,7 @@
 // "5quatch HQ" shows up next to the real one (evil twin).
 #include <Arduino.h>
 
+#include <string.h>
 #include <string>
 
 #include "wifi_scanner.h"
@@ -47,9 +48,14 @@ void scan() {
   const uint8_t place = minute < 8 ? 0 : (uint8_t)(1 + (minute - 8) / 2);
   int i = 0;
   for (const Fake &f : kScene) {
-    const uint8_t bssid[6] = {0x3c, (uint8_t)(0x50 + i * 7), 0x82, (uint8_t)(0x10 + i), place, (uint8_t)i};
+    // 0x02 = a "locally administered" address: never a real company prefix
+    const uint8_t bssid[6] = {0x02, (uint8_t)(0x50 + i * 7), 0x82, (uint8_t)(0x10 + i), place, (uint8_t)i};
     i++;
     add(bssid, f.ssid, f.auth, f.ch, f.rssi + (int)(now / 20000 % 3), now);
+  }
+  if (minute < 8) {  // a cheap spy cam's hotspot in the house
+    const uint8_t spy[6] = {0x0a, 0x9b, 0x8c, 0x7d, 0x6e, 0x5f};
+    add(spy, "HDWiFiCam-9F21", 0, 6, -71, now);
   }
   if (minute >= 17 && minute < 19) {  // a Flock camera's setup hotspot
     const uint8_t flock[6] = {0xb4, 0x1e, 0x52, 0x0a, 0x1b, 0x2c};
@@ -77,7 +83,17 @@ uint32_t seenThisBoot() { return table.uniqueSeen(); }
 uint32_t session() { return sess; }
 uint32_t takeKickoffs() { return millis() / 60000 == 12 ? 5 : 0; }  // flood in minute 12
 bool sniffing() { return false; }
-bool takeFlockFrame(uint8_t *, int8_t &) { return false; }
+bool takeCameraFrame(uint8_t *mac, int8_t &rssi, bool &flock) {
+  // At home a Wyze camera streams to the house Wi-Fi (one report per 20 s).
+  static uint32_t last = 0;
+  if (millis() / 60000 >= 8 || millis() - last < 20000) return false;
+  last = millis();
+  const uint8_t wyze[6] = {0x2c, 0xaa, 0x8e, 0x12, 0x34, 0x56};
+  memcpy(mac, wyze, 6);
+  rssi = -58;
+  flock = false;
+  return true;
+}
 void setRecording(bool r) {
   if (r && !rec) { sess++; savedCount = 0; lastScan = 0; }
   rec = r;

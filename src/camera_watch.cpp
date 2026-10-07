@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "camera_ouis.h"
+
 namespace {
 
 inline uint16_t le16(const uint8_t *p) { return p[0] | (p[1] << 8); }
@@ -36,12 +38,54 @@ const char *camKindName(CamKind k) {
     case CamKind::FlockCamera: return "Flock camera";
     case CamKind::FlockBattery: return "Flock battery";
     case CamKind::Raven: return "Raven sensor";
+    case CamKind::Hint: return "Camera";
   }
   return "?";
 }
 
 bool isFlockWifiAddr(const uint8_t mac[6]) {
   return mac[0] == 0xb4 && mac[1] == 0x1e && mac[2] == 0x52;  // Flock Safety (IEEE)
+}
+
+const char *cameraMaker(const uint8_t mac[6]) {
+  int lo = 0, hi = kCamOuiCount - 1;  // binary search: the table is sorted
+  const uint32_t key = (uint32_t)mac[0] << 16 | mac[1] << 8 | mac[2];
+  while (lo <= hi) {
+    const int mid = (lo + hi) / 2;
+    const CamOui &o = kCamOuis[mid];
+    const uint32_t v = (uint32_t)o.b0 << 16 | o.b1 << 8 | o.b2;
+    if (v == key) return kCamBrands[o.brand];
+    if (v < key) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return nullptr;
+}
+
+const char *cameraHotspotName(const char *ssid) {
+  if (!ssid || !*ssid) return nullptr;
+  const size_t n = strlen(ssid);
+  // Setup / direct-connect hotspots of cheap spy and IP cameras.
+  static const char *const kPrefixes[][2] = {
+      {"hdwificam", "HDWiFiCam"}, {"ipcam", "IP camera"},   {"ipc-", "IP camera"},
+      {"ipc_", "IP camera"},      {"v380", "V380 cam"},     {"gw_ap", "Yoosee cam"},
+      {"cloudcam", "CloudCam"},   {"lookcam", "Lookcam"},   {"hicam", "HiCam"},
+      {"minicam", "mini cam"},    {"mini cam", "mini cam"}, {"wificam", "WiFi cam"},
+      {"wifi-cam", "WiFi cam"},   {"spycam", "spy cam"},    {"ezviz_", "EZVIZ cam"},
+      {"wansview", "Wansview"},   {"tapo_cam", "Tapo cam"}, {"reolink", "Reolink"},
+      {"wyze", "Wyze"},           {"ring setup", "Ring"},
+  };
+  for (const auto &p : kPrefixes)
+    if (startsWithNoCase(ssid, n, p[0])) return p[1];
+  // V380 cameras call their hotspot "MV" + the device number.
+  if (n >= 10 && (ssid[0] == 'M' || ssid[0] == 'm') && (ssid[1] == 'V' || ssid[1] == 'v')) {
+    bool digits = true;
+    for (size_t i = 2; i < n; i++) digits &= isdigit((unsigned char)ssid[i]) != 0;
+    if (digits) return "V380 cam";
+  }
+  // "camera" anywhere in the name (but not e.g. "Campus").
+  for (size_t i = 0; i + 6 <= n; i++)
+    if (startsWithNoCase(ssid + i, n - i, "camera")) return "camera WiFi";
+  return nullptr;
 }
 
 bool matchCameraWifi(const uint8_t bssid[6], const char *ssid, CamMatch &out) {
@@ -51,6 +95,14 @@ bool matchCameraWifi(const uint8_t bssid[6], const char *ssid, CamMatch &out) {
   }
   if (ssid && startsWithNoCase(ssid, strlen(ssid), "flock-")) {
     out = {CamKind::FlockCamera, true, "Flock hotspot"};
+    return true;
+  }
+  if (const char *label = cameraHotspotName(ssid)) {
+    out = {CamKind::Hint, false, label};
+    return true;
+  }
+  if (const char *maker = cameraMaker(bssid)) {
+    out = {CamKind::Hint, false, maker};
     return true;
   }
   return false;
@@ -119,13 +171,16 @@ bool CameraWatch::onSighting(const uint8_t addr[6], const CamMatch &m, int rssi,
     memcpy(slot->addr, addr, 6);
     slot->firstMs = now;
     slot->used = true;
-    passed_++;
+    (isFlock(m.kind) ? passed_ : hints_)++;
     news = true;
   } else {
     news = now - slot->lastMs > 10 * 60000;  // back after a long while: tell again
     if (news) slot->firstMs = now;
   }
-  if (m.sure || !slot->sure) {  // keep the strongest reason
+  // Keep the strongest reason: Flock beats a camera hint, "sure" beats "maybe".
+  const int have = isFlock(slot->kind) ? (slot->sure ? 3 : 2) : 1;
+  const int got = isFlock(m.kind) ? (m.sure ? 3 : 2) : 1;
+  if (news || got >= have) {
     slot->kind = m.kind;
     slot->sure = m.sure;
     slot->why = m.why;
@@ -139,6 +194,20 @@ int CameraWatch::nearby(uint32_t now) const {
   int n = 0;
   for (const auto &c : cam_)
     if (c.used && now - c.lastMs < NEAR_MS) n++;
+  return n;
+}
+
+int CameraWatch::nearbyFlock(uint32_t now) const {
+  int n = 0;
+  for (const auto &c : cam_)
+    if (c.used && isFlock(c.kind) && now - c.lastMs < NEAR_MS) n++;
+  return n;
+}
+
+int CameraWatch::nearbyHints(uint32_t now) const {
+  int n = 0;
+  for (const auto &c : cam_)
+    if (c.used && !isFlock(c.kind) && now - c.lastMs < NEAR_MS) n++;
   return n;
 }
 

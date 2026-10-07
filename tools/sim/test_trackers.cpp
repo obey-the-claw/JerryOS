@@ -13,6 +13,7 @@
 #include "attack_watch.h"
 #include "status_led.h"
 #include "camera_watch.h"
+#include "camera_ouis.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -588,6 +589,40 @@ static void testCameras() {
   CHECK(w.passedToday() == 1);
   const CamSighting *list[4];
   CHECK(w.list(list, 4) == 1 && list[0]->rssi == -70);
+
+  // Hidden-camera hints.
+  const uint8_t wyze[6] = {0x2c, 0xaa, 0x8e, 1, 2, 3}, ring[6] = {0x00, 0x00, 0x00, 1, 2, 3};
+  CHECK(cameraMaker(wyze) && strcmp(cameraMaker(wyze), "Wyze") == 0);
+  CHECK(cameraMaker(ring) == nullptr && cameraMaker(other) == nullptr);
+  CHECK(cameraMaker(flockMac) == nullptr);  // Flock is its own thing
+  int sorted = 1;  // the generated table must be sorted for the binary search
+  for (int i = 1; i < kCamOuiCount; i++) {
+    const uint32_t a0 = kCamOuis[i - 1].b0 << 16 | kCamOuis[i - 1].b1 << 8 | kCamOuis[i - 1].b2;
+    const uint32_t a1 = kCamOuis[i].b0 << 16 | kCamOuis[i].b1 << 8 | kCamOuis[i].b2;
+    sorted &= a0 < a1;
+  }
+  CHECK(sorted && kCamOuiCount > 100);
+  for (int i = 0; i < kCamOuiCount; i += 7) {  // every entry is findable
+    const uint8_t mac[6] = {kCamOuis[i].b0, kCamOuis[i].b1, kCamOuis[i].b2, 0, 0, 0};
+    CHECK(cameraMaker(mac) && strcmp(cameraMaker(mac), kCamBrands[kCamOuis[i].brand]) == 0);
+  }
+  CHECK(cameraHotspotName("HDWiFiCam-9F21") && cameraHotspotName("MV12345678"));
+  CHECK(cameraHotspotName("ipcam_001") && cameraHotspotName("Front Camera"));
+  CHECK(cameraHotspotName("Ring Setup 4C") && cameraHotspotName("GW_AP_1234"));
+  CHECK(!cameraHotspotName("Campus WiFi") && !cameraHotspotName("MVP Sports"));
+  CHECK(!cameraHotspotName("NETGEAR47") && !cameraHotspotName("") && !cameraHotspotName(nullptr));
+  CHECK(!cameraHotspotName("MV12a45678"));
+  CHECK(matchCameraWifi(wyze, "Home", m) && m.kind == CamKind::Hint && !isFlock(m.kind));
+  CHECK(matchCameraWifi(other, "V380_PRO", m) && m.kind == CamKind::Hint);
+
+  CameraWatch v;  // hints are counted apart from Flock
+  CamMatch hint{CamKind::Hint, false, "Wyze"};
+  v.onSighting(wyze, hint, -60, 1000);
+  v.onSighting(a, sure, -70, 1000);
+  CHECK(v.nearbyFlock(2000) == 1 && v.nearbyHints(2000) == 1 && v.passedToday() == 1 &&
+        v.hintsSeen() == 1);
+  v.onSighting(a, hint, -70, 3000);  // a weaker reason never downgrades Flock
+  CHECK(v.nearbyFlock(4000) == 1);
 }
 
 int main() {

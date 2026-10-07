@@ -3,7 +3,7 @@
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
 //                     ├─> Followers ──────> one follower ("mine")
 //                     ├─> Shield           (Wi-Fi kick-offs, BT spam, fake networks)
-//                     ├─> Cameras          (Flock licence-plate cameras)
+//                     ├─> Cameras          (Flock licence-plate cameras + hidden-cam hints)
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
@@ -15,6 +15,7 @@
 
 #include "screens.h"
 
+#include <ctype.h>
 #include <string.h>
 
 #include "ble_scanner.h"
@@ -145,7 +146,7 @@ class HomeScreen : public Screen {
     // Safety at a glance: trackers + followers.
     if (shell.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "ALERT");
     else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() || shell.attacks().anyActive() ||
-             shell.cameras().nearby(now) ||
+             shell.cameras().nearbyFlock(now) ||
              shell.follow().candidates(now) >= 3)
       pills[0].set(BARK, GOLD, "WATCH");
     else pills[0].set(GOOD, INK, "SAFE");
@@ -777,6 +778,15 @@ class ShieldScreen : public Screen {
 // ---------------------------------------------------------------------------
 // Cameras: Flock licence-plate cameras and their gear
 // ---------------------------------------------------------------------------
+// Does a label already say "cam" (any case)?
+bool mentionsCam(const char *s) {
+  for (; s && s[0] && s[1] && s[2]; s++)
+    if (tolower((unsigned char)s[0]) == 'c' && tolower((unsigned char)s[1]) == 'a' &&
+        tolower((unsigned char)s[2]) == 'm')
+      return true;
+  return false;
+}
+
 class CamerasScreen : public Screen {
  public:
   const char *tag() const override { return "CAMERAS"; }
@@ -788,29 +798,32 @@ class CamerasScreen : public Screen {
     const uint32_t now = millis();
     const CameraWatch &c = shell.cameras();
     char buf[28];
-    const int near = c.nearby(now);
-    snprintf(buf, sizeof buf, "%d near  %lu passed", near, (unsigned long)c.passedToday());
-    text(g, 4, y0 + 3, near ? GOLD : DIM, buf);
+    const int flock = c.nearbyFlock(now), hints = c.nearbyHints(now);
+    snprintf(buf, sizeof buf, "Flock %d   cams? %d", flock, hints);
+    text(g, 4, y0 + 3, flock ? GOLD : hints ? CREAM : DIM, buf);
     const CamSighting *list[8];
     const int n = c.list(list, 8);
     if (!n) {
       shell.jerry().draw(g, W / 2, y0 + 40, 0.42f);
-      centered(g, y0 + 66, GOOD, "no Flock cameras");
-      centered(g, y0 + 80, DIM, wifi::enabled() ? "listening..." : "(WiFi scan helps)");
+      centered(g, y0 + 66, GOOD, "no cameras heard");
+      centered(g, y0 + 80, DIM, wifi::enabled() ? "listening..." : "(needs WiFi scan)");
       return;
     }
     for (int i = 0; i < n && i < 8; i++) {
       const CamSighting &s = *list[i];
       const int y = y0 + 14 + i * 11;
       const bool here = now - s.lastMs < CameraWatch::NEAR_MS;
-      signalBars(g, 5, y, s.rssi, here ? GOLD : DIM, BAR);
+      const bool fl = isFlock(s.kind);
+      signalBars(g, 5, y, s.rssi, here ? (fl ? GOLD : CREAM) : DIM, BAR);
       char when[10];
       if (here) snprintf(when, sizeof when, "now");
       else ago(when, sizeof when, (int)((now - s.lastMs) / 60000));
-      snprintf(buf, sizeof buf, "%s%s", camKindName(s.kind), s.sure ? "" : "?");
+      if (fl) snprintf(buf, sizeof buf, "%s%s", camKindName(s.kind), s.sure ? "" : "?");
+      else snprintf(buf, sizeof buf, "%s%s?", s.why ? s.why : "camera",
+                    mentionsCam(s.why) ? "" : " cam");  // "Wyze cam?", "HDWiFiCam?"
       const int ww = g.textWidth(when);
       fitText(g, 20, y + 1, W - 26 - ww, here ? CREAM : DIM, buf);
-      text(g, W - 5 - ww, y + 1, here ? GOLD : DIM, when);
+      text(g, W - 5 - ww, y + 1, here ? (fl ? GOLD : CREAM) : DIM, when);
     }
   }
 };

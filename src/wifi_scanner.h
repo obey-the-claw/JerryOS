@@ -23,8 +23,9 @@ bool scanning();                 // task running and radio up
 int nearby();                    // networks heard in the last 90 s
 uint32_t takeKickoffs();          // "disconnect" frames heard since the last call
 bool sniffing();                  // listening for kick-offs right now
-// A Wi-Fi frame sent from a Flock address was heard. Returns false if none.
-bool takeFlockFrame(uint8_t mac[6], int8_t &rssi);
+// Wi-Fi traffic from a Flock address (flock = true) or a camera maker's
+// address (flock = false) was heard. Returns false if none waiting.
+bool takeCameraFrame(uint8_t mac[6], int8_t &rssi, bool &flock);
 uint32_t seenThisBoot();         // different networks since power-on
 uint32_t session();              // recording session number, written in each log line
 int snapshot(WifiNet *out, int max);  // heard recently, strongest first

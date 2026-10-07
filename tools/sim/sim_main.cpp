@@ -77,6 +77,11 @@ int main() {
   tap(PIN_BTN_RIGHT); snap("about_more");
   hold(PIN_BTN_LEFT); snap("home_via_hold_left");
   hold(PIN_BTN_LEFT); run(125000); snap("home_sleepy");
+  // Hidden-camera check at home (menu cursor is on Settings: 4 taps wrap to Cameras).
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);
+  hold(PIN_BTN_RIGHT); run(300); snap("cameras_home");
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);  // back to Settings
+  hold(PIN_BTN_LEFT);
   // Tracker Watch: open it from the menu (cursor is on Settings; wrap to Tracker).
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
   hold(PIN_BTN_RIGHT); snap("tracker_airtag_list");

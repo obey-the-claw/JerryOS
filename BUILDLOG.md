@@ -583,5 +583,43 @@ One checkpoint each, tested on the device in between.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Cameras: "no Flock cameras" at home
+- [x] Cameras: "no Flock cameras" at home (2026-10-07)
 - [ ] Drive past a known Flock camera (deflock.me): pop-up + listed
+
+---
+
+## Checkpoint 11: Hidden-camera hints
+
+### What we did
+
+- **Camera-maker addresses from the official registry:**
+  `tools/make_camera_ouis.py` reads the IEEE MA-L list and keeps only
+  companies that mostly make cameras, matched on their exact registered
+  names (so "Carlo Gavazzi" can't pass for "Arlo"). That gives 157
+  prefixes in `src/camera_ouis.h`, sorted for a fast binary search.
+- **Spy / IP camera hotspot names:** HDWiFiCam, V380 ("MV" + digits),
+  IPCAM, Yoosee GW_AP, Lookcam, "...camera...", Ring Setup, Tapo_Cam...
+- **Streaming cameras:** the listening window now also hears Wi-Fi data
+  frames, so a camera uploading video to the house Wi-Fi gets caught by
+  its sender address. Each device is reported at most every 2 s, so a busy
+  camera can't flood the queue.
+- Hints share the Cameras screen ("Wyze cam?", "HDWiFiCam?"), stay quiet
+  (no pop-up, no LED), and Flock still wins if both match.
+- Unit tests 139 → 176: every 7th table entry found, table sorted, brands,
+  hotspot names and near-misses ("Campus WiFi", "MVP Sports", "MV12a45678").
+
+### What broke / how we fixed it
+
+- A test compared brand names by memory address. The test file and the
+  firmware each keep their own copy of the text, so it failed. Firmware was
+  fine; the test now compares the words.
+- The simulator's fake neighbours accidentally used a real Ring prefix.
+  Moved them to "locally administered" addresses that can't belong to any
+  company.
+- The top line wrapped, and labels read "HDWiFiCam cam?". Shortened the line
+  and made the "cam" check ignore upper/lower case.
+
+### On the real device (Steve fills this in)
+
+- [ ] Own camera / doorbell shows as "<brand> cam?" within a minute
+- [ ] Bars grow when walking closer
