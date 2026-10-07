@@ -36,3 +36,6 @@ constexpr int PIN_I2S_WS     = 12;
 constexpr int PIN_I2S_DOUT   = 11;  // ESP32 -> speaker
 constexpr int PIN_I2S_DIN    = 13;  // microphone -> ESP32 (not used)
 constexpr int PIN_SPK_AMP_EN = 9;   // HIGH = amplifier on
+
+// --- Colour LED: one WS2812 pixel (a strapping pin, fine as an output after boot) ---
+constexpr int PIN_RGB_LED = 46;

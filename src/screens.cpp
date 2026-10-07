@@ -18,6 +18,7 @@
 
 #include "ble_scanner.h"
 #include "shell.h"
+#include "status_led.h"
 #include "theme.h"
 #include "wifi_scanner.h"
 
@@ -869,7 +870,7 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, Wi-Fi scan, Wi-Fi log, my devices, diag, about
+// Settings: brightness, alert window, LED, Wi-Fi scan, Wi-Fi log, my devices, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
@@ -907,7 +908,8 @@ class SettingsScreen : public Screen {
         shell.applyBrightness();  // preview live
         break;
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
-      case 2: s.wifiScan = !s.wifiScan; break;
+      case 2: s.ledMode = (s.ledMode + 1) % 3; break;  // the LED shows it live
+      case 3: s.wifiScan = !s.wifiScan; break;
     }
   }
 
@@ -937,7 +939,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog || cursor_ == kMine) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 5) {
+    } else if (cursor_ == 6) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -950,21 +952,22 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "WiFi scan",
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED", "WiFi scan",
                                                "WiFi log", "My devices", "Diagnostics", "About"};
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
-    const char *values[kItems] = {bright, alert, s.wifiScan ? "on" : "off",
+    const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
+                                  s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
                                   erasing_ && cursor_ == kMine ? "clear?" : mine, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 7;
-  static constexpr int kWifiLog = 3;
-  static constexpr int kMine = 4;  // devices marked "mine" in Followers
-  static bool isValue(int i) { return i <= 2; }
+  static constexpr int kItems = 8;
+  static constexpr int kWifiLog = 4;
+  static constexpr int kMine = 5;  // devices marked "mine" in Followers
+  static bool isValue(int i) { return i <= 3; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;

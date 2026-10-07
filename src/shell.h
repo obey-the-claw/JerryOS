@@ -61,6 +61,8 @@ class Shell {
   SceneTracker scene_;
   uint32_t lastFollowCheck_ = 0;
   void checkFollowers(uint32_t now);
+  void updateLed(uint32_t now);
+  uint32_t lastLed_ = 0;
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

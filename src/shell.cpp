@@ -8,6 +8,7 @@
 
 #include "ble_scanner.h"
 #include "screens.h"
+#include "status_led.h"
 #include "theme.h"
 #include "wifi_scanner.h"
 
@@ -99,6 +100,17 @@ void Shell::checkFollowers(uint32_t now) {
     lastInput_ = now;  // wake the screen
     if (&current() != &followersScreen()) open(followersScreen());
   }
+}
+
+// The colour LED: a silent signal you can read with the screen off.
+void Shell::updateLed(uint32_t now) {
+  if (now - lastLed_ < 20) return;
+  lastLed_ = now;
+  LedInputs in;
+  in.alert = anyAlert();
+  in.watching = tracker_.anySeparatedNow(now) || follow_.flaggedCount() > 0 || attack_.anyActive();
+  in.recording = wifi::recording();
+  led::show(ledColor(in, (LedMode)settings_.ledMode, now));
 }
 
 void Shell::applyBrightness() {
@@ -207,6 +219,7 @@ void Shell::loop() {
     if (&current() != &trackerScreen()) open(trackerScreen());
   }
   checkFollowers(now);
+  updateLed(now);
   // Attacks: Wi-Fi kick-off frames heard (once a second), then any new threat?
   if (now - lastKickoffRead_ >= 1000) {
     lastKickoffRead_ = now;

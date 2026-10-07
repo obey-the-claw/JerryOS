@@ -520,7 +520,34 @@ One checkpoint each, tested on the device in between.
 
 ### On the real device (Steve fills this in)
 
-- [ ] Shield stays "all quiet" for a normal day
+- [x] Shield says "all quiet" on the device (2026-10-07)
 - [ ] BLE Nearby / Tracker Watch counts look the same as before
 - [ ] (optional) Flipper pop-up spam → ATTACK NEARBY
 - [ ] (optional) open phone hotspot named like the home Wi-Fi → Fake networks
+
+---
+
+## Checkpoint 9: the colour LED
+
+### What we did
+
+- First use of the board's WS2812 colour LED (GPIO 46), through the
+  built-in `neopixelWrite`. It's only updated when the colour changes.
+- One colour language for everything: **red fast blink** = unseen alert,
+  **amber pulse** = watching, **blue blip** = REC, **soft green** = all clear.
+  All dim (max 60/255).
+- Settings → LED: all / alerts / off (default all).
+- The pattern logic is pure and tested (8 checks: off is off, alert is red
+  and blinks, green only in "all", amber has no blue, REC blip, max
+  brightness). The simulator draws the LED as a dot under each screenshot.
+
+### What broke / how we fixed it
+
+- My first "LED setting" screenshot was taken one row too early. Script fix
+  only.
+
+### On the real device (Steve fills this in)
+
+- [ ] LED found, green breath visible, colours right (not swapped)
+- [ ] Blue blip while REC; alerts / off modes work
+- [ ] Red blink on an alert, amber after looking

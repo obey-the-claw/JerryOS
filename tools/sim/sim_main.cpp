@@ -3,6 +3,8 @@
 #include "display.h"
 #include "screens.h"
 #include "shell.h"
+#include "status_led.h"
+extern Rgb g_simLed;
 uint32_t g_fake_ms = 1000;
 int g_pin[64];
 SerialStub Serial;
@@ -12,11 +14,19 @@ static Shell shell(lcd, homeScreen());
 static int shot = 0;
 static void snap(const char *name) {
   char path[96]; snprintf(path, sizeof path, "shots/%02d_%s.ppm", ++shot, name);
-  FILE *f = fopen(path, "wb"); const int sc = 3;
-  fprintf(f, "P6\n%d %d\n255\n", 128 * sc, 128 * sc);
+  FILE *f = fopen(path, "wb"); const int sc = 3, led = 8;  // + a strip showing the LED
+  fprintf(f, "P6\n%d %d\n255\n", 128 * sc, (128 + led) * sc);
   for (int y = 0; y < 128 * sc; y++) for (int x = 0; x < 128 * sc; x++) {
     uint16_t c = lcd.readPixel(x / sc, y / sc);
     unsigned char rgb[3] = {(unsigned char)(((c >> 11) & 31) * 255 / 31), (unsigned char)(((c >> 5) & 63) * 255 / 63), (unsigned char)((c & 31) * 255 / 31)};
+    fwrite(rgb, 1, 3, f);
+  }
+  for (int y = 0; y < led * sc; y++) for (int x = 0; x < 128 * sc; x++) {
+    const int dx = x - 64 * sc, dy = y - led * sc / 2;
+    const bool dot = dx * dx + dy * dy <= 9 * sc * sc / 4 * 4;
+    const auto boost = [](uint8_t v) { return (unsigned char)(v ? 90 + v * 165 / 60 > 255 ? 255 : 90 + v * 165 / 60 : 35); };
+    unsigned char rgb[3] = {35, 35, 35};
+    if (dot) { rgb[0] = boost(g_simLed.r); rgb[1] = boost(g_simLed.g); rgb[2] = boost(g_simLed.b); }
     fwrite(rgb, 1, 3, f);
   }
   fclose(f);
@@ -55,7 +65,8 @@ int main() {
   hold(PIN_BTN_RIGHT); snap("settings_edit");
   tap(PIN_BTN_RIGHT); snap("settings_edit_next");
   hold(PIN_BTN_RIGHT); snap("settings_saved");
-  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");
   tap(PIN_BTN_RIGHT); snap("settings_diag_sel");

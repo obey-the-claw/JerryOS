@@ -11,6 +11,7 @@
 #include "wifi_nets.h"
 #include "follow_watch.h"
 #include "attack_watch.h"
+#include "status_led.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -499,6 +500,45 @@ static void testAttacks() {
   }
 }
 
+static void testLed() {
+  printf("Status LED\n");
+  const LedInputs calm{false, false, false}, alert{true, true, true}, watch{false, true, false},
+      rec{false, false, true};
+  // Off means off, whatever happens.
+  bool anyLit = false;
+  for (uint32_t t = 0; t < 10000; t += 7) {
+    const Rgb c = ledColor(alert, LedMode::Off, t);
+    anyLit |= c.r || c.g || c.b;
+  }
+  CHECK(!anyLit);
+  // Alert: red blinking (both on and off moments), never green/blue, beats everything.
+  int on = 0, off = 0;
+  bool otherColour = false;
+  for (uint32_t t = 0; t < 2000; t += 5) {
+    const Rgb c = ledColor(alert, LedMode::Alerts, t);
+    (c.r ? on : off)++;
+    otherColour |= c.g || c.b;
+  }
+  CHECK(on > 100 && off > 100 && !otherColour);
+  // All clear: green only in "all" mode, dark in "alerts" mode.
+  CHECK(ledColor(calm, LedMode::Alerts, 1234).g == 0);
+  CHECK(ledColor(calm, LedMode::All, 1234).g > 0 && ledColor(calm, LedMode::All, 1234).r == 0);
+  // Watching: amber (red + some green, no blue) in both modes.
+  const Rgb w = ledColor(watch, LedMode::Alerts, 600);
+  CHECK(w.r > w.g && w.g > 0 && w.b == 0);
+  // Recording: a short blue blip every 3 s.
+  CHECK(ledColor(rec, LedMode::Alerts, 3050).b > 0 && ledColor(rec, LedMode::Alerts, 4000).b == 0);
+  // Gentle: never brighter than 60 on any channel.
+  int peak = 0;
+  for (uint32_t t = 0; t < 10000; t += 3)
+    for (const LedInputs *in : {&calm, &alert, &watch, &rec}) {
+      const Rgb c = ledColor(*in, LedMode::All, t);
+      peak = c.r > peak ? c.r : c.g > peak ? c.g : c.b > peak ? c.b : peak;
+    }
+  CHECK(peak <= 60);
+  CHECK(strcmp(ledModeName(LedMode::Alerts), "alerts") == 0);
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -506,6 +546,7 @@ int main() {
   testWifi();
   testFollow();
   testAttacks();
+  testLed();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }
