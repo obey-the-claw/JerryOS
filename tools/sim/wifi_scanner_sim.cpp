@@ -1,5 +1,6 @@
 // Fake Wi-Fi radio for the PC simulator: a street's worth of networks run
-// through the real WifiTable, with an in-memory "log file".
+// through the real WifiTable, with an in-memory "log file". From minute 8
+// you "drive": the networks around change every 2 minutes.
 #include <Arduino.h>
 
 #include <string>
@@ -26,9 +27,11 @@ const Fake kScene[] = {
 
 void scan() {
   const uint32_t now = millis();
+  const uint32_t minute = now / 60000;
+  const uint8_t place = minute < 8 ? 0 : (uint8_t)(1 + (minute - 8) / 2);
   int i = 0;
   for (const Fake &f : kScene) {
-    uint8_t bssid[6] = {0x3c, 0x52, 0x82, 0x10, 0x00, (uint8_t)i++};
+    uint8_t bssid[6] = {0x3c, 0x52, 0x82, 0x10, place, (uint8_t)i++};
     table.update(bssid, f.ssid, f.ch, f.auth, f.rssi + (int)(now / 20000 % 3), now);
     WifiNet *n = table.find(bssid);
     if (rec && n->loggedIn != sess) {

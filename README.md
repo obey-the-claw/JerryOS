@@ -13,6 +13,8 @@ Jerry's animated head lives on the screen. The v0 modes are:
 
 - **Tracker Watch:** passive BLE scan for AirTag / Tile / SmartTag-style
   trackers that keep following you.
+- **Followers:** any Bluetooth device that stays with you while you move
+  (car, watch, hidden gadget), using Wi-Fi changes as a "you moved" signal.
 - **BLE Nearby:** every Bluetooth device in range, closest first.
 - **WiFi Scan:** listen-only Wi-Fi scanner. Hold R on the home screen to
   record networks to a log (copy it to your PC with `tools/pull_wifi_log.py`).
@@ -33,7 +35,8 @@ stays physically stock (no soldering).
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
 | 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
 | 5 | Wi-Fi scanner + logger | ✅ 2026-10-05 ([guide](docs/CHECKPOINT5.md)) |
-| 6 | Personal monitor: home screen, REC, screen saver | 🟡 ready to test ([guide](docs/CHECKPOINT6.md)) |
+| 6 | Personal monitor: home screen, REC, screen saver | ✅ 2026-10-06 ([guide](docs/CHECKPOINT6.md)) |
+| 7 | Followers: any Bluetooth device that moves with you | 🟡 ready to test ([guide](docs/CHECKPOINT7.md)) |
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 

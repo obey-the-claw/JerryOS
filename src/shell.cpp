@@ -3,6 +3,9 @@
 
 #include "shell.h"
 
+#include <Preferences.h>
+#include <string.h>
+
 #include "ble_scanner.h"
 #include "screens.h"
 #include "theme.h"
@@ -22,6 +25,15 @@ void Shell::begin() {
   left_.begin();
   right_.begin();
   settings_.load();
+  {  // devices you've marked "mine" in Followers
+    Preferences p;
+    if (p.begin("jerryos", true)) {
+      uint8_t buf[FollowWatch::MAX_TRUSTED * 6];
+      const size_t n = p.getBytes("trust", buf, sizeof buf);
+      follow_.loadTrusted(buf, (int)(n / 6));
+      p.end();
+    }
+  }
 
   lcd_.init();
   lcd_.setRotation(1);
@@ -58,6 +70,33 @@ void Shell::pollConsole() {
     if (!strcmp(cmd_, "wifi dump")) wifi::dumpLog();
     else if (!strcmp(cmd_, "wifi clear")) wifi::clearLog();
     else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | help"));
+  }
+}
+
+void Shell::saveTrusted() {
+  Preferences p;
+  if (!p.begin("jerryos", false)) return;
+  p.putBytes("trust", follow_.trustedData(), follow_.trustedCount() * 6);
+  p.end();
+}
+
+// Followers: every 20 s, "have I moved?" from Wi-Fi, then "what's still
+// with me?" from Bluetooth.
+void Shell::checkFollowers(uint32_t now) {
+  if (now - lastFollowCheck_ < 20000) return;
+  lastFollowCheck_ = now;
+  static WifiNet nets[SceneTracker::MAX];
+  static uint8_t bssids[SceneTracker::MAX][6];
+  const int nn = wifi::enabled() ? wifi::snapshot(nets, SceneTracker::MAX) : 0;
+  for (int i = 0; i < nn; i++) memcpy(bssids[i], nets[i].bssid, 6);
+  scene_.onScan(bssids, nn, now);
+
+  static NearbyDevice devs[NearbyTable::MAX];
+  const int nd = ble::nearbySnapshot(devs, NearbyTable::MAX);
+  if (follow_.tick(devs, nd, scene_.place(), now)) {
+    Serial.println(F("[follow] ALERT: a Bluetooth device has been with you across several places"));
+    lastInput_ = now;  // wake the screen
+    if (&current() != &followersScreen()) open(followersScreen());
   }
 }
 
@@ -166,6 +205,7 @@ void Shell::loop() {
     lastInput_ = now;  // wake Jerry (and the screen) up
     if (&current() != &trackerScreen()) open(trackerScreen());
   }
+  checkFollowers(now);
   updateBacklight(now);
 
   jerry_.update(now);
@@ -190,7 +230,7 @@ void Shell::drawStatusBar(lgfx::LovyanGFX &g) {
   g.setTextColor(GOLD);
   g.setCursor(3, 2);
   g.print(current().tag());
-  if (tracker_.anyAlert() && (millis() / 500) % 2) {  // blinking "!" = tracker alert
+  if (anyAlert() && (millis() / 500) % 2) {  // blinking "!" = tracker / follower alert
     const int x = 3 + g.textWidth(current().tag()) + 3;
     g.fillRoundRect(x, 1, 9, 10, 2, ALERT);
     g.setTextColor(TFT_WHITE);

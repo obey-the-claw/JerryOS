@@ -1,6 +1,7 @@
 // screens.cpp - every JerryOS v0 screen.
 //
 //   Home ─ L ─> Menu ─┬─> Tracker Watch ──> tracker list (one kind)
+//                     ├─> Followers ──────> one follower ("mine")
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
 //                     ├─> Rig Dashboard   (coming soon)
@@ -110,7 +111,7 @@ class HomeScreen : public Screen {
     // 2 minutes of no buttons, eyes sweeping while he records.
     const PowerStatus &p = shell.power();
     const bool lowBatt = p.batteryPresent && !p.usb && p.percent <= 15;
-    if (shell.tracker().anyAlert()) shell.jerry().setMood(Mood::Alert);
+    if (shell.anyAlert()) shell.jerry().setMood(Mood::Alert);
     else if (lowBatt || shell.idleMs() > 120000) shell.jerry().setMood(Mood::Sleepy);
     else if (wifi::recording()) shell.jerry().setMood(Mood::Scanning);
     else shell.jerry().setMood(Mood::Idle);
@@ -138,15 +139,25 @@ class HomeScreen : public Screen {
     const uint32_t now = millis();
     Pill pills[3];
     TrackerWatch &w = shell.tracker();
-    if (w.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "TAG !");
-    else if (w.anySeparatedNow(now)) pills[0].set(BARK, GOLD, "TAG ?");
-    else pills[0].set(GOOD, INK, "TAG ok");
+    // Safety at a glance: trackers + followers.
+    if (shell.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "ALERT");
+    else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() ||
+             shell.follow().candidates(now) >= 3)
+      pills[0].set(BARK, GOLD, "WATCH");
+    else pills[0].set(GOOD, INK, "SAFE");
     pills[1].set(CREAM, INK, "BT %lu", (unsigned long)ble::nearbyDevices());
     if (wifi::recording()) pills[2].set(TFT_WHITE, ALERT, "REC %lu", (unsigned long)wifi::savedThisSession());
     else if (!wifi::enabled()) pills[2].set(DIM, INK, "WiFi off");
     else pills[2].set(CREAM, INK, "WiFi %lu", (unsigned long)wifi::nearby());
     int total = 0;
     for (const Pill &p : pills) total += g.textWidth(p.text) + 6;
+    if (total + 6 > W) {  // big numbers: squeeze the labels
+      snprintf(pills[1].text, sizeof pills[1].text, "B%d", ble::nearbyDevices());
+      if (!wifi::recording() && wifi::enabled())
+        snprintf(pills[2].text, sizeof pills[2].text, "W%d", wifi::nearby());
+      total = 0;
+      for (const Pill &p : pills) total += g.textWidth(p.text) + 6;
+    }
     const int gap = 3;
     int x = (W - total - 2 * gap) / 2;
     for (const Pill &p : pills) {
@@ -173,7 +184,7 @@ class HomeScreen : public Screen {
 
   void quip(Shell &shell) {
     const uint32_t now = millis();
-    if (shell.tracker().anyAlert()) return say("Being followed?!");
+    if (shell.anyAlert()) return say("Being followed?!");
     static const char *const kLines[] = {
         "Gear approved!",   "%lu gadgets nearby", "Inspector on duty", "%lu WiFi nets here",
         "Squatch mode: ON", "No trackers. Nice.", "Leave no trace!",   "I'm not blurry.",
@@ -602,6 +613,118 @@ Screen &wifiDetail(const WifiNet &n) {
 }
 
 // ---------------------------------------------------------------------------
+// Followers: any Bluetooth device that stays with you while you move
+// ---------------------------------------------------------------------------
+Screen &followerDetail(const Follower &f);  // one device, below
+
+class FollowersScreen : public Screen {
+ public:
+  const char *tag() const override { return "FOLLOW"; }
+  Hints hints() const override { return {"back", n_ ? "next" : nullptr, n_ ? "info" : nullptr}; }
+  void enter(Shell &shell) override {
+    shell.follow().acknowledgeAll();  // you're looking at it now
+    cursor_ = 0;
+  }
+  void onRightShort(Shell &) override {
+    if (n_) cursor_ = (cursor_ + 1) % n_;
+  }
+  void onRightLong(Shell &shell) override {
+    if (n_) shell.open(followerDetail(*list_[cursor_]));
+  }
+  void update(Shell &shell, uint32_t) override {
+    n_ = shell.follow().followers(list_, kMax);
+    if (cursor_ >= n_) cursor_ = 0;
+    shell.follow().acknowledgeAll();
+    shell.jerry().setMood(n_ ? Mood::Alert : Mood::Approved);
+  }
+
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    char buf[28];
+    if (!wifi::enabled()) {
+      text(g, 4, y0 + 3, ALERT, "needs WiFi scan on");
+    } else {
+      const SceneTracker &sc = shell.scene();
+      if (!sc.hasWifi()) snprintf(buf, sizeof buf, "no WiFi heard yet");
+      else snprintf(buf, sizeof buf, "moved %lu times", (unsigned long)sc.place());
+      text(g, 4, y0 + 3, DIM, buf);
+    }
+    if (!n_) {
+      shell.jerry().draw(g, W / 2, y0 + 40, 0.42f);
+      centered(g, y0 + 66, GOOD, "nobody following");
+      const int c = shell.follow().candidates(now);
+      snprintf(buf, sizeof buf, c ? "%d tagging along..." : "watching as you move", c);
+      centered(g, y0 + 80, DIM, buf);
+      return;
+    }
+    const int top = cursor_ < kRows ? 0 : cursor_ - kRows + 1;
+    for (int r = 0; r < kRows && top + r < n_; r++) {
+      const int i = top + r;
+      const Follower &f = *list_[i];
+      const int y = y0 + 14 + r * 11;
+      const bool sel = i == cursor_;
+      const bool here = now - f.lastMs < 60000;
+      if (sel) g.fillRoundRect(2, y - 1, W - 4, 11, 2, GOLD);
+      signalBars(g, 5, y, f.rssi, sel ? BARK : here ? ALERT : DIM, sel ? FUR_DARK : BAR);
+      char mins[10];
+      ago(mins, sizeof mins, (int)((f.lastMs - f.firstMs) / 60000));
+      const int mw = g.textWidth(mins);
+      fitText(g, 20, y + 1, W - 26 - mw, sel ? BARK : here ? CREAM : DIM, f.label);
+      text(g, W - 5 - mw, y + 1, sel ? BARK : here ? ALERT : DIM, mins);
+    }
+  }
+
+ private:
+  static constexpr int kRows = 8;
+  static constexpr int kMax = 16;
+  const Follower *list_[kMax] = {};
+  int n_ = 0, cursor_ = 0;
+};
+
+// One follower: what it is, how long, how many places. Hold R = "it's mine".
+class FollowerDetailScreen : public Screen {
+ public:
+  void set(const Follower &f) { f_ = f; }
+  const char *tag() const override { return "FOLLOWER"; }
+  Hints hints() const override { return {"back", nullptr, "mine"}; }
+  void onRightLong(Shell &shell) override {
+    shell.follow().trust(f_.addr);  // never flag it again
+    shell.saveTrusted();
+    Serial.println(F("[follow] marked as mine"));
+    shell.jerry().flash(Mood::Approved, 1200);
+    shell.back();
+  }
+  void update(Shell &shell, uint32_t) override { shell.jerry().setMood(Mood::Alert); }
+  void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    char buf[28], t[10];
+    fitText(g, 4, y0 + 4, W - 8, GOLD, f_.label);
+    const uint8_t *a = f_.addr;
+    snprintf(buf, sizeof buf, "%02X:%02X:%02X:%02X:%02X:%02X", a[5], a[4], a[3], a[2], a[1], a[0]);
+    text(g, 4, y0 + 18, CREAM, buf);
+    snprintf(buf, sizeof buf, "with you %s", ago(t, sizeof t, (int)((f_.lastMs - f_.firstMs) / 60000)));
+    text(g, 4, y0 + 32, CREAM, buf);
+    snprintf(buf, sizeof buf, "at %u places", f_.places);
+    text(g, 4, y0 + 44, CREAM, buf);
+    snprintf(buf, sizeof buf, "signal %d dBm", f_.rssi);
+    text(g, 4, y0 + 56, CREAM, buf);
+    signalBars(g, W - 18, y0 + 55, f_.rssi, ALERT, BAR);
+    text(g, 4, y0 + 70, now - f_.lastMs < 60000 ? ALERT : DIM,
+         now - f_.lastMs < 60000 ? "still with you" : "not heard lately");
+    text(g, 4, y0 + 84, DIM, "yours? hold R = mine");
+  }
+
+ private:
+  Follower f_ = {};
+};
+
+FollowerDetailScreen followerDetailObj;
+Screen &followerDetail(const Follower &f) {
+  followerDetailObj.set(f);
+  return followerDetailObj;
+}
+
+// ---------------------------------------------------------------------------
 // Rig Dashboard: "coming soon" until the Scanner v0 link exists
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
@@ -638,6 +761,9 @@ class DiagScreen : public Screen {
     snprintf(buf, sizeof(buf), "heap %u KB", ESP.getFreeHeap() / 1024); row(buf);
     snprintf(buf, sizeof(buf), "ble %d  wifi %d%s", ble::listening() ? ble::nearbyDevices() : -1,
              wifi::nearby(), wifi::recording() ? " REC" : "");
+    row(buf);
+    snprintf(buf, sizeof(buf), "moved %lu  follow %d", (unsigned long)shell.scene().place(),
+             shell.follow().flaggedCount());
     row(buf);
     snprintf(buf, sizeof(buf), "up %lu s", millis() / 1000); row(buf);
     snprintf(buf, sizeof(buf), "jerry %s", moodName(shell.jerry().mood())); row(buf);
@@ -696,7 +822,7 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, Wi-Fi scan, Wi-Fi log, diag, about
+// Settings: brightness, alert window, Wi-Fi scan, Wi-Fi log, my devices, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
@@ -704,7 +830,8 @@ class SettingsScreen : public Screen {
   Hints hints() const override {
     if (editing_) return {"undo", "+", "save"};
     if (erasing_) return {"cancel", nullptr, "erase"};
-    return {"back", "next", isValue(cursor_) ? "edit" : cursor_ == kWifiLog ? "erase" : "open"};
+    return {"back", "next",
+            isValue(cursor_) ? "edit" : (cursor_ == kWifiLog || cursor_ == kMine) ? "erase" : "open"};
   }
 
   void enter(Shell &) override { editing_ = erasing_ = false; }
@@ -739,7 +866,12 @@ class SettingsScreen : public Screen {
 
   void onRightLong(Shell &shell) override {
     if (erasing_) {  // second hold: really erase
-      wifi::clearLog();
+      if (cursor_ == kWifiLog) {
+        wifi::clearLog();
+      } else {
+        shell.follow().clearTrusted();
+        shell.saveTrusted();
+      }
       erasing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       return;
@@ -756,9 +888,9 @@ class SettingsScreen : public Screen {
     if (isValue(cursor_)) {
       before_ = shell.settings();
       editing_ = true;
-    } else if (cursor_ == kWifiLog) {
+    } else if (cursor_ == kWifiLog || cursor_ == kMine) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 4) {
+    } else if (cursor_ == 5) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -772,15 +904,19 @@ class SettingsScreen : public Screen {
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
     static const char *const labels[kItems] = {"Brightness", "Alert after", "WiFi scan",
-                                               "WiFi log", "Diagnostics", "About"};
+                                               "WiFi log", "My devices", "Diagnostics", "About"};
+    char mine[8];
+    snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, s.wifiScan ? "on" : "off",
-                                  erasing_ ? "erase?" : log, nullptr, nullptr};
+                                  erasing_ && cursor_ == kWifiLog ? "erase?" : log,
+                                  erasing_ && cursor_ == kMine ? "clear?" : mine, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 6;
+  static constexpr int kItems = 7;
   static constexpr int kWifiLog = 3;
+  static constexpr int kMine = 4;  // devices marked "mine" in Followers
   static bool isValue(int i) { return i <= 2; }
   int cursor_ = 0;
   bool editing_ = false;
@@ -790,6 +926,7 @@ class SettingsScreen : public Screen {
 
 TrackerScreen trackerScreenObj;
 NearbyScreen nearbyScreen;
+FollowersScreen followersScreenObj;
 WifiScreen wifiScreen;
 RigScreen rigScreen;
 SettingsScreen settingsScreen;
@@ -804,6 +941,7 @@ struct ModeEntry {
 
 const ModeEntry kModes[] = {
     {"Tracker Watch", &trackerScreenObj},
+    {"Followers", &followersScreenObj},
     {"BLE Nearby", &nearbyScreen},
     {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
@@ -836,3 +974,4 @@ MenuScreen menuScreenObj;
 Screen &homeScreen() { return homeScreenObj; }
 Screen &menuScreen() { return menuScreenObj; }
 Screen &trackerScreen() { return trackerScreenObj; }
+Screen &followersScreen() { return followersScreenObj; }

@@ -6,6 +6,7 @@
 #include "power.h"
 #include "screen.h"
 #include "settings.h"
+#include "follow_watch.h"
 #include "tracker_watch.h"
 
 class Shell {
@@ -26,6 +27,10 @@ class Shell {
   JerryFace &jerry() { return jerry_; }
   Settings &settings() { return settings_; }
   TrackerWatch &tracker() { return tracker_; }
+  FollowWatch &follow() { return follow_; }
+  const SceneTracker &scene() const { return scene_; }
+  void saveTrusted();                     // after "it's mine" / clearing the list
+  bool anyAlert() const { return tracker_.anyAlert() || follow_.anyAlert(); }
   const PowerStatus &power() const { return power_; }
   void applyBrightness();
   uint32_t idleMs() const { return millis() - lastInput_; }
@@ -48,6 +53,10 @@ class Shell {
   PowerStatus power_;
   power::BatteryGauge gauge_;
   TrackerWatch tracker_;
+  FollowWatch follow_;
+  SceneTracker scene_;
+  uint32_t lastFollowCheck_ = 0;
+  void checkFollowers(uint32_t now);
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

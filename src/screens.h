@@ -5,3 +5,4 @@
 Screen &homeScreen();
 Screen &menuScreen();
 Screen &trackerScreen();
+Screen &followersScreen();

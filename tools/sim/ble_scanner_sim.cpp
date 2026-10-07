@@ -3,8 +3,10 @@
 //   - minute 0+  : your own AirTag, travelling with your phone (never alerts)
 //   - minute 0+  : a separated AirTag riding along, address rotating every 15 min
 //   - minute 3-6 : a Tile you drive past
-//   - always     : a named speaker, a Windows laptop, earbuds, AirPods,
-//                  a Samsung phone, a mystery gadget and 14 iPhones
+//   - minute 0-8 : at home: a Windows laptop, earbuds, AirPods, a Samsung
+//                  phone and 14 iPhones (addresses change every 12 min)
+//   - always     : your JBL speaker and a mystery gadget, which ride along
+//                  on the drive from minute 8 (see wifi_scanner_sim.cpp)
 #include <Arduino.h>
 
 #include "ble_scanner.h"
@@ -54,13 +56,17 @@ void drain(TrackerWatch &w) {
   feed(w, airtagMine, sizeof airtagMine, 0x01, 0x7e, -48);
   feed(w, airtagLost, sizeof airtagLost, 0x02, (uint8_t)(0xc4 + minute / 15), -71);
   if (minute >= 3 && minute < 6) feed(w, tile, sizeof tile, 0x03, 0x9b, -83);
-  for (int i = 0; i < 14; i++) feed(w, phone, sizeof phone, 0x04, (uint8_t)i, -66 - i * 2);
+  const bool home = minute < 8;
+  if (home) {
+    for (int i = 0; i < 14; i++)
+      feed(w, phone, sizeof phone, (uint8_t)(0x40 + minute / 12), (uint8_t)i, -66 - i * 2);
+    feed(w, laptop, sizeof laptop, 0x05, 0x11, -61);
+    feed(w, earbuds, sizeof earbuds, 0x05, 0x12, -74);
+    feed(w, airpods, sizeof airpods, 0x05, 0x13, -57);
+    feed(w, galaxy, sizeof galaxy, 0x05, 0x14, -79);
+  }
   feed(w, speaker, sizeof speaker, 0x05, 0x10, -52);
-  feed(w, laptop, sizeof laptop, 0x05, 0x11, -61);
-  feed(w, earbuds, sizeof earbuds, 0x05, 0x12, -74);
-  feed(w, airpods, sizeof airpods, 0x05, 0x13, -57);
-  feed(w, galaxy, sizeof galaxy, 0x05, 0x14, -79);
-  feed(w, mystery, sizeof mystery, 0x05, 0x15, -92);
+  feed(w, mystery, sizeof mystery, 0x05, 0x15, home ? -92 : -64);
 }
 
 int nearbyDevices() { return table.count(millis()); }

@@ -35,8 +35,11 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
   run(2600);
   tap(PIN_BTN_LEFT); snap("menu");
+  // Menu: Tracker Watch, Followers, BLE Nearby, WiFi Scan, Rig Dashboard, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
-  hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
+  hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
   hold(PIN_BTN_RIGHT); run(1100); snap("nearby_detail");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
@@ -52,7 +55,8 @@ int main() {
   hold(PIN_BTN_RIGHT); snap("settings_saved");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
-  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");
+  tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
   hold(PIN_BTN_RIGHT); snap("diagnostics");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("about");
   tap(PIN_BTN_RIGHT); snap("about_more");
@@ -62,11 +66,17 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
   hold(PIN_BTN_RIGHT); snap("tracker_airtag_list");
   tap(PIN_BTN_LEFT); hold(PIN_BTN_LEFT);
-  run(27 * 60 * 1000, 40);          // ...time passes; the lost AirTag keeps riding along
+  // ...time passes. From minute 8 you "drive": the speaker and a mystery
+  // gadget ride along (Followers alert), the lost AirTag too (tracker alert).
+  run(27 * 60 * 1000, 40);
   snap("tracker_alert_autoopen");
   hold(PIN_BTN_LEFT); snap("home_alert");
   tap(PIN_BTN_LEFT); hold(PIN_BTN_RIGHT); snap("tracker_alert");
   hold(PIN_BTN_RIGHT); snap("tracker_acknowledged");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("followers");
+  hold(PIN_BTN_RIGHT); snap("follower_detail");
+  hold(PIN_BTN_RIGHT); snap("followers_after_mine");
+  hold(PIN_BTN_LEFT); run(500); snap("home_end");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;
 }

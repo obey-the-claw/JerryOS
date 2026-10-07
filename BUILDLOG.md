@@ -402,7 +402,7 @@ it feel like that.
 
 - [x] Boot sound works: "jerry says hello!" (2026-10-06). First time the speaker was used.
 - [ ] Volume off/low/med/high; Diagnostics beep
-- [ ] Home pills show sensible counts
+- [x] Home pills, REC, screen saver: "rest is great"
 - [ ] REC → walk → stop → pull log: new lines share one session number
 - [ ] Screen dims at ~1 min and goes off at ~5 min on battery; a button wakes it
 - [ ] Tracker Watch, BLE Nearby, WiFi Scan still fine
@@ -443,3 +443,46 @@ speech bubbles, the shocked face, the blinking red !).
 The lesson: a quick "does this sound good?" listen before building a whole
 voice system would have saved a round trip. The working ES8311 driver is
 kept in git history (commit 2b89171) if real voice lines are ever wanted.
+
+**Checkpoint 6: ✅ done.**
+
+---
+
+## Checkpoint 7: Followers
+
+Steve asked for everything else the AIPI can do to protect him as an on-me
+device. Plan, in order: (1) followers, (3) attack detector, (5) colour LED,
+(2) Flock cameras, (4) hidden cameras, (6) pocket mode, (7) sound meter.
+One checkpoint each, tested on the device in between.
+
+### What we did
+
+- **"Have I moved?" without GPS** (`SceneTracker`): every 20 s, compare the
+  Wi-Fi networks heard with the ones where we "are". Sharing less than 25%,
+  twice in a row = a new place.
+- **"What's still with me?"** (`FollowWatch`): any Bluetooth device seen at
+  4+ places over 20+ minutes, never gone more than 5 min, is a follower.
+  20 minutes is longer than phones' ~15-minute address changes, so
+  passengers' phones don't count. Trackers are left to Tracker Watch.
+- **"Mine":** hold R on a follower to trust it forever (saved, up to 16).
+  Settings → My devices shows/clears them.
+- **Screens:** Followers list + details; it opens by itself on a new
+  follower. Home's first pill is now overall safety: SAFE / WATCH / ALERT.
+- **Simulator** got a fake drive (Wi-Fi changes every 2 min from minute 8)
+  with a speaker and a mystery gadget riding along.
+- Unit tests 76 → 91: home for 2 hours (nothing), a 40-min drive (the
+  stowaway caught after 20 min; rotating phone and a drive-by ignored),
+  "mine" sticks, a long gap restarts the count, trackers excluded, trusted
+  list save/load and cap.
+
+### What broke / how we fixed it
+
+- I counted followers by asking the list function for "zero entries",
+  which always answers zero, so the home pill would never have said WATCH
+  for followers. Caught it reading my own code, and added a proper count.
+
+### On the real device (Steve fills this in)
+
+- [ ] Followers: home for an hour = nobody, "moved" stays low
+- [ ] Drive 30+ min: "moved" goes up; own static gear shows up; "mine" works
+- [ ] My devices count survives a power cycle

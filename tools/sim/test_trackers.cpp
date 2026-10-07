@@ -9,6 +9,7 @@
 #include "tracker_detect.h"
 #include "tracker_watch.h"
 #include "wifi_nets.h"
+#include "follow_watch.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -294,11 +295,126 @@ static void testWifi() {
   CHECK(fresh == 300 && crowd.count(2000) == WifiTable::MAX && crowd.uniqueSeen() == 300);
 }
 
+// A world for the follower tests: Wi-Fi networks per place, and BLE devices.
+static void scanPlace(SceneTracker &sc, int place, uint32_t now) {
+  uint8_t nets[12][6];
+  for (int i = 0; i < 12; i++) {
+    const uint8_t b[6] = {0xAA, (uint8_t)place, (uint8_t)(place >> 8), 0, 0, (uint8_t)i};
+    memcpy(nets[i], b, 6);
+  }
+  sc.onScan(nets, 12, now);
+}
+static NearbyDevice dev(uint8_t id, const char *label, int rssi = -60) {
+  NearbyDevice d = {};
+  const uint8_t a[6] = {id, 0x11, 0x22, 0x33, 0x44, 0x55};
+  memcpy(d.addr, a, 6);
+  snprintf(d.label, sizeof d.label, "%s", label);
+  d.rssi = (int8_t)rssi;
+  d.used = true;
+  return d;
+}
+
+static void testFollow() {
+  printf("Followers\n");
+  {  // "Have I moved?": same networks = same place; new networks (twice) = moved.
+    SceneTracker sc;
+    scanPlace(sc, 0, 0);
+    scanPlace(sc, 0, 20000);
+    CHECK(sc.place() == 0);
+    scanPlace(sc, 1, 40000);
+    CHECK(sc.place() == 0);  // one odd scan isn't a move
+    scanPlace(sc, 1, 60000);
+    CHECK(sc.place() == 1 && sc.lastMoveMs() == 60000);
+    sc.onScan(nullptr, 0, 80000);  // no Wi-Fi at all: can't tell, stays put
+    CHECK(sc.place() == 1);
+  }
+  {  // Home for 2 hours with a gadget nearby: never a follower.
+    SceneTracker sc;
+    FollowWatch fw;
+    NearbyDevice d[1] = {dev(1, "Garmin")};
+    int alerts = 0;
+    for (uint32_t t = 0; t < 2 * 3600000u; t += 20000) {
+      scanPlace(sc, 0, t);
+      alerts += fw.tick(d, 1, sc.place(), t);
+    }
+    CHECK(alerts == 0 && fw.candidates(2 * 3600000u) == 0);
+  }
+  {  // A 40-minute drive (new place every ~2 min). A gadget rides along; a
+     // passenger's phone changes address every 15 min; a speaker is passed once.
+    SceneTracker sc;
+    FollowWatch fw;
+    int alerts = 0;
+    uint32_t firstAlertMs = 0;
+    for (uint32_t t = 0; t < 40 * 60000u; t += 20000) {
+      const int place = t / 120000;
+      scanPlace(sc, place, t);
+      NearbyDevice d[3];
+      int n = 0;
+      d[n++] = dev(7, "unknown", -55);                                    // the stowaway
+      d[n++] = dev((uint8_t)(100 + t / (15 * 60000u)), "Apple device");   // rotating phone
+      if (place == 5) d[n++] = dev(50, "JBL Flip 5", -80);                // drive-by
+      if (fw.tick(d, n, sc.place(), t) && !alerts++) firstAlertMs = t;
+    }
+    const Follower *list[8];
+    const int n = fw.followers(list, 8);
+    CHECK(n == 1 && list[0]->addr[0] == 7 && fw.flaggedCount() == 1);
+    CHECK(alerts == 1 && firstAlertMs >= FollowWatch::FOLLOW_MIN * 60000);
+    CHECK(fw.anyAlert());
+    fw.acknowledgeAll();
+    CHECK(!fw.anyAlert() && fw.followers(list, 8) == 1);  // still listed, just not alerting
+    // "It's mine": gone, and never flagged again.
+    fw.trust(list[0]->addr);
+    CHECK(fw.followers(list, 8) == 0 && fw.trustedCount() == 1);
+    NearbyDevice again[1] = {dev(7, "unknown")};
+    int later = 0;
+    for (uint32_t t = 40 * 60000u; t < 90 * 60000u; t += 20000) {
+      scanPlace(sc, t / 120000, t);
+      later += fw.tick(again, 1, sc.place(), t);
+    }
+    CHECK(later == 0);
+  }
+  {  // A gap longer than 5 minutes starts the count over.
+    SceneTracker sc;
+    FollowWatch fw;
+    int alerts = 0;
+    for (uint32_t t = 0; t < 30 * 60000u; t += 20000) {
+      scanPlace(sc, t / 120000, t);
+      NearbyDevice d[1] = {dev(9, "unknown")};
+      const bool present = t < 12 * 60000u || t >= 19 * 60000u;  // gone 12-19 min
+      alerts += fw.tick(d, present ? 1 : 0, sc.place(), t);
+    }
+    CHECK(alerts == 0);  // only 11 min since it came back
+  }
+  {  // Trackers are Tracker Watch's job, not ours.
+    SceneTracker sc;
+    FollowWatch fw;
+    int alerts = 0;
+    for (uint32_t t = 0; t < 40 * 60000u; t += 20000) {
+      scanPlace(sc, t / 120000, t);
+      NearbyDevice d[1] = {dev(3, "AirTag (lost)")};
+      alerts += fw.tick(d, 1, sc.place(), t);
+    }
+    CHECK(alerts == 0);
+  }
+  {  // Trusted list: save/load round trip, and it caps at 16 (oldest dropped).
+    FollowWatch a, b;
+    for (int i = 0; i < 20; i++) {
+      const uint8_t addr[6] = {(uint8_t)i, 1, 2, 3, 4, 5};
+      a.trust(addr);
+    }
+    CHECK(a.trustedCount() == FollowWatch::MAX_TRUSTED);
+    b.loadTrusted(a.trustedData(), a.trustedCount());
+    const uint8_t first[6] = {0, 1, 2, 3, 4, 5}, last[6] = {19, 1, 2, 3, 4, 5};
+    CHECK(!b.isTrusted(first) && b.isTrusted(last));
+  }
+}
+
 int main() {
   testDetection();
   testPersistence();
   testNearby();
   testWifi();
+  testFollow();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }
