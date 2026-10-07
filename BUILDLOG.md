@@ -655,3 +655,5 @@ together with one test plan: `docs/TEST-PLAN.md`.
   is wrong while locked. It now says how to unlock.
 
 ### On the real device: see docs/TEST-PLAN.md
+
+- [x] Pocket mode works on the device (2026-10-07)
