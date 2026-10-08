@@ -783,3 +783,32 @@ be JerryOS instead from now on".
   clip. Unit-tested too (length, ends, never clips). **It's not wired to the
   speaker yet:** that waits for Steve's verdict. The ES8311 speaker driver
   is in git history (2b89171).
+
+---
+
+## v1.2: the groove goes on the device
+
+Steve heard the preview: "ahh yeah that music was firrrrrrrrreeeeeeeeee put
+it on the device i'm not gonna flash until it's jamming!" Previewing first
+paid off this time.
+
+### What we did
+
+- **Speaker back, for the groove only:** `src/speaker.cpp` uses the ES8311
+  DAC route that played "hello" in v0.6. It runs in its own task while the
+  intro plays, then mutes, powers down the chip's analog side, switches the
+  amplifier off and releases I2S. No hiss, no battery drain the rest of the
+  time.
+- **Shared audio-chip code:** `src/es8311.cpp` now holds the I2C helpers and
+  the clock / format set-up used by both the microphone and the speaker,
+  instead of two copies. The microphone waits while the groove is playing
+  (they share the chip and the I2S port).
+- **Intro:** starts the groove once per power-on. Skipping (any button) cuts
+  it, and coming back from an alert doesn't restart the intro.
+- **Settings → Intro tune:** on / off.
+
+### On the real device
+
+- [ ] The groove plays with the intro, in time, not distorted, loud enough
+- [ ] A button press cuts it; Intro tune off = silent boot
+- [ ] Sound meter still works afterwards

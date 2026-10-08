@@ -1,25 +1,23 @@
 // mic.cpp - see mic.h (device only; the PC simulator uses
 // tools/sim/mic_sim.cpp).
 //
-// ES8311 set-up follows Espressif's own driver (github.com/espressif/esp-bsp,
-// components/es8311): slave mode, MCLK from the ESP32 (256 x 16 kHz), 16-bit
-// I2S, analog microphone into the ADC. The same clock settings were proven on
-// this device in v0.6 (when Jerry still had a speaker voice).
+// The audio chip set-up is shared with the speaker (es8311.cpp); this adds
+// the microphone side: analog mic -> PGA -> ADC -> I2S into the ESP32.
 
 #include "mic.h"
 
 #include <Arduino.h>
-#include <Wire.h>
 #include <driver/i2s.h>
 
 #include <atomic>
 
 #include "board_pins.h"
+#include "es8311.h"
+#include "speaker.h"
 
 namespace mic {
 namespace {
 
-constexpr uint8_t ES8311_ADDR = 0x18;
 constexpr int RATE = 16000;
 constexpr i2s_port_t PORT = I2S_NUM_0;
 constexpr uint32_t IDLE_OFF_MS = 3000;  // nobody asked for this long: switch off
@@ -29,26 +27,6 @@ std::atomic<bool> on{false}, found{false}, wantReset{false};
 bool started = false;
 LevelMeter levels;  // written by the mic task, read by the screen (floats: fine)
 SemaphoreHandle_t wake = nullptr;
-
-bool writeReg(uint8_t reg, uint8_t val) {
-  Wire.beginTransmission(ES8311_ADDR);
-  Wire.write(reg);
-  Wire.write(val);
-  return Wire.endTransmission() == 0;
-}
-
-int readReg(uint8_t reg) {
-  Wire.beginTransmission(ES8311_ADDR);
-  Wire.write(reg);
-  if (Wire.endTransmission(false) != 0) return -1;
-  if (Wire.requestFrom(ES8311_ADDR, (uint8_t)1) != 1) return -1;
-  return Wire.read();
-}
-
-bool updateReg(uint8_t reg, uint8_t keep, uint8_t set) {
-  const int v = readReg(reg);
-  return v >= 0 && writeReg(reg, (uint8_t)((v & keep) | set));
-}
 
 bool startI2S() {
   i2s_config_t cfg = {};
@@ -75,38 +53,17 @@ bool startI2S() {
 }
 
 bool startCodec() {  // MCLK must already be running
-  bool ok = writeReg(0x00, 0x1F);       // reset
-  delay(20);
-  ok &= writeReg(0x00, 0x00);
-  ok &= writeReg(0x00, 0x80);           // power on
-  ok &= writeReg(0x01, 0x3F);           // clocks on, MCLK from the MCLK pin
-  ok &= updateReg(0x06, 0xDF, 0x00);    // BCLK not inverted
-  ok &= updateReg(0x02, 0x07, 0x00);    // 4.096 MHz MCLK / 16 kHz dividers
-  ok &= writeReg(0x03, 0x10);
-  ok &= writeReg(0x04, 0x10);
-  ok &= writeReg(0x05, 0x00);
-  ok &= updateReg(0x06, 0xE0, 0x03);
-  ok &= updateReg(0x07, 0xC0, 0x00);
-  ok &= writeReg(0x08, 0xFF);
-  ok &= updateReg(0x00, 0xBF, 0x00);    // slave mode
-  ok &= writeReg(0x09, 0x0C);           // 16-bit in
-  ok &= writeReg(0x0A, 0x0C);           // 16-bit out (the microphone data)
-  ok &= writeReg(0x0D, 0x01);           // power up analog
-  ok &= writeReg(0x0E, 0x02);           // PGA + ADC modulator on
-  ok &= writeReg(0x12, 0x00);
-  ok &= writeReg(0x13, 0x10);
-  ok &= writeReg(0x1C, 0x6A);           // ADC: no equalizer, remove DC
-  ok &= writeReg(0x37, 0x08);
-  ok &= writeReg(0x17, 0xC8);           // ADC volume
-  ok &= writeReg(0x14, 0x1A);           // analog microphone, PGA on
-  ok &= writeReg(0x16, 0x03);           // mic gain +18 dB
-  ok &= updateReg(0x31, 0x9F, 0x60);    // DAC (speaker side) muted
+  bool ok = es8311::initClocks();
+  ok &= es8311::write(0x17, 0xC8);           // ADC volume
+  ok &= es8311::write(0x14, 0x1A);           // analog microphone, PGA on
+  ok &= es8311::write(0x16, 0x03);           // mic gain +18 dB
+  ok &= es8311::update(0x31, 0x9F, 0x60);    // DAC (speaker side) muted
   return ok;
 }
 
 void stopAll() {
   i2s_driver_uninstall(PORT);
-  writeReg(0x0D, 0xFC);  // analog off
+  es8311::write(0x0D, 0xFC);  // analog off
   on = false;
   Serial.println(F("[mic] off"));
 }
@@ -151,12 +108,12 @@ void use() {
     started = true;
     pinMode(PIN_SPK_AMP_EN, OUTPUT);  // the speaker stays off
     digitalWrite(PIN_SPK_AMP_EN, LOW);
-    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000);
-    found = readReg(0xFD) >= 0;  // chip ID register answers?
+    found = es8311::begin();
     Serial.printf("[mic] audio chip %s\n", found ? "found" : "NOT answering");
     wake = xSemaphoreCreateBinary();
     xTaskCreatePinnedToCore(task, "mic", 4096, nullptr, 1, nullptr, 1);
   }
+  if (speaker::busy()) return;  // the boot groove is using the audio chip
   if (found && !on) xSemaphoreGive(wake);
 }
 

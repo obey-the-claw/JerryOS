@@ -26,6 +26,7 @@ struct Settings {
   uint8_t ledMode = 2;        // colour LED: 0 off, 1 alerts only, 2 all (LedMode)
   bool pocketDark = true;     // pocket mode keeps the screen dark (LED only)
   uint8_t soundCalIdx = 10;   // Sound cal: index into soundCalChoice (10 = 0 dB)
+  bool introTune = true;      // play the funk groove with the boot intro
 
   uint8_t brightnessPct() const { return brightnessChoice(brightnessIdx); }
   uint8_t alertMinutes() const { return alertChoice(alertIdx); }
@@ -39,6 +40,7 @@ struct Settings {
     ledMode = clampIdx(p.getUChar("led", ledMode), 3);
     pocketDark = p.getBool("pdark", pocketDark);
     soundCalIdx = clampIdx(p.getUChar("scal", soundCalIdx), N_SOUNDCAL);
+    introTune = p.getBool("tune", introTune);
     p.end();
   }
 
@@ -51,6 +53,7 @@ struct Settings {
     p.putUChar("led", ledMode);
     p.putBool("pdark", pocketDark);
     p.putUChar("scal", soundCalIdx);
+    p.putBool("tune", introTune);
     p.end();
   }
 

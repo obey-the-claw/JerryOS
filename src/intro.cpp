@@ -12,6 +12,7 @@
 #include <math.h>
 
 #include "shell.h"
+#include "speaker.h"
 #include "theme.h"
 
 using namespace theme;
@@ -188,11 +189,16 @@ class IntroScreen : public Screen {
   const char *tag() const override { return "JerryOS"; }
   Hints hints() const override { return {nullptr, nullptr, nullptr}; }
   bool fullScreen() const override { return true; }
-  void enter(Shell &) override { start_ = millis(); }
-  // Any button skips the intro.
-  void onLeftShort(Shell &shell) override { shell.back(); }
-  void onRightShort(Shell &shell) override { shell.back(); }
-  void onRightLong(Shell &shell) override { shell.back(); }
+  void enter(Shell &shell) override {
+    if (started_) return;  // coming back from an alert: carry on, don't restart
+    started_ = true;
+    start_ = millis();
+    if (shell.settings().introTune) speaker::playIntro();  // the funk
+  }
+  // Any button skips the intro (and cuts the music).
+  void onLeftShort(Shell &shell) override { leave(shell); }
+  void onRightShort(Shell &shell) override { leave(shell); }
+  void onRightLong(Shell &shell) override { leave(shell); }
   void update(Shell &shell, uint32_t now) override {
     // Keep the screen awake while the story plays; once it's waiting on the
     // title, normal dimming applies (Jerry keeps watching in the background).
@@ -249,7 +255,12 @@ class IntroScreen : public Screen {
  private:
   // Scene time: real time slowed to SPEED %, so the story plays calmly.
   int32_t sceneTime(uint32_t now) const { return (int32_t)((int64_t)(now - start_) * SPEED / 100); }
+  void leave(Shell &shell) {
+    speaker::stop();
+    shell.back();
+  }
   uint32_t start_ = 0;
+  bool started_ = false;  // music once per power-on (enter() also runs on "back")
 };
 
 IntroScreen introObj;
