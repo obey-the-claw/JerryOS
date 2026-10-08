@@ -57,7 +57,7 @@ stays physically stock (no soldering).
 | 14 | **v1.1:** boot intro (Jerry drives off in his Jeep), "JerryOS" title | ✅ 2026-10-08 |
 | 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | ✅ "the groove is jamming" 2026-10-08 |
 | 16 | **v1.2.1:** quieter, cleaner groove; Intro tune off / low / med / high | ✅ "volume sounds way better" 2026-10-08 |
-| 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews/)); Settings → Intro | 🟡 ready to flash |
+| 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews/)); Settings → Intro | ✅ "absolutely perfect" 2026-10-08 |
 
 **How to use Jerry:** [docs/USER-GUIDE.md](docs/USER-GUIDE.md) · **What to test:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md)
 

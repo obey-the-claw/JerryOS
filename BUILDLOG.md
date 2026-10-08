@@ -929,7 +929,8 @@ legendary".
 
 ### On the real device
 
+- [x] About says v1.3.0; Steve: "the intros are all absolutely perfect!"
+- [x] Each groove plays in time with its intro, no stutters
 - [ ] Power on a few times: random picks a different intro each time
-- [ ] Each groove plays in time with its intro, no stutters
 - [ ] Settings → Intro → pick one → hold R: it plays straight away
 - [ ] A button press skips any intro and cuts its music
