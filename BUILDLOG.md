@@ -931,6 +931,7 @@ legendary".
 
 - [x] About says v1.3.0; Steve: "the intros are all absolutely perfect!"
 - [x] Each groove plays in time with its intro, no stutters
-- [ ] Power on a few times: random picks a different intro each time
-- [ ] Settings → Intro → pick one → hold R: it plays straight away
+- [x] Power on a few times: random picks a different intro each time
+- [x] Settings → Intro → pick one → hold R: it plays straight away
+  ("all good that works as intended and is awesome!")
 - [ ] A button press skips any intro and cuts its music
