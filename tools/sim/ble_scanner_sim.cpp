@@ -34,8 +34,21 @@ void begin() { started = true; }
 
 int newCams = 0;
 
-void drain(TrackerWatch &w, AttackWatch &attacks, CameraWatch &cams) {
+void drain(TrackerWatch &w, AttackWatch &attacks, CameraWatch &cams, RigLink &rig) {
   const uint32_t now = millis();
+  // The Pi Zero rig box beacons every 2 s, driving north at 40 mph.
+  static uint32_t lastRig = 0;
+  static uint16_t seq = 0;
+  if (now - lastRig >= 2000) {
+    lastRig = now;
+    const int32_t north = (int32_t)(now / 1000) * 1600;  // ~18 m/s, in 1e-7 degrees
+    RigStatus s{true, 335123456 + north, -1121234567, 11, 64, 52, 31, 0, 78, ++seq};
+    uint8_t adv[31];
+    const size_t n = buildRigBeacon(s, adv, sizeof adv);
+    RigStatus parsed;
+    const uint8_t box[6] = {0x56, 0x34, 0x12, 0xeb, 0x27, 0xb8};  // stored backwards, like NimBLE
+    if (parseRigBeacon(adv, n, parsed)) rig.onBeacon(box, parsed, -63, now);
+  }
   if (fedOnce && now - lastFeed < 20000) return;  // a burst every 20 s
   fedOnce = true;
   lastFeed = now;

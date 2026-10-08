@@ -1,7 +1,9 @@
-# Test plan: v0.10 → v0.12 (everything since Flock cameras)
+# Test plan: JerryOS v1.0
 
-One flash gives you all of it: **Followers, Shield, LED, Flock cameras,
-hidden-camera hints, pocket mode, sound meter**.
+One flash gives you everything: **Followers, Shield, LED, Flock cameras,
+hidden-camera hints, pocket mode, sound meter, Rig Dashboard, GPS-tagged
+logs, reset**. Already confirmed on the device: pocket mode, sound meter
+(shows "talking"), LED green, Shield "all quiet", Followers / Cameras at home.
 
 ## Flash (once)
 
@@ -10,11 +12,11 @@ hidden-camera hints, pocket mode, sound meter**.
    ```powershell
    powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7
    ```
-   It picks `jerryos-cp12-pocket.bin`.
-3. Settings → About says **v0.12.0**.
+   It picks `jerryos-cp13-v1.bin`.
+3. Settings → About says **v1.0.0**.
 
-Menu order now: Tracker Watch · Followers · Shield · Cameras · Sound · BLE
-Nearby · WiFi Scan · Rig Dashboard · Settings.
+Menu order: Tracker Watch · Followers · Shield · Cameras · Sound · BLE
+Nearby · WiFi Scan · Rig Dashboard · Settings. Full guide: [USER-GUIDE.md](USER-GUIDE.md).
 
 Write down anything odd as you go (screen + what it said). A photo is perfect.
 
@@ -58,7 +60,18 @@ Write down anything odd as you go (screen + what it said). A photo is perfect.
 
 ---
 
-## ☀️ Tomorrow, out and about
+**v1.0 additions (home)**
+14. **Log upgrade:** pull the Wi-Fi log (`py tools\pull_wifi_log.py COM7`).
+    The header now ends in `lat,lon`, and older lines have two empty columns.
+15. **Reset all:** only if you don't mind setting things up again. Settings →
+    Reset all → hold R ("sure?") → hold R. Jerry restarts with defaults
+    (brightness 80 %, LED all, "My devices" 0, log empty).
+16. **Rig box (when the Pi is ready):** follow [tools/pi/README.md](../tools/pi/README.md)
+    (`--fake-gps` works without a GPS). Menu → Rig Dashboard → "Rig box
+    found!" → hold R. You should see the fix, lat/lon and mph. Then REC for
+    a minute and pull the log: the new lines have lat/lon.
+
+## ☀️ Out and about (over the next few days)
 
 Before you leave: **Wi-Fi scan on**, battery charged. Pocket mode is fine
 (the LED tells you if something needs a look).
@@ -79,6 +92,8 @@ Before you leave: **Wi-Fi scan on**, battery charged. Pocket mode is fine
 6. **Battery:** note the % when you leave and when you get back, and how
    long you were out. All radios are busy now, so I want to see real
    battery life.
+7. **Sound calibration:** Jerry's number vs. a phone sound-meter app, in a
+   quiet room and while talking. Two pairs of numbers is all I need.
 
 ## Report back
 

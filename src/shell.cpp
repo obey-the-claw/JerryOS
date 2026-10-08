@@ -32,6 +32,8 @@ void Shell::begin() {
       uint8_t buf[FollowWatch::MAX_TRUSTED * 6];
       const size_t n = p.getBytes("trust", buf, sizeof buf);
       follow_.loadTrusted(buf, (int)(n / 6));
+      uint8_t rigAddr[6];
+      if (p.getBytes("rig", rigAddr, 6) == 6) rig_.pair(rigAddr);
       p.end();
     }
   }
@@ -72,6 +74,26 @@ void Shell::pollConsole() {
     else if (!strcmp(cmd_, "wifi clear")) wifi::clearLog();
     else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | help"));
   }
+}
+
+void Shell::saveRig() {
+  Preferences p;
+  if (!p.begin("jerryos", false)) return;
+  if (rig_.paired()) p.putBytes("rig", rig_.pairedAddr(), 6);
+  else p.remove("rig");
+  p.end();
+}
+
+void Shell::factoryReset() {
+  Serial.println(F("[shell] FACTORY RESET"));
+  wifi::clearLog();
+  Preferences p;
+  if (p.begin("jerryos", false)) {
+    p.clear();
+    p.end();
+  }
+  delay(300);
+  ESP.restart();
 }
 
 void Shell::saveTrusted() {
@@ -282,7 +304,12 @@ void Shell::loop() {
   }
 
   // Tracker Watch: take in what the radio heard, check for new alerts.
-  ble::drain(tracker_, attack_, cams_);
+  ble::drain(tracker_, attack_, cams_, rig_);
+  {  // The rig box's GPS tags Wi-Fi log lines while its fix is fresh.
+    int32_t lat, lon;
+    const bool loc = rig_.location(now, lat, lon);
+    wifi::setLocation(loc, lat, lon);
+  }
   {  // Cameras heard over Wi-Fi traffic (between scans) and Bluetooth
     uint8_t mac[6];
     int8_t rssi;

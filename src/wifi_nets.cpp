@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char LOG_HEADER[] = "session,uptime_s,bssid,ssid,auth,channel,rssi";
+const char LOG_HEADER[] = "session,uptime_s,bssid,ssid,auth,channel,rssi,lat,lon";
 
 const char *authName(uint8_t auth) {
   switch (auth) {
@@ -39,7 +39,7 @@ void displaySsid(const WifiNet &n, char *out, size_t outSize) {
 }
 
 int formatLogLine(char *out, size_t outSize, uint32_t session, uint32_t uptimeSec,
-                  const WifiNet &n) {
+                  const WifiNet &n, bool hasLocation, int32_t latE7, int32_t lonE7) {
   // The name goes in quotes with any quote doubled, so commas in names are safe.
   // Control characters (newlines!) would break the file, so they become '?'.
   char name[70];
@@ -54,10 +54,23 @@ int formatLogLine(char *out, size_t outSize, uint32_t session, uint32_t uptimeSe
     }
   }
   name[k] = 0;
+  // Location as plain decimal degrees (7 places), written with integers so
+  // no rounding sneaks in: -1234567890 -> "-123.4567890".
+  char where[32] = ",";
+  if (hasLocation) {
+    auto deg = [](char *p, size_t n, int32_t e7) {
+      const uint32_t a = e7 < 0 ? (uint32_t)(-(int64_t)e7) : (uint32_t)e7;
+      return snprintf(p, n, "%s%lu.%07lu", e7 < 0 ? "-" : "", (unsigned long)(a / 10000000),
+                      (unsigned long)(a % 10000000));
+    };
+    int w = deg(where, sizeof where, latE7);
+    where[w++] = ',';
+    deg(where + w, sizeof where - w, lonE7);
+  }
   const uint8_t *b = n.bssid;
-  const int len = snprintf(out, outSize, "%lu,%lu,%02x:%02x:%02x:%02x:%02x:%02x,\"%s\",%s,%u,%d",
+  const int len = snprintf(out, outSize, "%lu,%lu,%02x:%02x:%02x:%02x:%02x:%02x,\"%s\",%s,%u,%d,%s",
                            (unsigned long)session, (unsigned long)uptimeSec, b[0], b[1], b[2], b[3],
-                           b[4], b[5], name, authName(n.auth), n.channel, n.rssi);
+                           b[4], b[5], name, authName(n.auth), n.channel, n.rssi, where);
   return (len < 0 || (size_t)len >= outSize) ? (int)(outSize ? outSize - 1 : 0) : len;
 }
 

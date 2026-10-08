@@ -40,5 +40,5 @@ struct SerialStub {
   int printf(const char *fmt, ...) { if (!getenv("SIMLOG")) return 0; va_list a; va_start(a, fmt); int n = vprintf(fmt, a); va_end(a); return n; }
 };
 extern SerialStub Serial;
-struct EspStub { uint32_t getFreeHeap() { return 280000; } uint32_t getPsramSize() { return 8386035; } const char *getChipModel() { return "ESP32-S3"; } int getChipRevision() { return 2; } };
+struct EspStub { void restart() { printf("[sim] restart\n"); } uint32_t getFreeHeap() { return 280000; } uint32_t getPsramSize() { return 8386035; } const char *getChipModel() { return "ESP32-S3"; } int getChipRevision() { return 2; } };
 extern EspStub ESP;

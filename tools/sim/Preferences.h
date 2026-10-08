@@ -12,6 +12,8 @@ struct Preferences {
   void putUChar(const char *k, uint8_t v) { store()[k] = v; }
   uint32_t getUInt(const char *k, uint32_t d) { auto it = store().find(k); return it == store().end() ? d : it->second; }
   void putUInt(const char *k, uint32_t v) { store()[k] = (int)v; }
+  void remove(const char *k) { store().erase(k); blobs().erase(k); }
+  void clear() { store().clear(); blobs().clear(); }
   bool isKey(const char *k) { return store().count(k) > 0 || blobs().count(k) > 0; }
   static std::map<std::string, std::vector<uint8_t>> &blobs() { static std::map<std::string, std::vector<uint8_t>> m; return m; }
   size_t getBytes(const char *k, void *buf, size_t n) {

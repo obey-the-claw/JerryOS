@@ -32,6 +32,8 @@ int snapshot(WifiNet *out, int max);  // heard recently, strongest first
 
 // The log file
 void setRecording(bool rec);     // start/stop saving networks (starts a new session)
+// Where we are, from the rig box's GPS (log lines get lat/lon while valid).
+void setLocation(bool valid, int32_t latE7, int32_t lonE7);
 bool recording();
 uint32_t savedThisSession();     // networks saved since REC was pressed
 bool logReady();                 // storage mounted

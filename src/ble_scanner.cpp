@@ -45,6 +45,14 @@ struct CamSightingMsg {
   uint32_t ms;
 };
 QueueHandle_t camQueue = nullptr;  // Flock gear
+
+struct RigMsg {
+  uint8_t addr[6];
+  RigStatus status;
+  int8_t rssi;
+  uint32_t ms;
+};
+QueueHandle_t rigQueue = nullptr;  // status beacons from the Pi Zero box
 SemaphoreHandle_t nearbyLock = nullptr;
 NearbyTable nearbyTable;  // every device heard lately (guarded by nearbyLock)
 std::atomic<uint32_t> adverts{0}, trackerCount{0}, dropped{0};
@@ -69,6 +77,15 @@ class Listener : public NimBLEAdvertisedDeviceCallbacks {
       p.kind = popup;
       p.ms = now;
       xQueueSend(popupQueue, &p, 0);  // full = we're already flooded; dropping is fine
+    }
+
+    RigMsg rig;
+    if (parseRigBeacon(payload, len, rig.status)) {
+      memcpy(rig.addr, addr, 6);
+      rig.rssi = (int8_t)dev->getRSSI();
+      rig.ms = now;
+      xQueueSend(rigQueue, &rig, 0);
+      return;
     }
 
     CamMatch cam;
@@ -112,6 +129,7 @@ void begin() {
   queue = xQueueCreate(64, sizeof(Sighting));
   popupQueue = xQueueCreate(48, sizeof(PopupSighting));
   camQueue = xQueueCreate(16, sizeof(CamSightingMsg));
+  rigQueue = xQueueCreate(4, sizeof(RigMsg));
   nearbyLock = xSemaphoreCreateMutex();
   NimBLEDevice::init("");  // no name: we never advertise
   startScan();
@@ -119,12 +137,14 @@ void begin() {
   Serial.println(F("[ble] passive tracker scan started"));
 }
 
-void drain(TrackerWatch &watch, AttackWatch &attacks, CameraWatch &cams) {
+void drain(TrackerWatch &watch, AttackWatch &attacks, CameraWatch &cams, RigLink &rigLink) {
   if (!started) return;
   Sighting s;
   while (xQueueReceive(queue, &s, 0) == pdTRUE) watch.onSighting(s.addr, s.adv, s.rssi, s.ms);
   PopupSighting p;
   while (xQueueReceive(popupQueue, &p, 0) == pdTRUE) attacks.onPopup(p.addr, p.kind, p.ms);
+  RigMsg r;
+  while (xQueueReceive(rigQueue, &r, 0) == pdTRUE) rigLink.onBeacon(r.addr, r.status, r.rssi, r.ms);
   CamSightingMsg c;
   while (xQueueReceive(camQueue, &c, 0) == pdTRUE)
     if (cams.onSighting(c.addr, c.match, c.rssi, c.ms)) newCameras_++;

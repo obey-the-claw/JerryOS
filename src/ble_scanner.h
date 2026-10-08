@@ -9,6 +9,7 @@
 #include "attack_watch.h"
 #include "ble_nearby.h"
 #include "camera_watch.h"
+#include "rig_link.h"
 #include "tracker_watch.h"
 
 namespace ble {
@@ -17,7 +18,7 @@ void begin();  // start listening (call once)
 
 // Move tracker, pop-up and camera sightings heard since the last call
 // into the watchers. Call every loop.
-void drain(TrackerWatch &watch, AttackWatch &attacks, CameraWatch &cams);
+void drain(TrackerWatch &watch, AttackWatch &attacks, CameraWatch &cams, RigLink &rig);
 
 int takeNewCameras();      // how many new cameras the last drain()s found
 int nearbyDevices();       // distinct BLE devices heard in the last minute

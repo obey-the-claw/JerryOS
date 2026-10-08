@@ -7,7 +7,7 @@
 //                     ├─> Sound            (rough dB meter, built-in microphone)
 //                     ├─> BLE Nearby ─────> one device's details
 //                     ├─> WiFi Scan ──────> one network's details
-//                     ├─> Rig Dashboard   (coming soon)
+//                     ├─> Rig Dashboard    (Pi Zero box: GPS + its counts)
 //                     └─> Settings ─┬─> Diagnostics
 //                                   └─> About
 //
@@ -887,20 +887,108 @@ class SoundScreen : public Screen {
 };
 
 // ---------------------------------------------------------------------------
-// Rig Dashboard: "coming soon" until the Scanner v0 link exists
+// Rig Dashboard: the Pi Zero "Scanner" box, heard over its Bluetooth beacon
 // ---------------------------------------------------------------------------
 class RigScreen : public InfoScreen {
  public:
   const char *tag() const override { return "RIG"; }
-  Hints hints() const override { return {"back", nullptr, nullptr}; }
-  void update(Shell &shell, uint32_t) override { shell.jerry().setMood(Mood::Scanning); }
-  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
-    drawJerrySmall(shell, g, y0);
-    centered(g, y0 + 58, GOLD, "Rig Dashboard");
-    centered(g, y0 + 70, CREAM, "coming soon:");
-    centered(g, y0 + 80, DIM, "GPS, sats, networks");
-    centered(g, y0 + 90, DIM, "from Scanner v0");
+  Hints hints() const override {
+    if (pairable_) return {"back", nullptr, "pair"};
+    return {"back", nullptr, paired_ ? "forget" : nullptr};
   }
+  void onRightLong(Shell &shell) override {
+    RigLink &r = shell.rig();
+    uint8_t addr[6];
+    if (!r.paired() && r.candidate(millis(), addr)) {
+      r.pair(addr);
+      shell.saveRig();
+      shell.toast("Rig box paired!");
+      shell.jerry().flash(Mood::Approved, 1500);
+    } else if (r.paired()) {
+      r.unpair();
+      shell.saveRig();
+      shell.toast("Rig box forgotten");
+    }
+  }
+  void update(Shell &shell, uint32_t now) override {
+    RigLink &r = shell.rig();
+    uint8_t addr[6];
+    paired_ = r.paired();
+    pairable_ = !paired_ && r.candidate(now, addr);
+    shell.jerry().setMood(r.connected(now) ? Mood::Approved : Mood::Scanning);
+  }
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
+    const uint32_t now = millis();
+    const RigLink &r = shell.rig();
+    char buf[28];
+    uint8_t addr[6];
+    if (!r.paired()) {
+      drawJerrySmall(shell, g, y0);
+      if (r.candidate(now, addr)) {
+        centered(g, y0 + 58, GOLD, "Rig box found!");
+        snprintf(buf, sizeof buf, "..%02X:%02X:%02X", addr[2], addr[1], addr[0]);
+        centered(g, y0 + 70, CREAM, buf);
+        centered(g, y0 + 82, DIM, "hold R to pair");
+      } else {
+        centered(g, y0 + 58, GOLD, "Rig Dashboard");
+        centered(g, y0 + 70, CREAM, "no rig box heard");
+        centered(g, y0 + 82, DIM, "run jerry_beacon.py");
+        centered(g, y0 + 92, DIM, "on the Pi Zero");
+      }
+      return;
+    }
+    if (!r.connected(now)) {
+      drawJerrySmall(shell, g, y0);
+      const uint8_t *a = r.pairedAddr();
+      snprintf(buf, sizeof buf, "box ..%02X:%02X:%02X", a[2], a[1], a[0]);
+      centered(g, y0 + 58, CREAM, buf);
+      if (r.lastHeardMs()) {
+        char t[10];
+        snprintf(buf, sizeof buf, "not heard for %s", ago(t, sizeof t, (int)((now - r.lastHeardMs()) / 60000) + 1));
+      } else {
+        snprintf(buf, sizeof buf, "waiting for it...");
+      }
+      centered(g, y0 + 70, DIM, buf);
+      centered(g, y0 + 82, DIM, "is the Pi on?");
+      return;
+    }
+    // Connected: the dashboard.
+    const RigStatus &s = r.status();
+    shell.jerry().draw(g, 14, y0 + 11, 0.24f);
+    if (s.fix) snprintf(buf, sizeof buf, "fix: %u sats", s.sats);
+    else snprintf(buf, sizeof buf, "no fix, %u sat", s.sats);
+    text(g, 28, y0 + 3, s.fix ? GOOD : GOLD, buf);
+    signalBars(g, W - 16, y0 + 2, r.rssi(), GOOD, BAR);
+    if (s.fix) {
+      auto deg = [](char *p, size_t n, const char *label, int32_t e7) {
+        const uint32_t a = e7 < 0 ? (uint32_t)(-(int64_t)e7) : (uint32_t)e7;
+        snprintf(p, n, "%s %s%lu.%05lu", label, e7 < 0 ? "-" : "", (unsigned long)(a / 10000000),
+                 (unsigned long)(a % 10000000 / 100));
+      };
+      deg(buf, sizeof buf, "lat", s.latE7);
+      text(g, 28, y0 + 14, CREAM, buf);
+      deg(buf, sizeof buf, "lon", s.lonE7);
+      text(g, 28, y0 + 25, CREAM, buf);
+      snprintf(buf, sizeof buf, "%d mph", (int)(s.speedKmh * 0.6214f + 0.5f));
+      g.setTextSize(2);
+      text(g, 6, y0 + 40, GOLD, buf);
+      g.setTextSize(1);
+    } else {
+      text(g, 28, y0 + 18, DIM, "waiting for satellites");
+    }
+    snprintf(buf, sizeof buf, "box: WiFi %u  BT %u", s.wifi, s.ble);
+    text(g, 6, y0 + 62, CREAM, buf);
+    if (s.alerts) snprintf(buf, sizeof buf, "box alerts: %u", s.alerts);
+    else snprintf(buf, sizeof buf, "box: all quiet");
+    text(g, 6, y0 + 74, s.alerts ? ALERT : GOOD, buf);
+    if (s.battery == 255) snprintf(buf, sizeof buf, "power: mains");
+    else snprintf(buf, sizeof buf, "box battery %u%%", s.battery);
+    text(g, 6, y0 + 86, DIM, buf);
+    if (wifi::recording() && s.fix) text(g, W - 6 - g.textWidth("REC+GPS"), y0 + 86, ALERT, "REC+GPS");
+  }
+
+ private:
+  bool paired_ = false, pairable_ = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -988,16 +1076,19 @@ AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
 // Settings: brightness, alert window, LED, pocket, Wi-Fi scan, Wi-Fi log, my devices,
-// diag, about
+// reset all, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
   const char *tag() const override { return "SETTINGS"; }
   Hints hints() const override {
     if (editing_) return {"undo", "+", "save"};
-    if (erasing_) return {"cancel", nullptr, "erase"};
+    if (erasing_) return {"cancel", nullptr, cursor_ == kReset ? "reset" : "erase"};
     return {"back", "next",
-            isValue(cursor_) ? "edit" : (cursor_ == kWifiLog || cursor_ == kMine) ? "erase" : "open"};
+            isValue(cursor_)                         ? "edit"
+            : (cursor_ == kWifiLog || cursor_ == kMine) ? "erase"
+            : cursor_ == kReset                       ? "reset"
+                                                      : "open"};
   }
 
   void enter(Shell &) override { editing_ = erasing_ = false; }
@@ -1036,6 +1127,8 @@ class SettingsScreen : public Screen {
     if (erasing_) {  // second hold: really erase
       if (cursor_ == kWifiLog) {
         wifi::clearLog();
+      } else if (cursor_ == kReset) {
+        shell.factoryReset();  // restarts the device
       } else {
         shell.follow().clearTrusted();
         shell.saveTrusted();
@@ -1056,9 +1149,9 @@ class SettingsScreen : public Screen {
     if (isValue(cursor_)) {
       before_ = shell.settings();
       editing_ = true;
-    } else if (cursor_ == kWifiLog || cursor_ == kMine) {
+    } else if (cursor_ == kWifiLog || cursor_ == kMine || cursor_ == kReset) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 7) {
+    } else if (cursor_ == 8) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -1071,20 +1164,23 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",       "Pocket",
-                                               "WiFi scan",  "WiFi log",    "My devices", "Diagnostics",
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",
+                                               "Pocket",     "WiFi scan",   "WiFi log",
+                                               "My devices", "Reset all",   "Diagnostics",
                                                "About"};
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
                                   s.pocketDark ? "dark" : "lit", s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
-                                  erasing_ && cursor_ == kMine ? "clear?" : mine, nullptr, nullptr};
+                                  erasing_ && cursor_ == kMine ? "clear?" : mine,
+                                  erasing_ && cursor_ == kReset ? "sure?" : nullptr, nullptr, nullptr};
     drawList(g, y0, labels, values, kItems, cursor_, editing_ || erasing_);
   }
 
  private:
-  static constexpr int kItems = 9;
+  static constexpr int kItems = 10;
+  static constexpr int kReset = 7;  // factory reset (asks first)
   static constexpr int kWifiLog = 5;
   static constexpr int kMine = 6;  // devices marked "mine" in Followers
   static bool isValue(int i) { return i <= 4; }

@@ -11,6 +11,7 @@ Open the CSV in Excel / Google Sheets. Columns:
     auth      security: open, WEP, WPA2, WPA3...
     channel   2.4 GHz channel 1-13
     rssi      signal strength in dBm (-40 very close, -90 far)
+    lat, lon  where you were (from the rig box's GPS); empty without a fix
 
 Needs pyserial, which comes with esptool (py -m pip install esptool).
 Close any serial monitor first: only one program can use the COM port.

@@ -658,4 +658,49 @@ together with one test plan: `docs/TEST-PLAN.md`.
 
 - [x] Pocket mode works on the device (2026-10-07)
 - [x] Sound meter works: shows "talking" when talking (first use of the microphone)
-- [ ] Sound calibration vs. a phone app (quiet / talking / loud)
+- [ ] Sound calibration vs. a phone app (quiet / talking): waiting on Steve's numbers
+
+---
+
+## Checkpoint 13: v1.0
+
+Steve: "lets build anything else we had outstanding on this project now so
+we're at a completed stage". The one feature still saying "coming soon" was
+the Rig Dashboard, so it became real, along with the finishing pieces.
+
+### What we did
+
+- **Rig link, listen-only:** the Pi Zero box broadcasts a 29-byte Bluetooth
+  beacon (company ID 0xFFFF, "JR" + GPS + counts). Jerry decodes it in the
+  radio task and hands it to the main loop. Pairing remembers one box (saved),
+  and other boxes' beacons are ignored.
+- **`tools/pi/jerry_beacon.py`:** stdlib + BlueZ D-Bus (preinstalled on
+  Raspberry Pi OS), GPS from gpsd, optional `/run/jerry_status.json` for
+  the box's counts, `--fake-gps` and `--print` for testing, a systemd snippet.
+- **GPS-tagged REC:** log lines get `lat,lon` (7 decimals, written with
+  integers so nothing gets rounded) while the paired box has a fix under 10 s
+  old. Old logs are converted once on boot.
+- **Rig Dashboard screen:** found → pair → connected (fix, lat/lon, mph, box
+  counts, battery, REC+GPS badge) / not heard lately.
+- **Settings → Reset all** (asks first) and **docs/USER-GUIDE.md**.
+- Unit tests 187 → 203, including the **exact bytes the Python script
+  prints** decoding correctly on Jerry, so both ends are checked against
+  each other.
+
+### What broke / how we fixed it
+
+- **Log upgrade loop (caught before shipping):** the log's lines end in
+  "\r\n", so the header read back with a hidden "\r" and would never match.
+  Every boot would have added two more empty columns. It's trimmed now.
+- **Hand-typed bytes:** I first typed the "Python" beacon bytes into the test
+  from memory and got them wrong. I re-ran the script for the real bytes,
+  then miscounted the zeros pasting them in. The test caught both times.
+- **Edit landed in the wrong place twice:** the new Rig screen left the old
+  one behind (an edit matched the banner, not the section). And the line that
+  hands rig beacons to the main loop landed inside the radio callback (two
+  spots share a line). The simulator and the real compiler caught them.
+- The box address showed backwards in the simulator (fake data written in the
+  wrong order), "GPS fix 11 sats" ran into the signal bars, and the reset
+  prompt said "erase". All fixed.
+
+### On the real device: see docs/TEST-PLAN.md (v1.0 section)

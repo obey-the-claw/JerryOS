@@ -64,7 +64,9 @@ int main() {
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("wifi_next");
   hold(PIN_BTN_RIGHT); run(1100); snap("wifi_detail");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("rig");
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2500); snap("rig_found");
+  hold(PIN_BTN_RIGHT); run(300); snap("rig_paired_toast");
+  run(5000); snap("rig_dashboard");
   tap(PIN_BTN_LEFT); snap("menu_back");
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("settings");
   hold(PIN_BTN_RIGHT); snap("settings_edit");
@@ -75,7 +77,9 @@ int main() {
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");
-  tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
+  tap(PIN_BTN_RIGHT); snap("settings_reset");
+  hold(PIN_BTN_RIGHT); snap("settings_reset_ask");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
   hold(PIN_BTN_RIGHT); snap("diagnostics");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("about");
   tap(PIN_BTN_RIGHT); snap("about_more");

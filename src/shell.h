@@ -9,6 +9,7 @@
 #include "attack_watch.h"
 #include "camera_watch.h"
 #include "follow_watch.h"
+#include "rig_link.h"
 #include "tracker_watch.h"
 
 class Shell {
@@ -32,6 +33,9 @@ class Shell {
   FollowWatch &follow() { return follow_; }
   AttackWatch &attacks() { return attack_; }
   CameraWatch &cameras() { return cams_; }
+  RigLink &rig() { return rig_; }
+  void saveRig();      // after pairing / forgetting the rig box
+  void factoryReset(); // wipe settings, "mine" list, pairing and the Wi-Fi log, then restart
   // A short message over any screen, e.g. "Flock camera nearby".
   void toast(const char *text, uint32_t ms = 4000);
   bool toastShowing() const { return (int32_t)(millis() - toastUntil_) < 0; }
@@ -64,6 +68,7 @@ class Shell {
   FollowWatch follow_;
   AttackWatch attack_;
   CameraWatch cams_;
+  RigLink rig_;
   char toast_[24] = "";
   uint32_t toastUntil_ = 0;
   void drawToast(lgfx::LovyanGFX &g);

@@ -29,7 +29,9 @@ Jerry's animated head lives on the screen. The v0 modes are:
   record networks to a log (copy it to your PC with `tools/pull_wifi_log.py`).
 - **Home screen:** Jerry plus live counts (trackers, Bluetooth, Wi-Fi),
   speech bubbles, and a battery-saving screen timeout. Silent by design.
-- **Rig Dashboard:** placeholder for the Scanner v0 Pi Zero link.
+- **Rig Dashboard:** your Pi Zero "Scanner" box (GPS, speed, its counts) over a
+  listen-only Bluetooth beacon (`tools/pi/jerry_beacon.py`). With a fix, REC
+  logs get lat/lon.
 - **Settings.**
 
 Two buttons, a hint bar that always tells you what they do, and the device
@@ -50,9 +52,10 @@ stays physically stock (no soldering).
 | 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/CHECKPOINT9.md)) |
 | 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/CHECKPOINT10.md)) |
 | 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/CHECKPOINT11.md)) |
-| 12 | Pocket mode + sound meter | 🟡 ready to test ([guide](docs/CHECKPOINT12.md)) |
+| 12 | Pocket mode + sound meter | ✅ 2026-10-07 ([guide](docs/CHECKPOINT12.md)) |
+| 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | 🟡 ready to test ([guide](docs/CHECKPOINT13.md)) |
 
-**Testing checkpoints 7-12 together:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md) (tonight at home, tomorrow out).
+**How to use Jerry:** [docs/USER-GUIDE.md](docs/USER-GUIDE.md) · **What to test:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md)
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
 

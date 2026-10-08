@@ -30,7 +30,8 @@ SemaphoreHandle_t tableLock = nullptr;  // guards `table`
 SemaphoreHandle_t fileLock = nullptr;   // guards the log file
 WifiTable table;
 std::atomic<bool> on{true}, running{false}, mounted{false}, full{false};
-std::atomic<bool> rec{false}, scanNow{false};
+std::atomic<bool> rec{false}, scanNow{false}, haveLoc{false};
+std::atomic<int32_t> locLat{0}, locLon{0};
 std::atomic<uint32_t> bytes{0}, saved{0}, sessionNo{0};
 
 struct Lock {  // holds a lock until the end of the { } block
@@ -38,6 +39,35 @@ struct Lock {  // holds a lock until the end of the { } block
   ~Lock() { xSemaphoreGive(m_); }
   SemaphoreHandle_t m_;
 };
+
+// Logs from before v1.0 have 7 columns; v1.0 added lat,lon. Convert an old
+// log once (each old line gets two empty columns) so the CSV stays tidy.
+void upgradeLog() {
+  File in = LittleFS.open(LOG_PATH, FILE_READ);
+  if (!in) return;
+  String header = in.readStringUntil('\n');
+  header.trim();  // lines end in "\r\n": without this, every boot would "convert" again
+  if (header == LOG_HEADER || header.length() == 0) {
+    in.close();
+    return;
+  }
+  Serial.println(F("[wifi] converting the log to the v1.0 format..."));
+  File out = LittleFS.open("/wifi.tmp", FILE_WRITE);
+  if (!out) {
+    in.close();
+    return;
+  }
+  out.println(LOG_HEADER);
+  while (in.available()) {
+    String line = in.readStringUntil('\n');
+    line.trim();
+    if (line.length()) out.println(line + ",,");
+  }
+  in.close();
+  out.close();
+  LittleFS.remove(LOG_PATH);
+  LittleFS.rename("/wifi.tmp", LOG_PATH);
+}
 
 void mountLog() {
   // First boot after JerryOS is flashed, the storage area holds leftovers
@@ -47,6 +77,7 @@ void mountLog() {
     return;
   }
   Lock l(fileLock);
+  upgradeLog();
   if (!LittleFS.exists(LOG_PATH)) {
     File f = LittleFS.open(LOG_PATH, FILE_WRITE);
     if (f) {
@@ -94,7 +125,7 @@ void scanOnce() {
       if (rec && !full && net && net->loggedIn != sess) {  // first time this recording
         net->loggedIn = sess;
         char line[160];
-        formatLogLine(line, sizeof line, sess, now / 1000, *net);
+        formatLogLine(line, sizeof line, sess, now / 1000, *net, haveLoc, locLat, locLon);
         newLines += line;
         newLines += '\n';
         saved++;
@@ -258,6 +289,12 @@ void setRecording(bool r) {
 }
 
 bool recording() { return rec; }
+
+void setLocation(bool valid, int32_t latE7, int32_t lonE7) {
+  locLat = latE7;
+  locLon = lonE7;
+  haveLoc = valid;
+}
 uint32_t savedThisSession() { return saved; }
 
 int snapshot(WifiNet *out, int max) {

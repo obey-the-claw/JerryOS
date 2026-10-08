@@ -16,6 +16,7 @@
 #include "camera_watch.h"
 #include "camera_ouis.h"
 #include "sound_level.h"
+#include "rig_link.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -267,7 +268,11 @@ static void testWifi() {
 
   char line[160];
   formatLogLine(line, sizeof line, 7, 123, *n);
-  CHECK(strcmp(line, "7,123,3c:52:82:01:02:03,\"5quatch HQ\",WPA2,6,-60") == 0);
+  CHECK(strcmp(line, "7,123,3c:52:82:01:02:03,\"5quatch HQ\",WPA2,6,-60,,") == 0);
+  formatLogLine(line, sizeof line, 7, 123, *n, true, 335123456, -1121234567);  // Phoenix-ish
+  CHECK(strcmp(line, "7,123,3c:52:82:01:02:03,\"5quatch HQ\",WPA2,6,-60,33.5123456,-112.1234567") == 0);
+  formatLogLine(line, sizeof line, 7, 123, *n, true, -5, 1800000000);
+  CHECK(strstr(line, ",-0.0000005,180.0000000") != nullptr);
   // Quotes doubled, newline made harmless, so the CSV never breaks.
   WifiNet evil = *n;
   snprintf(evil.ssid, sizeof evil.ssid, "Bob's \"Fast\"\nWiFi,ok");
@@ -277,8 +282,9 @@ static void testWifi() {
   // A 32-character name full of quotes still fits and stays valid.
   memset(evil.ssid, '"', 32);
   evil.ssid[32] = 0;
-  const int len = formatLogLine(line, sizeof line, 4000000000u, 4000000000u, evil);
-  CHECK(len > 0 && len < (int)sizeof line && line[len - 1] != ',');
+  const int len = formatLogLine(line, sizeof line, 4000000000u, 4000000000u, evil, true,
+                                -900000000, -1800000000);
+  CHECK(len > 0 && len < (int)sizeof line && strstr(line, ",-90.0000000,-180.0000000"));
   char tiny[8];
   CHECK(formatLogLine(tiny, sizeof tiny, 1, 1, *n) == 7 && strlen(tiny) == 7);
 
@@ -657,6 +663,53 @@ static void testSound() {
         strcmp(loudnessName(120), "painful!") == 0);
 }
 
+static void testRig() {
+  printf("Rig link\n");
+  RigStatus s{true, 335123456, -1121234567, 9, 66, 45, 23, 0, 87, 7};
+  uint8_t adv[31];
+  const size_t n = buildRigBeacon(s, adv, sizeof adv);
+  CHECK(n == 29 && n <= 31);  // fits one ordinary broadcast
+  RigStatus r{};
+  CHECK(parseRigBeacon(adv, n, r));
+  CHECK(r.fix && r.latE7 == 335123456 && r.lonE7 == -1121234567 && r.sats == 9 &&
+        r.speedKmh == 66 && r.wifi == 45 && r.ble == 23 && r.battery == 87 && r.seq == 7);
+  // The exact bytes jerry_beacon.py prints for --fake-gps 33.5123456,-112.1234567
+  // (seq 1, no status file): company id + body.
+  // ("ff ff | 4a 52 01 01 01 00 00 94 f9 13 79 51 2b bd 09 00 00 00 00 00 00 ff"),
+  // wrapped in the flags + manufacturer-data records BlueZ puts around it.
+  const Bytes py = {0x02, 0x01, 0x06, 0x19, 0xFF, 0xff, 0xff, 0x4a, 0x52, 0x01, 0x01, 0x01, 0x00,
+                    0x00, 0x94, 0xf9, 0x13, 0x79, 0x51, 0x2b, 0xbd, 0x09, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0xff};
+  CHECK(parseRigBeacon(py.data(), py.size(), r) && r.fix && r.latE7 == 335123456 &&
+        r.lonE7 == -1121234567 && r.sats == 9 && r.battery == 255);
+  adv[7] = 'X';  // wrong magic: not ours
+  CHECK(!parseRigBeacon(adv, n, r));
+  const Bytes cut = {0x02, 0x01, 0x06, 0x19, 0xFF, 0xff, 0xff, 0x4a};
+  CHECK(!parseRigBeacon(cut.data(), cut.size(), r));
+  s.latE7 = 950000000;  // off the planet: not a fix
+  buildRigBeacon(s, adv, sizeof adv);
+  CHECK(parseRigBeacon(adv, n, r) && !r.fix);
+
+  RigLink link;
+  const uint8_t box[6] = {1, 2, 3, 4, 5, 6}, stranger[6] = {9, 9, 9, 9, 9, 9};
+  uint8_t cand[6];
+  s.latE7 = 335123456;
+  link.onBeacon(box, s, -60, 1000);
+  CHECK(!link.paired() && link.candidate(2000, cand) && memcmp(cand, box, 6) == 0);
+  CHECK(!link.candidate(1000 + RigLink::FRESH_MS + 1, cand));
+  link.pair(box);
+  int32_t lat, lon;
+  CHECK(!link.connected(2000) && !link.location(2000, lat, lon));  // paired, not heard yet
+  link.onBeacon(box, s, -55, 3000);
+  CHECK(link.connected(4000) && link.location(4000, lat, lon) && lat == 335123456);
+  link.onBeacon(stranger, RigStatus{true, 1, 1, 1, 1, 1, 1, 1, 1, 1}, -40, 5000);
+  CHECK(link.status().latE7 == 335123456);  // a stranger's beacon is ignored
+  CHECK(!link.location(3000 + RigLink::FRESH_MS + 1, lat, lon));  // stale fix: no location
+  s.fix = false;
+  link.onBeacon(box, s, -55, 20000);
+  CHECK(link.connected(20001) && !link.location(20001, lat, lon));  // box there, no GPS
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -667,6 +720,7 @@ int main() {
   testLed();
   testCameras();
   testSound();
+  testRig();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

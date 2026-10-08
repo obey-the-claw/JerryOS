@@ -27,11 +27,13 @@ inline bool isOpen(uint8_t auth) { return auth == 0; }
 // '?' for anything that isn't plain text (emoji etc.).
 void displaySsid(const WifiNet &n, char *out, size_t outSize);
 
-// One CSV log line (no newline):  session,uptime_s,bssid,"ssid",auth,channel,rssi
+// One CSV log line (no newline):
+//   session,uptime_s,bssid,"ssid",auth,channel,rssi,lat,lon
+// lat/lon come from the paired rig box's GPS; empty when there's no fix.
 // Returns the length written. The header row is LOG_HEADER.
 extern const char LOG_HEADER[];
 int formatLogLine(char *out, size_t outSize, uint32_t session, uint32_t uptimeSec,
-                  const WifiNet &n);
+                  const WifiNet &n, bool hasLocation = false, int32_t latE7 = 0, int32_t lonE7 = 0);
 
 class WifiTable {
  public:

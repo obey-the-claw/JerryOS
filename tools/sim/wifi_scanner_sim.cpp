@@ -99,6 +99,7 @@ void setRecording(bool r) {
   rec = r;
 }
 bool recording() { return rec; }
+void setLocation(bool, int32_t, int32_t) {}
 uint32_t savedThisSession() {
   nearby();  // the sim "scans" whenever someone looks
   return savedCount;
