@@ -838,7 +838,7 @@ nice and not sound so strained."
 
 ### On the real device
 
-- [ ] med sounds clean, not strained
+- [x] med sounds clean, not strained: "volume sounds way better"
 - [ ] low / high / off all work after a restart
 
 ---
@@ -912,3 +912,24 @@ fade-out (227 checks).
 - `intro_*.gif`: the same, silent.
 - `tools/sim/build_sim.sh` makes these (it needs ffmpeg for the videos);
   `tools/sim/render_funk.sh` makes the .wav files.
+
+---
+
+## v1.3: all four intros go live
+
+Steve watched the previews: "good to put all 3 video intros live they're
+legendary".
+
+### What we did
+
+- Built `firmware/jerryos-cp17-intros.bin` (v1.3.0) from the same code that
+  made the previews. Nothing changed after he approved them except the
+  version number.
+- The previews in `docs/previews/` were re-rendered so the title says v1.3.0.
+
+### On the real device
+
+- [ ] Power on a few times: random picks a different intro each time
+- [ ] Each groove plays in time with its intro, no stutters
+- [ ] Settings → Intro → pick one → hold R: it plays straight away
+- [ ] A button press skips any intro and cuts its music
