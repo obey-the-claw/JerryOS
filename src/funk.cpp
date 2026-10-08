@@ -15,6 +15,7 @@ constexpr float STEP_S = 60.0f / BPM / 4;  // one 16th note
 constexpr int BARS = 2;
 constexpr int STEPS = 16 * BARS;
 constexpr float TAIL_S = 0.6f;             // let the last hit ring
+constexpr float HP_A = 0.9733f;            // one-pole high-pass at ~70 Hz
 
 float midiHz(int note) { return 440.0f * powf(2.0f, (note - 69) / 12.0f); }
 
@@ -132,8 +133,12 @@ float FunkIntro::next() {
     hatPrev_ = noise;
   }
 
-  // gentle tape-ish saturation keeps it punchy without clipping
-  return tanhf(mix * 1.4f) * 0.9f;
+  // Trim the deep rumble the little speaker can't play anyway (it only
+  // strains the amp), then a lighter saturation than v1.2: punchy, not squashed.
+  const float hp = HP_A * (hpOut_ + mix - hpIn_);
+  hpIn_ = mix;
+  hpOut_ = hp;
+  return tanhf(hp * 1.1f) * 0.8f;
 }
 
 int FunkIntro::render(int16_t *out, int n) {

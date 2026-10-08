@@ -193,7 +193,7 @@ class IntroScreen : public Screen {
     if (started_) return;  // coming back from an alert: carry on, don't restart
     started_ = true;
     start_ = millis();
-    if (shell.settings().introTune) speaker::playIntro();  // the funk
+    if (shell.settings().tuneVol) speaker::playIntro(shell.settings().tuneVol);  // the funk
   }
   // Any button skips the intro (and cuts the music).
   void onLeftShort(Shell &shell) override { leave(shell); }

@@ -69,7 +69,7 @@ a filled **R** means hold.
 | LED | all / alerts / off |
 | Pocket | dark (screen stays black when locked) / lit |
 | Sound cal | -30 to +30 dB in 3 dB steps: match the Sound meter to a phone app (changes live while editing) |
-| Intro tune | on / off: the funk groove at power-on |
+| Intro tune | off / low / med / high: how loud the funk groove at power-on is |
 | WiFi scan | on / off (off also stops REC, Shield's Wi-Fi checks, Followers) |
 | WiFi log | size; hold R twice = erase |
 | My devices | how many you've marked "mine"; hold R twice = clear |

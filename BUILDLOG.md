@@ -809,6 +809,34 @@ paid off this time.
 
 ### On the real device
 
-- [ ] The groove plays with the intro, in time, not distorted, loud enough
+- [x] The groove plays with the intro, in time: "the groove is jamming"
 - [ ] A button press cuts it; Intro tune off = silent boot
 - [ ] Sound meter still works afterwards
+
+---
+
+## v1.2.1: turn the groove down a notch
+
+Steve: "the groove is jamming. can we turn volume down a little it was too
+loud i think but it sounded good. if we lower volume some it'll clean up
+nice and not sound so strained."
+
+### What we did
+
+- **Cleaner groove:** the synth was leaning hard on its saturation (RMS
+  ~10,500, very squashed). It now drives it more gently and trims the deep
+  rumble under ~70 Hz. That rumble is mostly the low E's fundamental, which
+  a speaker this small can't play anyway; it only made the amp work harder.
+  It's still punchy, with RMS ~7,000 and peak 77%. The preview at
+  `docs/sounds/intro_funk.wav` is updated.
+- **Settings → Intro tune:** now **off / low / med / high** instead of on /
+  off.
+  - **med** (the new default) is ~4 dB under v1.2.
+  - **low** is ~8 dB under v1.2.
+  - **high** is about as loud as v1.2, but cleaner.
+  - If you had it set to "off" in v1.2, it stays off.
+
+### On the real device
+
+- [ ] med sounds clean, not strained
+- [ ] low / high / off all work after a restart

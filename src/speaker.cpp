@@ -18,7 +18,11 @@ namespace speaker {
 namespace {
 
 constexpr i2s_port_t PORT = I2S_NUM_0;
-constexpr uint8_t VOLUME = 0xB8;  // DAC volume: 0xBF = 0 dB, 0.5 dB steps (-3.5 dB)
+// DAC volume per Settings -> Intro tune level: 0xBF = 0 dB, 0.5 dB steps.
+// "high" matches v1.2's loudness (the groove itself is cleaner now), "med"
+// is ~4 dB under it, "low" ~8 dB.
+constexpr uint8_t VOLUME[4] = {0x00, 0xAF, 0xB7, 0xBF};
+uint8_t level = 2;
 
 std::atomic<bool> playing{false}, stopNow{false};
 
@@ -52,7 +56,7 @@ void task(void *) {
   static int16_t mono[256], stereo[512];
   if (es8311::begin() && startI2S()) {
     bool ok = es8311::initClocks();
-    ok &= es8311::write(0x32, VOLUME);
+    ok &= es8311::write(0x32, VOLUME[level]);
     ok &= es8311::update(0x31, 0x9F, 0x00);  // unmute the DAC
     if (!ok) Serial.println(F("[speaker] some audio chip settings didn't take"));
     digitalWrite(PIN_SPK_AMP_EN, HIGH);      // amplifier on
@@ -79,8 +83,9 @@ void task(void *) {
 
 }  // namespace
 
-void playIntro() {
-  if (playing) return;
+void playIntro(uint8_t lvl) {
+  if (playing || lvl == 0) return;
+  level = lvl > 3 ? 3 : lvl;
   pinMode(PIN_SPK_AMP_EN, OUTPUT);
   digitalWrite(PIN_SPK_AMP_EN, LOW);
   playing = true;

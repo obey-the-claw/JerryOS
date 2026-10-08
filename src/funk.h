@@ -29,5 +29,7 @@ class FunkIntro {
   float stabPhase_[3] = {}, stabLow_ = 0, stabBand_ = 0;
   // drums
   float kickPhase_ = 0, hatPrev_ = 0;
+  // output high-pass
+  float hpIn_ = 0, hpOut_ = 0;
   uint32_t rng_ = 0x1234567u;
 };

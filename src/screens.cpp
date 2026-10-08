@@ -1125,7 +1125,7 @@ class SettingsScreen : public Screen {
         s.soundCalIdx = (s.soundCalIdx + 1) % Settings::N_SOUNDCAL;
         mic::setCalibration(Settings::soundCalChoice(s.soundCalIdx));  // live
         break;
-      case 5: s.introTune = !s.introTune; break;
+      case 5: s.tuneVol = (s.tuneVol + 1) % Settings::N_TUNEVOL; break;
       case 6: s.wifiScan = !s.wifiScan; break;
     }
   }
@@ -1180,7 +1180,7 @@ class SettingsScreen : public Screen {
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
-                                  s.pocketDark ? "dark" : "lit", cal, s.introTune ? "on" : "off",
+                                  s.pocketDark ? "dark" : "lit", cal, Settings::tuneVolName(s.tuneVol),
                                   s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
                                   erasing_ && cursor_ == kMine ? "clear?" : mine,
