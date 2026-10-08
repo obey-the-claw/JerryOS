@@ -55,8 +55,9 @@ int main() {
   for (int i = 0; i < 64; i++) g_pin[i] = 1;   // buttons up, USB present
   g_pin[PIN_CHARGING] = 1;                      // not charging
   shell.begin(); snap("intro_start");
-  recordIntro(2800, 50);  // the whole intro, 20 frames a second
-  run(600); snap("home");
+  recordIntro(5600, 50);  // the whole intro + "press any button", 20 frames a second
+  snap("intro_end");
+  tap(PIN_BTN_RIGHT); run(600); snap("home");
   tap(PIN_BTN_RIGHT); run(100); snap("home_poke");
   run(2600);
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec");

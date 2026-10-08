@@ -9,7 +9,8 @@ when you press REC.
 ## Power on
 
 Jerry walks out of the woods, hops in his Jeep and drives off, and
-"JerryOS" drops in (about 2.5 s). Any button skips it.
+"JerryOS" drops in (about 4 s), then **press any button** to start. Any
+button also skips the intro.
 
 ## Buttons
 

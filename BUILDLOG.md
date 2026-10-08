@@ -757,3 +757,13 @@ be JerryOS instead from now on".
 
 - [ ] Intro plays at power-on (smooth? too fast / slow?), any button skips it
 - [ ] Home says JerryOS top-left
+
+### v1.1.1: Steve's notes on the intro
+
+1. "slow it down": the story now plays at 60 % speed (~4.3 s).
+2. "add press to start": it ends on the title with a blinking **press any
+   button**. While it waits, normal dimming applies, and Jerry keeps
+   watching in the background.
+3. "back tire of jeep looks like a wheel in the air": the spare is now a
+   side-on, knobby black tyre on the tailgate. The road wheels got knobby
+   tread lugs that turn as the Jeep drives off.

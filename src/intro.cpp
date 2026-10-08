@@ -1,5 +1,6 @@
 // intro.cpp - the boot intro: Jerry walks out of the woods, hops in his Jeep
-// and drives off, and "JerryOS" pops up. About 2.6 s; any button skips it.
+// and drives off, and "JerryOS" pops up. About 4 s, then it waits on the
+// title for "press any button". Any button skips it at any point.
 //
 // Drawn in code (like Jerry himself), full screen, at the shell's ~30 fps.
 // Everything is a function of the time since the intro started, so it plays
@@ -17,7 +18,8 @@ using namespace theme;
 
 namespace {
 
-constexpr uint32_t LENGTH_MS = 2600;
+constexpr int32_t SCENE_MS = 2600;  // the story, in "scene time" (see SPEED)
+constexpr int32_t SPEED = 60;       // percent: plays at 60% speed (~4.3 s real time)
 constexpr int GROUND = 106;  // where feet and tyres touch
 
 const uint16_t OLIVE = lgfx::color565(0x5a, 0x6b, 0x2c);       // the Jeep
@@ -119,8 +121,14 @@ void jerrySeated(lgfx::LovyanGFX &g, int x, int y) {
   g.drawWideLine(x + 3, y - 9, x + 6, y - 8, 1.0f, INK);
 }
 
+// Road wheel: a knobby off-road tyre (tread lugs turn with the wheel).
 void wheel(lgfx::LovyanGFX &g, int cx, int cy, float angle) {
+  for (int k = 0; k < 10; k++) {
+    const float a = angle + k * 0.628f;
+    g.fillCircle(cx + (int)lroundf(cosf(a) * 7), cy + (int)lroundf(sinf(a) * 7), 1, INK);
+  }
   g.fillCircle(cx, cy, 7, INK);
+  g.drawCircle(cx, cy, 5, lgfx::color565(0x30, 0x30, 0x30));  // sidewall
   g.fillCircle(cx, cy, 3, GREY);
   for (int k = 0; k < 3; k++) {
     const float a = angle + k * 2.094f;
@@ -131,7 +139,11 @@ void wheel(lgfx::LovyanGFX &g, int cx, int cy, float angle) {
 // A classic open-top Jeep facing right. x = rear bumper.
 void jeep(lgfx::LovyanGFX &g, int x, float wheelAngle, bool driver) {
   const int gy = GROUND;
-  wheel(g, x + 6, gy - 13, wheelAngle);   // spare tyre on the back
+  // Spare tyre on the tailgate, seen side-on: a tall knobby black slab.
+  g.fillRect(x + 7, gy - 19, 3, 4, INK);                                // mount
+  g.fillRoundRect(x + 2, gy - 27, 6, 20, 3, INK);
+  for (int k = 0; k < 6; k++) g.fillRect(x + 1, gy - 25 + k * 3, 1, 2, INK);  // tread lugs
+  g.drawFastVLine(x + 6, gy - 25, 16, lgfx::color565(0x30, 0x30, 0x30));      // sidewall
   g.drawWideLine(x + 12, gy - 20, x + 12, gy - 33, 1.6f, INK);   // roll bar
   g.drawWideLine(x + 12, gy - 33, x + 29, gy - 33, 1.6f, INK);
   if (driver) jerrySeated(g, x + 22, gy - 24);
@@ -182,13 +194,14 @@ class IntroScreen : public Screen {
   void onRightShort(Shell &shell) override { shell.back(); }
   void onRightLong(Shell &shell) override { shell.back(); }
   void update(Shell &shell, uint32_t now) override {
-    shell.wake();
-    if (now - start_ >= LENGTH_MS) shell.back();
+    // Keep the screen awake while the story plays; once it's waiting on the
+    // title, normal dimming applies (Jerry keeps watching in the background).
+    if (sceneTime(now) < SCENE_MS) shell.wake();
   }
 
   void draw(Shell &, lgfx::LovyanGFX &g, int, int) override {
     // Signed on purpose: "t - 1750" must go negative early on, not wrap around.
-    const int32_t t = (int32_t)(millis() - start_);
+    const int32_t t = sceneTime(millis());
     scenery(g, t);
     const int jeepX = 70 + (t < 1650 ? 0 : (int)((t - 1650) * (float)(t - 1650) / 9000.0f));  // speeds up
     const float wheelAngle = t < 1650 ? 0 : (jeepX - 70) / 7.0f;
@@ -224,9 +237,18 @@ class IntroScreen : public Screen {
       woodsFront(g);
     }
     title(g, (t - 1750) / 450.0f);
+    if (t >= SCENE_MS && (millis() / 600) % 2) {  // the end: wait for a button
+      const char *msg = "press any button";
+      g.fillRoundRect((W - g.textWidth(msg)) / 2 - 4, 54, g.textWidth(msg) + 8, 13, 4, INK);
+      g.setTextColor(CREAM);
+      g.setCursor((W - g.textWidth(msg)) / 2, 57);
+      g.print(msg);
+    }
   }
 
  private:
+  // Scene time: real time slowed to SPEED %, so the story plays calmly.
+  int32_t sceneTime(uint32_t now) const { return (int32_t)((int64_t)(now - start_) * SPEED / 100); }
   uint32_t start_ = 0;
 };
 
