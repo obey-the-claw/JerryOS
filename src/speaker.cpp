@@ -23,6 +23,7 @@ constexpr i2s_port_t PORT = I2S_NUM_0;
 // is ~4 dB under it, "low" ~8 dB.
 constexpr uint8_t VOLUME[4] = {0x00, 0xAF, 0xB7, 0xBF};
 uint8_t level = 2;
+int groove = 0;
 
 std::atomic<bool> playing{false}, stopNow{false};
 
@@ -52,7 +53,7 @@ bool startI2S() {
 }
 
 void task(void *) {
-  static FunkIntro groove;  // big-ish state: keep it off the task's stack
+  static FunkIntro funk;  // keep its state off the task's stack
   static int16_t mono[256], stereo[512];
   if (es8311::begin() && startI2S()) {
     bool ok = es8311::initClocks();
@@ -61,9 +62,9 @@ void task(void *) {
     if (!ok) Serial.println(F("[speaker] some audio chip settings didn't take"));
     digitalWrite(PIN_SPK_AMP_EN, HIGH);      // amplifier on
     delay(30);
-    groove.start();
+    funk.start(groove);
     Serial.println(F("[speaker] playing the boot groove"));
-    for (int n; !stopNow && (n = groove.render(mono, 256)) > 0;) {
+    for (int n; !stopNow && (n = funk.render(mono, 256)) > 0;) {
       for (int i = 0; i < n; i++) stereo[2 * i] = stereo[2 * i + 1] = mono[i];
       size_t written;
       i2s_write(PORT, stereo, n * 4, &written, portMAX_DELAY);
@@ -83,9 +84,10 @@ void task(void *) {
 
 }  // namespace
 
-void playIntro(uint8_t lvl) {
+void playIntro(uint8_t lvl, int which) {
   if (playing || lvl == 0) return;
   level = lvl > 3 ? 3 : lvl;
+  groove = which;
   pinMode(PIN_SPK_AMP_EN, OUTPUT);
   digitalWrite(PIN_SPK_AMP_EN, LOW);
   playing = true;

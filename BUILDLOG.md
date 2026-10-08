@@ -840,3 +840,75 @@ nice and not sound so strained."
 
 - [ ] med sounds clean, not strained
 - [ ] low / high / off all work after a restart
+
+---
+
+## Intros 2-4: Bluff Creek, Selfie, Cruisin' (previews first)
+
+Steve: "i'd also like to make other intros with different funky beats.
+always sneaking around the woods.. can do a recreation of the traditional
+squatch walk past the trees kinda one.. and then more jerry and his jeep..
+maybe 1st person like right closeup into the camera. 3/4 view driving like
+cruisin' usa.."
+
+Same rule as the first groove: **Steve sees and hears them before they go on
+the device.** The code is written and tested in the simulator, but there's
+no new firmware file yet: `flash_prebuilt.ps1` still picks v1.2.1 (cp16).
+
+### The intros
+
+1. **Jeep Jam** (the original): walks out of the woods, hops in, drives off.
+2. **Bluff Creek:** a tribute to the most famous 59 seconds of film in
+   squatchery (Bluff Creek, 1967). It's a shaky, grainy, sepia home movie:
+   - a "2... 1..." film leader, then a sandbar with logs and the tree line,
+   - Jerry strides across with big shoulders, long arm swings and bent
+     knees, feet landing on the beat,
+   - halfway across he turns and gives the camera **the look**, googly eyes
+     and all,
+   - the hand-held camera twitches more while he looks; film grain,
+     scratches, a rounded film gate.
+3. **Selfie:** first person, his phone at arm's length from the driver's
+   seat. It's the real home-screen Jerry, close up, with the roll bar and the
+   woods whipping past behind him:
+   - he leans in wide-eyed ("is this thing on?"),
+   - his eyes dart around, head bobbing to the beat,
+   - the **aviators drop** in with a bounce,
+   - on the horn hit the lens goes *ting* and he breaks into the big grin.
+4. **Cruisin':** arcade-style 3-D, from behind the Jeep, 3/4 view:
+   - a sunset highway, stripes and red-white rumble strips rushing at you,
+   - the road bends, pines fly by, and a **SQUATCH XING** sign goes past,
+   - Jerry has his arm out over the door and waves when "JerryOS" drops in.
+   - The spare tyre is round from back here, knobby lugs turning.
+
+### The grooves (`src/funk.cpp`)
+
+Each intro has its own. The synth is now data-driven: each groove is a tempo,
+a swing amount, a bass line, and one character per 16th note for kick,
+snare (hit / ghost / handclap), hats (closed / accent / open), a wah
+**guitar** (new: muted "chicken-scratch" or a ringing wah chord) and the horn
+stab.
+
+| Intro | Groove |
+|---|---|
+| Jeep Jam | 110 BPM Space Bass (unchanged) |
+| Bluff Creek | 80 BPM half-time creeper: a chromatic bass sneaking up, swung, ghost snares, wah scratches, a spooky stab right when he looks back |
+| Selfie | 100 BPM strut: slap octaves popping everywhere, claps, scratch guitar, an A7 stab for the grin |
+| Cruisin' | 112 BPM disco funk: four on the floor, octave bass, open hats on the off-beats, a string stab at the start and the title |
+
+All four are about as loud as each other (RMS 6,400-7,600, never
+clipping). That's unit-tested, along with their lengths and a clean
+fade-out (227 checks).
+
+### Settings
+
+- **Settings → Intro:** random / jeep / creek / selfie / cruise.
+  - Random never plays the same one twice in a row.
+  - Saving a pick plays that intro right away, so you can see it.
+
+### Previews (`docs/previews/`)
+
+- `intro_*.mp4`: each intro with its groove, in sync. Rendered by the
+  simulator, so this is exactly what the screen would draw, at real speed.
+- `intro_*.gif`: the same, silent.
+- `tools/sim/build_sim.sh` makes these (it needs ffmpeg for the videos);
+  `tools/sim/render_funk.sh` makes the .wav files.

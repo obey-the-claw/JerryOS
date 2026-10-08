@@ -55,7 +55,9 @@ stays physically stock (no soldering).
 | 12 | Pocket mode + sound meter | ✅ 2026-10-07 ([guide](docs/CHECKPOINT12.md)) |
 | 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | ✅ boots 2026-10-08, field tests ongoing ([guide](docs/CHECKPOINT13.md)) |
 | 14 | **v1.1:** boot intro (Jerry drives off in his Jeep), "JerryOS" title | ✅ 2026-10-08 |
-| 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | 🟡 ready to test |
+| 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | ✅ "the groove is jamming" 2026-10-08 |
+| 16 | **v1.2.1:** quieter, cleaner groove; Intro tune off / low / med / high | 🟡 ready to flash |
+| 17 | **Intros:** Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews/)) | 👀 previews for Steve; not on the device yet |
 
 **How to use Jerry:** [docs/USER-GUIDE.md](docs/USER-GUIDE.md) · **What to test:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md)
 

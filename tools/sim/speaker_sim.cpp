@@ -5,7 +5,9 @@
 #include "speaker.h"
 
 namespace speaker {
-void playIntro(uint8_t level) { Serial.printf("[speaker] (sim) boot groove, level %u\n", level); }
+void playIntro(uint8_t level, int groove) {
+  Serial.printf("[speaker] (sim) groove %d, level %u\n", groove, level);
+}
 void stop() {}
 bool busy() { return false; }
 }  // namespace speaker

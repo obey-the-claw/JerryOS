@@ -719,19 +719,33 @@ static void testRig() {
 }
 
 static void testFunk() {
-  printf("Boot groove\n");
-  FunkIntro f;
-  f.start();
-  int16_t buf[256];
-  long n = 0;
-  int peak = 0;
-  for (int k; (k = f.render(buf, 256)) > 0;) {
-    n += k;
-    for (int i = 0; i < k; i++) peak = buf[i] > peak ? buf[i] : -buf[i] > peak ? -buf[i] : peak;
+  printf("Boot grooves\n");
+  for (int g = 0; g < FunkIntro::GROOVES; g++) {
+    FunkIntro f;
+    f.start(g);
+    int16_t buf[256];
+    long n = 0;
+    int peak = 0;
+    double sum = 0;
+    int last = 0;
+    for (int k; (k = f.render(buf, 256)) > 0;) {
+      n += k;
+      last = buf[k - 1];
+      for (int i = 0; i < k; i++) {
+        peak = buf[i] > peak ? buf[i] : -buf[i] > peak ? -buf[i] : peak;
+        sum += (double)buf[i] * buf[i];
+      }
+    }
+    const double rms = sqrt(sum / n);
+    printf("  %-12s %.2f s, peak %d, rms %.0f\n", FunkIntro::name(g), n / (double)FunkIntro::RATE, peak, rms);
+    CHECK(n == (long)FunkIntro::lengthSamples(g) && !f.playing());
+    CHECK(n > 4 * FunkIntro::RATE && n < 7 * FunkIntro::RATE);  // about its intro's length
+    CHECK(peak > 16000 && peak < 32000);                        // loud, never clipping
+    CHECK(rms > 5000 && rms < 9000);                            // the grooves are about as loud as each other
+    CHECK(abs(last) < 200);                                     // fades out at the end (no click)
   }
-  CHECK(n == (long)FunkIntro::lengthSamples() && !f.playing());
-  CHECK(n > 4 * FunkIntro::RATE && n < 6 * FunkIntro::RATE);  // about the intro's length
-  CHECK(peak > 16000 && peak < 32767);                        // loud, never clipping
+  CHECK(strcmp(FunkIntro::name(1), "Bluff Creek") == 0);
+  CHECK(FunkIntro::lengthSamples(99) == FunkIntro::lengthSamples(0));  // out of range: the original
 }
 
 int main() {

@@ -10,7 +10,7 @@ SIM=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$SIM/../.." && pwd)
 L=${1:?give the path to a LovyanGFX checkout}/src
 OUT=$SIM/out
-rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots" "$OUT/intro"
+rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots" "$OUT/intro_jeep_jam" "$OUT/intro_bluff_creek" "$OUT/intro_selfie" "$OUT/intro_cruisin"
 
 # Firmware sources, with the real display driver swapped for an off-screen image.
 cp "$REPO"/src/*.h "$REPO"/src/*.cpp "$REPO"/include/*.h "$OUT/src/"
@@ -34,7 +34,7 @@ g++ -std=gnu++17 -O1 -w -DLGFX_LINUX_FB -I "$SIM" -I "$OUT/src" -I "$L" \
   "$OUT"/obj/*.o -o "$OUT/sim" -lpthread -lz
 
 cd "$OUT" && ./sim
-python3 - <<'PY'
+REPO="$REPO" python3 - <<'PY'
 from PIL import Image
 import glob
 fs = sorted(glob.glob('shots/*.ppm'))
@@ -47,8 +47,22 @@ sheet = Image.new('RGB', (cols * (w + pad), rows * (h + pad)), (60, 60, 60))
 for k, i in enumerate(ims): sheet.paste(i, ((k % cols) * (w + pad), (k // cols) * (h + pad)))
 sheet.save('screens.png')
 print(f"{len(fs)} screenshots -> tools/sim/out/screens.png")
-frames = [Image.open(f).resize((384, 384), Image.NEAREST) for f in sorted(glob.glob('intro/*.ppm'))]
-if frames:
-    frames[0].save('intro.gif', save_all=True, append_images=frames[1:], duration=50, loop=0)
-    print(f"{len(frames)} intro frames -> tools/sim/out/intro.gif")
+for d in sorted(glob.glob('intro_*/')):
+    frames = [Image.open(f).resize((384, 384), Image.NEAREST) for f in sorted(glob.glob(d + '*.ppm'))]
+    if frames:
+        name = d.rstrip('/')
+        frames[0].save(name + '.gif', save_all=True, append_images=frames[1:], duration=50, loop=0)
+        print(f"{len(frames)} frames -> tools/sim/out/{name}.gif")
+# With ffmpeg: each intro as a video with its groove, in sync (the frames are real time).
+import shutil, subprocess, os
+wavs = {'intro_jeep_jam': 'intro_funk', 'intro_bluff_creek': 'intro_bluff_creek',
+        'intro_selfie': 'intro_selfie', 'intro_cruisin': 'intro_cruisin'}
+if shutil.which('ffmpeg'):
+    for name, wav in wavs.items():
+        wav = os.path.join(os.environ['REPO'], 'docs/sounds', wav + '.wav')
+        if os.path.exists(wav) and glob.glob(name + '/*.ppm'):
+            subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-framerate', '20', '-i', name + '/f%03d.ppm',
+                            '-i', wav, '-vf', 'scale=384:384:flags=neighbor', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+                            '-c:a', 'aac', '-b:a', '96k', name + '.mp4'], check=True)
+            print(f"tools/sim/out/{name}.mp4 (with its groove)")
 PY

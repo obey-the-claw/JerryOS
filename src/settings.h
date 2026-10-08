@@ -11,6 +11,7 @@ struct Settings {
   static constexpr uint8_t N_ALERT = 6;
   static constexpr uint8_t N_SOUNDCAL = 21;
   static constexpr uint8_t N_TUNEVOL = 4;
+  static constexpr uint8_t N_INTRO = 5;  // random + the 4 intros
   static const char *tuneVolName(uint8_t i) {
     static const char *const n[N_TUNEVOL] = {"off", "low", "med", "high"};
     return n[i < N_TUNEVOL ? i : 0];
@@ -32,6 +33,7 @@ struct Settings {
   bool pocketDark = true;     // pocket mode keeps the screen dark (LED only)
   uint8_t soundCalIdx = 10;   // Sound cal: index into soundCalChoice (10 = 0 dB)
   uint8_t tuneVol = 2;        // boot groove volume: 0 off, 1 low, 2 med, 3 high
+  uint8_t introIdx = 0;       // boot intro: 0 random, else 1 + its number (intro.h)
 
   uint8_t brightnessPct() const { return brightnessChoice(brightnessIdx); }
   uint8_t alertMinutes() const { return alertChoice(alertIdx); }
@@ -45,6 +47,7 @@ struct Settings {
     ledMode = clampIdx(p.getUChar("led", ledMode), 3);
     pocketDark = p.getBool("pdark", pocketDark);
     soundCalIdx = clampIdx(p.getUChar("scal", soundCalIdx), N_SOUNDCAL);
+    introIdx = clampIdx(p.getUChar("intro", introIdx), N_INTRO);
     if (p.isKey("tvol")) tuneVol = clampIdx(p.getUChar("tvol", tuneVol), N_TUNEVOL);
     else if (!p.getBool("tune", true)) tuneVol = 0;  // v1.2 had just on/off: keep "off"
     p.end();
@@ -60,6 +63,7 @@ struct Settings {
     p.putBool("pdark", pocketDark);
     p.putUChar("scal", soundCalIdx);
     p.putUChar("tvol", tuneVol);
+    p.putUChar("intro", introIdx);
     p.end();
   }
 

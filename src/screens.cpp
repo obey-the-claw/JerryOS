@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "ble_scanner.h"
+#include "intro.h"
 #include "mic.h"
 #include "shell.h"
 #include "status_led.h"
@@ -1076,7 +1077,7 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, LED, pocket, sound cal, intro tune, Wi-Fi scan,
+// Settings: brightness, alert window, LED, pocket, sound cal, intro, intro tune, Wi-Fi scan,
 // Wi-Fi log, my devices, reset all, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
@@ -1125,8 +1126,9 @@ class SettingsScreen : public Screen {
         s.soundCalIdx = (s.soundCalIdx + 1) % Settings::N_SOUNDCAL;
         mic::setCalibration(Settings::soundCalChoice(s.soundCalIdx));  // live
         break;
-      case 5: s.tuneVol = (s.tuneVol + 1) % Settings::N_TUNEVOL; break;
-      case 6: s.wifiScan = !s.wifiScan; break;
+      case 5: s.introIdx = (s.introIdx + 1) % Settings::N_INTRO; break;
+      case 6: s.tuneVol = (s.tuneVol + 1) % Settings::N_TUNEVOL; break;
+      case 7: s.wifiScan = !s.wifiScan; break;
     }
   }
 
@@ -1151,6 +1153,10 @@ class SettingsScreen : public Screen {
       editing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       Serial.println(F("[settings] saved"));
+      if (cursor_ == 5 && shell.settings().introIdx > 0) {  // show off the intro just picked
+        replayIntro(shell.settings().introIdx - 1);
+        shell.open(introScreen());
+      }
       return;
     }
     if (isValue(cursor_)) {
@@ -1158,7 +1164,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog || cursor_ == kMine || cursor_ == kReset) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 10) {
+    } else if (cursor_ == 11) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -1171,16 +1177,18 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness",  "Alert after", "LED",
-                                               "Pocket",      "Sound cal",   "Intro tune",
-                                               "WiFi scan",   "WiFi log",    "My devices",
-                                               "Reset all",   "Diagnostics", "About"};
+    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",       "Pocket",
+                                               "Sound cal",  "Intro",       "Intro tune", "WiFi scan",
+                                               "WiFi log",   "My devices",  "Reset all",  "Diagnostics",
+                                               "About"};
+    static const char *const intros[Settings::N_INTRO] = {"random", "jeep", "creek", "selfie", "cruise"};
     char cal[8];
     snprintf(cal, sizeof cal, "%+d dB", Settings::soundCalChoice(s.soundCalIdx));
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
-                                  s.pocketDark ? "dark" : "lit", cal, Settings::tuneVolName(s.tuneVol),
+                                  s.pocketDark ? "dark" : "lit", cal, intros[s.introIdx < Settings::N_INTRO ? s.introIdx : 0],
+                                  Settings::tuneVolName(s.tuneVol),
                                   s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
                                   erasing_ && cursor_ == kMine ? "clear?" : mine,
@@ -1189,11 +1197,11 @@ class SettingsScreen : public Screen {
   }
 
  private:
-  static constexpr int kItems = 12;
-  static constexpr int kReset = 9;  // factory reset (asks first)
-  static constexpr int kWifiLog = 7;
-  static constexpr int kMine = 8;  // devices marked "mine" in Followers
-  static bool isValue(int i) { return i <= 6; }
+  static constexpr int kItems = 13;
+  static constexpr int kReset = 10;  // factory reset (asks first)
+  static constexpr int kWifiLog = 8;
+  static constexpr int kMine = 9;  // devices marked "mine" in Followers
+  static bool isValue(int i) { return i <= 7; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;

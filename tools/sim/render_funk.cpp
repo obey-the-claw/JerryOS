@@ -1,5 +1,5 @@
-// Renders Jerry's boot groove (src/funk.cpp) to a .wav, so it can be heard on
-// a PC before it goes on the device. Same code, same samples.
+// Renders Jerry's boot grooves (src/funk.cpp) to .wav files, so they can be
+// heard on a PC before they go on the device. Same code, same samples.
 #include <math.h>
 #include <stdio.h>
 
@@ -10,15 +10,14 @@
 static void put32(FILE *f, uint32_t v) { fwrite(&v, 4, 1, f); }
 static void put16(FILE *f, uint16_t v) { fwrite(&v, 2, 1, f); }
 
-int main(int argc, char **argv) {
-  const char *path = argc > 1 ? argv[1] : "intro_funk.wav";
+static void renderOne(int groove, const char *path) {
   FunkIntro f;
-  f.start();
+  f.start(groove);
   std::vector<int16_t> pcm;
   int16_t buf[256];
   for (int n; (n = f.render(buf, 256)) > 0;) pcm.insert(pcm.end(), buf, buf + n);
   FILE *o = fopen(path, "wb");
-  if (!o) return 1;
+  if (!o) return;
   const uint32_t bytes = pcm.size() * 2, rate = FunkIntro::RATE;
   fwrite("RIFF", 1, 4, o); put32(o, 36 + bytes); fwrite("WAVEfmt ", 1, 8, o);
   put32(o, 16); put16(o, 1); put16(o, 1); put32(o, rate); put32(o, rate * 2);
@@ -31,7 +30,19 @@ int main(int argc, char **argv) {
     peak = x > peak ? x : -x > peak ? -x : peak;
     sum += (double)x * x;
   }
-  printf("%s: %.2f s, peak %d%%, rms %.0f\n", path, pcm.size() / (double)rate, peak * 100 / 32767,
-         sqrt(sum / pcm.size()));
+  printf("%-12s %s: %.2f s, peak %d%%, rms %.0f\n", FunkIntro::name(groove), path,
+         pcm.size() / (double)rate, peak * 100 / 32767, sqrt(sum / pcm.size()));
+}
+
+int main(int argc, char **argv) {
+  const char *dir = argc > 1 ? argv[1] : ".";
+  // intro_funk.wav is the original (Jeep Jam) groove's name since v1.1.2.
+  static const char *const files[FunkIntro::GROOVES] = {"intro_funk.wav", "intro_bluff_creek.wav",
+                                                        "intro_selfie.wav", "intro_cruisin.wav"};
+  for (int i = 0; i < FunkIntro::GROOVES; i++) {
+    char path[512];
+    snprintf(path, sizeof path, "%s/%s", dir, files[i]);
+    renderOne(i, path);
+  }
   return 0;
 }

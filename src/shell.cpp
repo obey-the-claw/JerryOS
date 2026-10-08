@@ -57,7 +57,7 @@ void Shell::begin() {
   wifi::begin();  // ...and so does the Wi-Fi scanner/logger
   current().enter(*this);
   logScreen("boot");
-  open(introScreen());  // Jerry drives in; closes itself after ~2.6 s
+  open(introScreen());  // one of the intros (Settings -> Intro); any button closes it
 }
 
 // Tiny USB command line. Type a command + Enter in a serial terminal:

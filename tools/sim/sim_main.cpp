@@ -1,6 +1,7 @@
 // Runs the real JerryOS shell + screens on a PC with simulated buttons,
 // saving a screenshot after each step.
 #include "display.h"
+#include "intro.h"
 #include "screens.h"
 #include "shell.h"
 #include "status_led.h"
@@ -33,11 +34,11 @@ static void snap(const char *name) {
   fclose(f);
 }
 // Record the boot intro as numbered frames (build_sim.sh turns them into a GIF).
-static void recordIntro(int ms, int frameMs) {
-  static int frame = 0;
+static void recordIntro(const char *dir, int ms, int frameMs) {
+  int frame = 0;
   for (int t = 0; t < ms; t += frameMs) {
     for (int k = 0; k < frameMs; k += 5) { g_fake_ms += 5; shell.loop(); }
-    char path[64]; snprintf(path, sizeof path, "intro/f%03d.ppm", frame++);
+    char path[64]; snprintf(path, sizeof path, "%s/f%03d.ppm", dir, frame++);
     FILE *f = fopen(path, "wb");
     fprintf(f, "P6\n128 128\n255\n");
     for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++) {
@@ -55,9 +56,17 @@ int main() {
   for (int i = 0; i < 64; i++) g_pin[i] = 1;   // buttons up, USB present
   g_pin[PIN_CHARGING] = 1;                      // not charging
   shell.begin(); snap("intro_start");
-  recordIntro(5600, 50);  // the whole intro + "press any button", 20 frames a second
-  snap("intro_end");
+  run(1500); snap("intro_boot");  // whichever one "random" picked
   tap(PIN_BTN_RIGHT); run(600); snap("home");
+  // Each intro from the top: the whole story + "press any button", 20 frames a second.
+  static const char *const dirs[INTRO_COUNT] = {"intro_jeep_jam", "intro_bluff_creek", "intro_selfie", "intro_cruisin"};
+  static const int ms[INTRO_COUNT] = {5600, 7200, 6200, 5400};
+  for (int i = 0; i < INTRO_COUNT; i++) {
+    replayIntro(i); shell.open(introScreen());
+    recordIntro(dirs[i], ms[i], 50);
+    char name[40]; snprintf(name, sizeof name, "%s_end", dirs[i]); snap(name);
+    tap(PIN_BTN_RIGHT); run(300);
+  }
   tap(PIN_BTN_RIGHT); run(100); snap("home_poke");
   run(2600);
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec");
@@ -94,6 +103,7 @@ int main() {
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
   tap(PIN_BTN_RIGHT); snap("settings_pocket");
   tap(PIN_BTN_RIGHT); snap("settings_soundcal");
+  tap(PIN_BTN_RIGHT); snap("settings_intro");
   tap(PIN_BTN_RIGHT); snap("settings_introtune");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
