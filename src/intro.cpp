@@ -46,7 +46,7 @@ void pine(lgfx::LovyanGFX &g, int x, int base, int h, uint16_t col) {
   }
 }
 
-void scenery(lgfx::LovyanGFX &g, int32_t t) {
+void scenery(lgfx::LovyanGFX &g) {
   // Morning sky in bands, far hills, then the ground and a dirt road.
   static const uint16_t sky[] = {lgfx::color565(0x2c, 0x3e, 0x6b), lgfx::color565(0x45, 0x5d, 0x8c),
                                  lgfx::color565(0x7a, 0x86, 0xa8), lgfx::color565(0xd9, 0x9a, 0x6c)};
@@ -59,7 +59,7 @@ void scenery(lgfx::LovyanGFX &g, int32_t t) {
   g.fillRect(0, 88, W, GROUND - 88, lgfx::color565(0x3a, 0x4a, 0x2a));
   g.fillRect(0, GROUND, W, H - GROUND, DIRT);
   g.fillRect(0, GROUND + 4, W, 9, ROAD);
-  for (int x = (int)(t / 20) % 16; x < W; x += 16) g.fillRect(W - x, GROUND + 8, 6, 1, DIRT);
+  for (int x = 4; x < W; x += 16) g.fillRect(x, GROUND + 8, 6, 1, DIRT);  // road stays put
   // The woods on the left (back row).
   pine(g, 6, GROUND - 2, 46, PINE_DARK);
   pine(g, 30, GROUND - 6, 38, PINE_DARK);
@@ -202,7 +202,7 @@ class IntroScreen : public Screen {
   void draw(Shell &, lgfx::LovyanGFX &g, int, int) override {
     // Signed on purpose: "t - 1750" must go negative early on, not wrap around.
     const int32_t t = sceneTime(millis());
-    scenery(g, t);
+    scenery(g);
     const int jeepX = 70 + (t < 1650 ? 0 : (int)((t - 1650) * (float)(t - 1650) / 9000.0f));  // speeds up
     const float wheelAngle = t < 1650 ? 0 : (jeepX - 70) / 7.0f;
     if (t < 1350) {

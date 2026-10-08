@@ -17,6 +17,7 @@
 #include "camera_ouis.h"
 #include "sound_level.h"
 #include "rig_link.h"
+#include "funk.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -717,6 +718,22 @@ static void testRig() {
   CHECK(link.connected(20001) && !link.location(20001, lat, lon));  // box there, no GPS
 }
 
+static void testFunk() {
+  printf("Boot groove\n");
+  FunkIntro f;
+  f.start();
+  int16_t buf[256];
+  long n = 0;
+  int peak = 0;
+  for (int k; (k = f.render(buf, 256)) > 0;) {
+    n += k;
+    for (int i = 0; i < k; i++) peak = buf[i] > peak ? buf[i] : -buf[i] > peak ? -buf[i] : peak;
+  }
+  CHECK(n == (long)FunkIntro::lengthSamples() && !f.playing());
+  CHECK(n > 4 * FunkIntro::RATE && n < 6 * FunkIntro::RATE);  // about the intro's length
+  CHECK(peak > 16000 && peak < 32767);                        // loud, never clipping
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -728,6 +745,7 @@ int main() {
   testCameras();
   testSound();
   testRig();
+  testFunk();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

@@ -767,3 +767,19 @@ be JerryOS instead from now on".
 3. "back tire of jeep looks like a wheel in the air": the spare is now a
    side-on, knobby black tyre on the tailgate. The road wheels got knobby
    tread lugs that turn as the Jeep drives off.
+
+### v1.1.2: still road, and a funk groove to preview
+
+- "road doesn't need to be moving": the road markings stay put now.
+- "squatchy bootsy collins style intro music": after the "terrible" Squatch
+  sounds in v0.6, this time **Steve hears it before it goes on the
+  device**. `src/funk.cpp` writes the groove in code: a sawtooth "Space Bass"
+  through an envelope filter (the Bootsy "bwow"), slap octave pops, ghost
+  notes, a slide down at the end, a funk kick / snare / hat pattern, and an E9
+  stab when "JerryOS" drops in. Two bars at 110 BPM (~5 s). It's rendered to
+  `docs/sounds/intro_funk.wav` with `tools/sim/render_funk.sh` (the exact
+  samples the device would play). I checked it as a spectrogram: the filter
+  sweeps, pops, drum hits and the end slide are all there, and it doesn't
+  clip. Unit-tested too (length, ends, never clips). **It's not wired to the
+  speaker yet:** that waits for Steve's verdict. The ES8311 speaker driver
+  is in git history (2b89171).
