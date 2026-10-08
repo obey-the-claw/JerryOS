@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "ble_scanner.h"
+#include "intro.h"
 #include "mic.h"
 #include "screens.h"
 #include "status_led.h"
@@ -56,6 +57,7 @@ void Shell::begin() {
   wifi::begin();  // ...and so does the Wi-Fi scanner/logger
   current().enter(*this);
   logScreen("boot");
+  open(introScreen());  // Jerry drives in; closes itself after ~2.6 s
 }
 
 // Tiny USB command line. Type a command + Enter in a serial terminal:
@@ -354,6 +356,11 @@ void Shell::loop() {
   if (backlight_ == Backlight::Off) return;  // nobody can see it: don't draw
   lastFrame_ = now;
   frame_.fillScreen(theme::BARK);
+  if (current().fullScreen()) {  // e.g. the boot intro: no bars
+    current().draw(*this, frame_, 0, theme::H);
+    frame_.pushSprite(0, 0);
+    return;
+  }
   current().draw(*this, frame_, theme::CONTENT_Y, theme::CONTENT_H);
   drawToast(frame_);
   drawStatusBar(frame_);

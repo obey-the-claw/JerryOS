@@ -32,13 +32,31 @@ static void snap(const char *name) {
   }
   fclose(f);
 }
+// Record the boot intro as numbered frames (build_sim.sh turns them into a GIF).
+static void recordIntro(int ms, int frameMs) {
+  static int frame = 0;
+  for (int t = 0; t < ms; t += frameMs) {
+    for (int k = 0; k < frameMs; k += 5) { g_fake_ms += 5; shell.loop(); }
+    char path[64]; snprintf(path, sizeof path, "intro/f%03d.ppm", frame++);
+    FILE *f = fopen(path, "wb");
+    fprintf(f, "P6\n128 128\n255\n");
+    for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++) {
+      uint16_t c = lcd.readPixel(x, y);
+      unsigned char rgb[3] = {(unsigned char)(((c >> 11) & 31) * 255 / 31), (unsigned char)(((c >> 5) & 63) * 255 / 63), (unsigned char)((c & 31) * 255 / 31)};
+      fwrite(rgb, 1, 3, f);
+    }
+    fclose(f);
+  }
+}
 static void run(int ms, int step = 5) { for (int t = 0; t < ms; t += step) { g_fake_ms += step; shell.loop(); } }
 static void tap(int pin) { g_pin[pin] = 0; run(150); g_pin[pin] = 1; run(200); }
 static void hold(int pin) { g_pin[pin] = 0; run(900); g_pin[pin] = 1; run(200); }
 int main() {
   for (int i = 0; i < 64; i++) g_pin[i] = 1;   // buttons up, USB present
   g_pin[PIN_CHARGING] = 1;                      // not charging
-  shell.begin(); run(600); snap("home");
+  shell.begin(); snap("intro_start");
+  recordIntro(2800, 50);  // the whole intro, 20 frames a second
+  run(600); snap("home");
   tap(PIN_BTN_RIGHT); run(100); snap("home_poke");
   run(2600);
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec");

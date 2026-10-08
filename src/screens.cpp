@@ -86,7 +86,7 @@ class InfoScreen : public Screen {
 // Tap R = poke (Jerry says something), hold R = start/stop recording.
 class HomeScreen : public Screen {
  public:
-  const char *tag() const override { return "JERRY"; }
+  const char *tag() const override { return "JerryOS"; }
   Hints hints() const override { return {"menu", "poke", wifi::recording() ? "stop" : "rec"}; }
 
   void onLeftShort(Shell &shell) override { shell.open(menuScreen()); }

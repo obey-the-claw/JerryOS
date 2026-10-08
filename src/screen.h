@@ -36,6 +36,8 @@ class Screen {
   virtual void onRightLong(Shell &) {}
 
   virtual void update(Shell &, uint32_t /*now*/) {}
+  // true = draw over the whole screen, without the status and hint bars.
+  virtual bool fullScreen() const { return false; }
   // Draw into the content area: full width, from y0, h pixels tall.
   virtual void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) = 0;
 };

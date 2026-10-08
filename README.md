@@ -53,11 +53,14 @@ stays physically stock (no soldering).
 | 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/CHECKPOINT10.md)) |
 | 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/CHECKPOINT11.md)) |
 | 12 | Pocket mode + sound meter | ✅ 2026-10-07 ([guide](docs/CHECKPOINT12.md)) |
-| 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | 🟡 ready to test ([guide](docs/CHECKPOINT13.md)) |
+| 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | ✅ boots 2026-10-08, field tests ongoing ([guide](docs/CHECKPOINT13.md)) |
+| 14 | **v1.1:** boot intro (Jerry drives off in his Jeep), "JerryOS" title | 🟡 ready to test |
 
 **How to use Jerry:** [docs/USER-GUIDE.md](docs/USER-GUIDE.md) · **What to test:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md)
 
 See [BUILDLOG.md](BUILDLOG.md) for the story so far.
+
+![JerryOS boot intro](docs/img/intro.gif)
 
 ![JerryOS](docs/img/cp6-monitor.png)
 

@@ -6,6 +6,11 @@ cameras, and shows the Bluetooth and Wi-Fi around you.
 **He only ever listens. He never transmits,** and he only saves anything
 when you press REC.
 
+## Power on
+
+Jerry walks out of the woods, hops in his Jeep and drives off, and
+"JerryOS" drops in (about 2.5 s). Any button skips it.
+
 ## Buttons
 
 | Press | Does |
@@ -27,7 +32,7 @@ a filled **R** means hold.
   nearby · **WiFi** = networks nearby (or **REC n** while recording).
 - **Tap R:** poke (Jerry says something). **Hold R:** start / stop
   **REC** (saves Wi-Fi networks, with GPS when the rig box is paired).
-- **Top bar:** screen name, blinking red **!** = an alert you haven't
+- **Top bar:** screen name ("JerryOS" on home), blinking red **!** = an alert you haven't
   looked at, padlock = pocket mode, red dot = REC, battery.
 
 ## The colour LED

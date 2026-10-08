@@ -10,7 +10,7 @@ SIM=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$SIM/../.." && pwd)
 L=${1:?give the path to a LovyanGFX checkout}/src
 OUT=$SIM/out
-rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots"
+rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots" "$OUT/intro"
 
 # Firmware sources, with the real display driver swapped for an off-screen image.
 cp "$REPO"/src/*.h "$REPO"/src/*.cpp "$REPO"/include/*.h "$OUT/src/"
@@ -45,4 +45,8 @@ sheet = Image.new('RGB', (cols * (w + pad), rows * (h + pad)), (60, 60, 60))
 for k, i in enumerate(ims): sheet.paste(i, ((k % cols) * (w + pad), (k // cols) * (h + pad)))
 sheet.save('screens.png')
 print(f"{len(fs)} screenshots -> tools/sim/out/screens.png")
+frames = [Image.open(f).resize((384, 384), Image.NEAREST) for f in sorted(glob.glob('intro/*.ppm'))]
+if frames:
+    frames[0].save('intro.gif', save_all=True, append_images=frames[1:], duration=50, loop=0)
+    print(f"{len(frames)} intro frames -> tools/sim/out/intro.gif")
 PY

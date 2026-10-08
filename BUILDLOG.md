@@ -723,3 +723,37 @@ Steve: "sound db way off.. was almost double". The +110 offset was a guess
   code. Removed it.)
 
 - [ ] Sound cal set against a phone app (quiet + talking both match?)
+
+- [x] v1.0.1 flashed: About says v1.0.1 (2026-10-08)
+
+---
+
+## v1.1: the boot intro
+
+Steve: "a 1 second or 2 second Jerry walking out of the woods and into a
+jeep or something like that would be crazy cool", and "JERRY top left should
+be JerryOS instead from now on".
+
+### What we did
+
+- **Intro (`src/intro.cpp`), about 2.6 s, drawn in code:** a sunrise sky, hills,
+  pine woods and a dirt road. Little full-body Jerry (shaggy, arms and legs
+  swinging, bushy brows) walks out from behind a tree to an olive open-top
+  Jeep (roll bar, spare tyre, grille, headlight, fender flares, spoked
+  wheels), hops into the driver's seat in an arc, and the Jeep speeds off in
+  a dust cloud while "JerryOS" drops in with the version. Any button skips it.
+- Screens can now be **full screen** (no status / hint bars) for things like this.
+- Home's top-left tag now reads **JerryOS**.
+- The simulator records the intro frame by frame into `docs/img/intro.gif`.
+
+### What broke / how we fixed it
+
+- First render: the title showed from the very start and the first frames
+  jumped ahead. "Time minus 1750 ms" on an *unsigned* number wraps around to
+  a huge value instead of going negative. Switched the intro clock to a
+  signed number. The frame sheet caught it before it reached the device.
+
+### On the real device
+
+- [ ] Intro plays at power-on (smooth? too fast / slow?), any button skips it
+- [ ] Home says JerryOS top-left
