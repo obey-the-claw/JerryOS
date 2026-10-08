@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "ble_scanner.h"
+#include "mic.h"
 #include "screens.h"
 #include "status_led.h"
 #include "theme.h"
@@ -41,6 +42,7 @@ void Shell::begin() {
   lcd_.init();
   lcd_.setRotation(1);
   applyBrightness();
+  mic::setCalibration(Settings::soundCalChoice(settings_.soundCalIdx));
   frame_.setColorDepth(16);
   if (!frame_.createSprite(theme::W, theme::H))
     Serial.println(F("!! could not allocate the frame buffer"));

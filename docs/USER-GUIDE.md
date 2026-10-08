@@ -47,7 +47,7 @@ a filled **R** means hold.
 | **Followers** | Any Bluetooth device that stays with you while you move (uses Wi-Fi changes as "you moved"). 4+ places over 20+ min = follower. Hold R → hold R = "mine" (never flag again). |
 | **Shield** | Wi-Fi kick-off floods, Bluetooth pop-up spam (Flipper), evil-twin / many-names fake networks. |
 | **Cameras** | Flock licence-plate cameras (pop-up + LED) and quiet hidden-camera hints (camera-brand Wi-Fi, spy-cam hotspots). |
-| **Sound** | Rough dB meter from the built-in microphone (on only while this screen is open). Hold R = reset peak. |
+| **Sound** | Rough dB meter from the built-in microphone (on only while this screen is open). Hold R = reset peak. "raw" = the mic's level before calibration. |
 | **BLE Nearby** | Every Bluetooth device heard, closest first. Hold R = details + live signal. |
 | **WiFi Scan** | Every Wi-Fi network heard, closest first. Hold R = details. |
 | **Rig Dashboard** | Your Pi Zero box: GPS, speed, its counts and battery (see [tools/pi](../tools/pi/README.md)). Hold R = pair / forget. |
@@ -61,6 +61,7 @@ a filled **R** means hold.
 | Alert after | tracker alert window: 10-60 min |
 | LED | all / alerts / off |
 | Pocket | dark (screen stays black when locked) / lit |
+| Sound cal | -30 to +30 dB in 3 dB steps: match the Sound meter to a phone app (changes live while editing) |
 | WiFi scan | on / off (off also stops REC, Shield's Wi-Fi checks, Followers) |
 | WiFi log | size; hold R twice = erase |
 | My devices | how many you've marked "mine"; hold R twice = clear |
@@ -95,4 +96,5 @@ GitHub Desktop: Fetch → Pull. Then in PowerShell, in the repo folder:
 - Phones and AirPods change their Bluetooth address every ~15 min, which is
   privacy working as intended. Followers ignores them on purpose.
 - Camera hints are hints. A camera that records to a card is radio-silent.
-- The sound meter isn't calibrated (rough dB).
+- The sound meter isn't factory calibrated: set **Sound cal** once against a
+  phone sound-meter app.

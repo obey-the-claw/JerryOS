@@ -92,8 +92,12 @@ Before you leave: **Wi-Fi scan on**, battery charged. Pocket mode is fine
 6. **Battery:** note the % when you leave and when you get back, and how
    long you were out. All radios are busy now, so I want to see real
    battery life.
-7. **Sound calibration:** Jerry's number vs. a phone sound-meter app, in a
-   quiet room and while talking. Two pairs of numbers is all I need.
+7. **Sound calibration (v1.0.1):** with a phone sound-meter app next to
+   Jerry, talk at a steady volume. Settings → **Sound cal** → hold R, tap R
+   (3 dB per tap, live) until Jerry's Sound screen matches the phone, hold R
+   to save. Then check a quiet room. If quiet and talking can't both
+   match, send me a photo of the Sound screen (it shows "raw") with the
+   phone's number for each.
 
 ## Report back
 

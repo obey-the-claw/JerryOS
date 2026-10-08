@@ -659,7 +659,14 @@ static void testSound() {
   CHECK(m.db() <= quiet + 1);
   m.resetPeak();
   CHECK(m.peak() <= quiet + 1);
-  CHECK(strcmp(loudnessName(30), "very quiet") == 0 && strcmp(loudnessName(65), "talking") == 0 &&
+  LevelMeter c;  // calibration shifts the reading, and never below 0
+  c.add(-50);
+  const int before = c.db();
+  c.setCalibration(-9);
+  CHECK(c.db() == before - 9);
+  c.setCalibration(-300);
+  CHECK(c.db() == 0);
+    CHECK(strcmp(loudnessName(30), "very quiet") == 0 && strcmp(loudnessName(65), "talking") == 0 &&
         strcmp(loudnessName(120), "painful!") == 0);
 }
 

@@ -706,3 +706,20 @@ the Rig Dashboard, so it became real, along with the finishing pieces.
 ### On the real device: see docs/TEST-PLAN.md (v1.0 section)
 
 - [x] v1.0 flashed and boots: About says v1.0.0 (2026-10-08)
+
+### v1.0.1: sound meter reading about double
+
+Steve: "sound db way off.. was almost double". The +110 offset was a guess
+(the AIPI's microphone has no published calibration), and it was too high.
+
+- Default offset lowered to +80 (about 30 dB less).
+- **Settings → Sound cal:** -30 to +30 dB in 3 dB steps, applied live
+  while editing, saved. Steve can match a phone app himself; no round trip.
+- The Sound screen shows **raw** (the mic's level before calibration), so
+  a photo next to a phone app is enough for me to fix the curve if quiet and
+  loud can't both match with one offset.
+- Unit test: calibration shifts the reading and never goes below 0. (I
+  first added a "test" that only checked a copy of the maths, not the real
+  code. Removed it.)
+
+- [ ] Sound cal set against a phone app (quiet + talking both match?)

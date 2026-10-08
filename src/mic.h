@@ -14,5 +14,6 @@ bool running();
 bool chipFound();         // false = the audio chip didn't answer
 const LevelMeter &meter();
 void resetPeak();
+void setCalibration(int db);  // Settings -> Sound cal (dB added to the reading)
 
 }  // namespace mic

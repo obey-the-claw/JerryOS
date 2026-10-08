@@ -74,6 +74,7 @@ int main() {
   hold(PIN_BTN_RIGHT); snap("settings_saved");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
   tap(PIN_BTN_RIGHT); snap("settings_pocket");
+  tap(PIN_BTN_RIGHT); snap("settings_soundcal");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");

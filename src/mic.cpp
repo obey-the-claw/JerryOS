@@ -164,5 +164,6 @@ bool running() { return on; }
 bool chipFound() { return found; }
 const LevelMeter &meter() { return levels; }
 void resetPeak() { wantReset = true; }
+void setCalibration(int db) { levels.setCalibration(db); }
 
 }  // namespace mic

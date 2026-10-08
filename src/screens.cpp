@@ -882,7 +882,8 @@ class SoundScreen : public Screen {
     }
     snprintf(buf, sizeof buf, "peak ~%d dB", m.peak());
     text(g, 6, y0 + 86, DIM, buf);
-    text(g, W - 6 - g.textWidth("rough"), y0 + 86, DIM, "rough");
+    snprintf(buf, sizeof buf, "raw %d", (int)m.dbfs());  // mic level before calibration
+    text(g, W - 6 - g.textWidth(buf), y0 + 86, DIM, buf);
   }
 };
 
@@ -1075,8 +1076,8 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, LED, pocket, Wi-Fi scan, Wi-Fi log, my devices,
-// reset all, diag, about
+// Settings: brightness, alert window, LED, pocket, sound cal, Wi-Fi scan, Wi-Fi log,
+// my devices, reset all, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
  public:
@@ -1101,6 +1102,7 @@ class SettingsScreen : public Screen {
     if (!editing_) return shell.back();
     shell.settings() = before_;  // undo
     shell.applyBrightness();
+    mic::setCalibration(Settings::soundCalChoice(before_.soundCalIdx));
     editing_ = false;
   }
 
@@ -1119,7 +1121,11 @@ class SettingsScreen : public Screen {
       case 1: s.alertIdx = (s.alertIdx + 1) % Settings::N_ALERT; break;
       case 2: s.ledMode = (s.ledMode + 1) % 3; break;  // the LED shows it live
       case 3: s.pocketDark = !s.pocketDark; break;
-      case 4: s.wifiScan = !s.wifiScan; break;
+      case 4:
+        s.soundCalIdx = (s.soundCalIdx + 1) % Settings::N_SOUNDCAL;
+        mic::setCalibration(Settings::soundCalChoice(s.soundCalIdx));  // live
+        break;
+      case 5: s.wifiScan = !s.wifiScan; break;
     }
   }
 
@@ -1151,7 +1157,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog || cursor_ == kMine || cursor_ == kReset) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 8) {
+    } else if (cursor_ == 9) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -1165,13 +1171,15 @@ class SettingsScreen : public Screen {
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
     static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",
-                                               "Pocket",     "WiFi scan",   "WiFi log",
-                                               "My devices", "Reset all",   "Diagnostics",
-                                               "About"};
+                                               "Pocket",     "Sound cal",   "WiFi scan",
+                                               "WiFi log",   "My devices",  "Reset all",
+                                               "Diagnostics", "About"};
+    char cal[8];
+    snprintf(cal, sizeof cal, "%+d dB", Settings::soundCalChoice(s.soundCalIdx));
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
-                                  s.pocketDark ? "dark" : "lit", s.wifiScan ? "on" : "off",
+                                  s.pocketDark ? "dark" : "lit", cal, s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
                                   erasing_ && cursor_ == kMine ? "clear?" : mine,
                                   erasing_ && cursor_ == kReset ? "sure?" : nullptr, nullptr, nullptr};
@@ -1179,11 +1187,11 @@ class SettingsScreen : public Screen {
   }
 
  private:
-  static constexpr int kItems = 10;
-  static constexpr int kReset = 7;  // factory reset (asks first)
-  static constexpr int kWifiLog = 5;
-  static constexpr int kMine = 6;  // devices marked "mine" in Followers
-  static bool isValue(int i) { return i <= 4; }
+  static constexpr int kItems = 11;
+  static constexpr int kReset = 8;  // factory reset (asks first)
+  static constexpr int kWifiLog = 6;
+  static constexpr int kMine = 7;  // devices marked "mine" in Followers
+  static bool isValue(int i) { return i <= 5; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;
