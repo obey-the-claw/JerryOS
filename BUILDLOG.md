@@ -704,3 +704,5 @@ the Rig Dashboard, so it became real, along with the finishing pieces.
   prompt said "erase". All fixed.
 
 ### On the real device: see docs/TEST-PLAN.md (v1.0 section)
+
+- [x] v1.0 flashed and boots: About says v1.0.0 (2026-10-08)
