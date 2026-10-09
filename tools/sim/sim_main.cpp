@@ -67,14 +67,22 @@ int main() {
     char name[40]; snprintf(name, sizeof name, "%s_end", dirs[i]); snap(name);
     tap(PIN_BTN_RIGHT); run(300);
   }
+  // The dashes: tap R flips to the next one (and back round to Jerry = a poke).
+  tap(PIN_BTN_RIGHT); run(100); snap("dash_radar_label");
+  run(2600); snap("dash_radar");
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_trail");
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_allclear");
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_trends");
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_night");
   tap(PIN_BTN_RIGHT); run(100); snap("home_poke");
   run(2600);
   hold(PIN_BTN_RIGHT); run(300); snap("home_rec");
   run(2600); snap("home_recording");
-  hold(PIN_BTN_RIGHT); run(300); snap("home_rec_stop");
-  run(2600);
+  hold(PIN_BTN_RIGHT); run(300); snap("expedition_recap");  // REC stopped: the recap card
+  tap(PIN_BTN_LEFT); run(2600); snap("home_rec_stop");
   tap(PIN_BTN_LEFT); snap("menu");
-  // Menu: Tracker Watch, Followers, Shield, Cameras, Sound, BLE Nearby, WiFi Scan, Rig, Settings
+  // Menu: Tracker Watch, Followers, Shield, Cameras, Sound, BLE Nearby, WiFi Scan, Rig,
+  // Knock Detector, Expeditions, Rate Gear, Badges, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
   tap(PIN_BTN_LEFT);
@@ -96,6 +104,24 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("rig_paired_toast");
   run(5000); snap("rig_dashboard");
   tap(PIN_BTN_LEFT); snap("menu_back");
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(800); snap("knock_start");
+  run(9000); snap("knock_heard");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("expeditions");
+  hold(PIN_BTN_RIGHT); snap("expedition_open");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("rate");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("rate_pick_3");
+  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("rate_pick_5");
+  // Hold R: the stamp. Recorded as an animation from the moment it fires.
+  g_pin[PIN_BTN_RIGHT] = 0; run(720);
+  recordIntro("anim_stamp", 200, 50); g_pin[PIN_BTN_RIGHT] = 1;
+  snap("rate_stamp_slam");
+  recordIntro("anim_stamp2", 2600, 50);
+  snap("rate_stamped");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("badges");
+  tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("settings");
   hold(PIN_BTN_RIGHT); snap("settings_edit");
   tap(PIN_BTN_RIGHT); snap("settings_edit_next");
@@ -103,6 +129,8 @@ int main() {
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
   tap(PIN_BTN_RIGHT); snap("settings_pocket");
   tap(PIN_BTN_RIGHT); snap("settings_soundcal");
+  tap(PIN_BTN_RIGHT); snap("settings_dash");
+  tap(PIN_BTN_RIGHT); snap("settings_drive");
   tap(PIN_BTN_RIGHT); snap("settings_intro");
   tap(PIN_BTN_RIGHT); snap("settings_introtune");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
@@ -119,7 +147,7 @@ int main() {
   // Hidden-camera check at home (menu cursor is on Settings: 4 taps wrap to Cameras).
   tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);
   hold(PIN_BTN_RIGHT); run(300); snap("cameras_home");
-  tap(PIN_BTN_LEFT); for (int i = 0; i < 5; i++) tap(PIN_BTN_RIGHT);  // back to Settings
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 9; i++) tap(PIN_BTN_RIGHT);  // back to Settings
   hold(PIN_BTN_LEFT);
   // Tracker Watch: open it from the menu (cursor is on Settings; wrap to Tracker).
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
@@ -130,6 +158,8 @@ int main() {
   // Minute 10 a Flipper sprays pop-ups, 12 a kick-off flood, 15 an evil twin,
   // 17-19 a Flock camera by the road.
   const uint32_t end = g_fake_ms + 27 * 60 * 1000;
+  while (g_fake_ms < 9 * 60000) run(1000, 40);
+  snap("drive_mode");                              // the rig says 40 mph: Trail Dash
   while (g_fake_ms < 17 * 60000) run(1000, 40);   // drive until the Flock camera...
   while (!shell.toastShowing() && g_fake_ms < 19 * 60000) run(200, 40);
   run(1500, 40); snap("toast_flock");              // ...and catch the message
@@ -144,6 +174,20 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("shield_after");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("cameras_after");
   hold(PIN_BTN_LEFT); run(500); snap("home_end");
+  // The dashes again, after a busy half hour. (Parked for a minute first, so
+  // drive mode hands the home screen back to Jerry.)
+  run(61000, 40); snap("drive_mode_over");
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_radar_busy");
+  recordIntro("anim_radar", 2500, 50);  // one full sweep
+  tap(PIN_BTN_RIGHT); run(1500); snap("dash_trail_later");
+  tap(PIN_BTN_RIGHT); run(500); snap("dash_allclear_later");
+  tap(PIN_BTN_RIGHT); run(500); snap("dash_trends_later");
+  tap(PIN_BTN_RIGHT); run(500); snap("dash_night_later");
+  tap(PIN_BTN_RIGHT); run(300);
+  // Badges earned along the way (menu cursor is on Cameras: 8 taps to Badges).
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 8; i++) tap(PIN_BTN_RIGHT);
+  hold(PIN_BTN_RIGHT); snap("badges_later");
+  hold(PIN_BTN_LEFT); run(300);
   // Pocket mode: hold both buttons 1 s.
   g_pin[PIN_BTN_LEFT] = 0; g_pin[PIN_BTN_RIGHT] = 0; run(1200);
   g_pin[PIN_BTN_LEFT] = 1; g_pin[PIN_BTN_RIGHT] = 1; run(300); snap("pocket_locked");

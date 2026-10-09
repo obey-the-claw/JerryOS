@@ -3,6 +3,8 @@
 
 Every 2 seconds it broadcasts a small Bluetooth "status beacon" with:
   - the GPS fix (from gpsd: lat, lon, satellites, speed)
+  - the Pi's clock (local time + date), once it's been set by the network or
+    GPS, so Jerry knows the time and can work out sunrise / sunset
   - the box's own counts, if your scanner software writes them to
     /run/jerry_status.json, e.g. {"wifi": 45, "ble": 23, "alerts": 0, "battery": 87}
     (battery: percent, or leave it out when on mains power)
@@ -32,7 +34,7 @@ import time
 
 STATUS_FILE = "/run/jerry_status.json"
 COMPANY_ID = 0xFFFF  # Bluetooth SIG: "for testing / internal use"
-VERSION = 1
+VERSION = 2
 UPDATE_S = 2.0
 
 
@@ -45,7 +47,6 @@ class State:
         self.lon = 0.0
         self.sats = 0
         self.speed_kmh = 0.0
-        self.seq = 0
 
 
 def gps_reader(state):
@@ -98,19 +99,29 @@ def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
+def clock_fields(now=None):
+    """(minute of the day, packed day-of-year + UTC offset) for beacon v2.
+    0xFFFF = the clock isn't set yet (a Pi with no network or RTC boots in the past)."""
+    t = time.localtime(now)
+    if t.tm_year < 2024:
+        return 0xFFFF, 0
+    offset15 = int(round(t.tm_gmtoff / 900))  # local - UTC, 15-minute steps
+    return t.tm_hour * 60 + t.tm_min, (t.tm_yday & 0x1FF) | ((offset15 & 0x7F) << 9)
+
+
 def beacon_body(state):
-    """The 22 bytes after the company ID (see src/rig_link.h)."""
+    """The 24 bytes after the company ID (see src/rig_link.h)."""
     wifi, ble, alerts, battery = box_counts()
+    minute, packed = clock_fields()
     with state.lock:
-        state.seq = (state.seq + 1) & 0xFFFF
         lat = int(round(state.lat * 1e7)) if state.fix else 0
         lon = int(round(state.lon * 1e7)) if state.fix else 0
         return struct.pack(
-            "<2sBBHiiBBHHBB", b"JR", VERSION, 1 if state.fix else 0, state.seq,
+            "<2sBBHiiBBHHBBH", b"JR", VERSION, 1 if state.fix else 0, minute,
             clamp(lat, -900000000, 900000000), clamp(lon, -1800000000, 1800000000),
             clamp(state.sats, 0, 255), clamp(int(state.speed_kmh + 0.5), 0, 255),
             clamp(wifi, 0, 65535), clamp(ble, 0, 65535), clamp(alerts, 0, 255),
-            clamp(battery, 0, 255))
+            clamp(battery, 0, 255), packed)
 
 
 # --- Bluetooth (BlueZ over D-Bus) ---------------------------------------------

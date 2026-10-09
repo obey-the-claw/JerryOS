@@ -38,7 +38,8 @@ int main(int argc, char **argv) {
   const char *dir = argc > 1 ? argv[1] : ".";
   // intro_funk.wav is the original (Jeep Jam) groove's name since v1.1.2.
   static const char *const files[FunkIntro::GROOVES] = {"intro_funk.wav", "intro_bluff_creek.wav",
-                                                        "intro_selfie.wav", "intro_cruisin.wav"};
+                                                        "intro_selfie.wav", "intro_cruisin.wav",
+                                                        "sting_approved.wav", "sting_meh.wav"};
   for (int i = 0; i < FunkIntro::GROOVES; i++) {
     char path[512];
     snprintf(path, sizeof path, "%s/%s", dir, files[i]);

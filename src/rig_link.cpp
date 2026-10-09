@@ -7,8 +7,8 @@
 namespace {
 
 constexpr uint16_t COMPANY = 0xFFFF;  // Bluetooth SIG: "for testing / internal use"
-constexpr uint8_t VERSION = 1;
-constexpr size_t BODY = 22;
+constexpr uint8_t VERSION = 2;  // we build v2; we read v1 and v2
+constexpr size_t BODY_V1 = 22, BODY = 24;
 
 uint16_t get16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
 uint32_t get32(const uint8_t *p) { return (uint32_t)p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -25,11 +25,19 @@ bool parseRigBeacon(const uint8_t *p, size_t len, RigStatus &out) {
     if (fieldLen == 0 || i + 1 + fieldLen > len) break;
     const uint8_t *d = p + i + 2;
     const size_t dn = fieldLen - 1;
-    if (p[i + 1] == 0xFF && dn >= 2 + BODY && get16(d) == COMPANY) {
+    if (p[i + 1] == 0xFF && dn >= 2 + BODY_V1 && get16(d) == COMPANY) {
       const uint8_t *b = d + 2;
-      if (b[0] == 'J' && b[1] == 'R' && b[2] == VERSION) {
+      if (b[0] == 'J' && b[1] == 'R' && b[2] >= 1) {
         out.fix = b[3] & 1;
-        out.seq = get16(b + 4);
+        out.seq = b[2] == 1 ? get16(b + 4) : 0;
+        out.clock = false;
+        if (b[2] >= 2 && dn >= 2 + BODY) {  // v2: the box's clock (local time + date)
+          const uint16_t minute = get16(b + 4), packed = get16(b + 22);
+          out.clockMin = minute;
+          out.doy = packed & 0x1FF;
+          out.utcOff15 = (int8_t)((int8_t)((packed >> 9) << 1) >> 1);  // signed 7 bits
+          out.clock = minute < 1440 && out.doy >= 1 && out.doy <= 366;
+        }
         out.latE7 = (int32_t)get32(b + 6);
         out.lonE7 = (int32_t)get32(b + 10);
         out.sats = b[14];
@@ -58,13 +66,14 @@ size_t buildRigBeacon(const RigStatus &s, uint8_t *o, size_t n) {
   put16(o + 5, COMPANY);
   uint8_t *b = o + 7;
   b[0] = 'J'; b[1] = 'R'; b[2] = VERSION; b[3] = s.fix ? 1 : 0;
-  put16(b + 4, s.seq);
+  put16(b + 4, s.clock ? s.clockMin : 0xFFFF);
   put32(b + 6, (uint32_t)s.latE7);
   put32(b + 10, (uint32_t)s.lonE7);
   b[14] = s.sats; b[15] = s.speedKmh;
   put16(b + 16, s.wifi);
   put16(b + 18, s.ble);
   b[20] = s.alerts; b[21] = s.battery;
+  put16(b + 22, (uint16_t)((s.doy & 0x1FF) | ((s.utcOff15 & 0x7F) << 9)));
   return need;
 }
 

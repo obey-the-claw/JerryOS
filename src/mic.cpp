@@ -26,6 +26,7 @@ std::atomic<uint32_t> lastUse{0};
 std::atomic<bool> on{false}, found{false}, wantReset{false};
 bool started = false;
 LevelMeter levels;  // written by the mic task, read by the screen (floats: fine)
+KnockDetector knocks;  // same: its event queue is safe between the two
 SemaphoreHandle_t wake = nullptr;
 
 bool startI2S() {
@@ -94,7 +95,9 @@ void task(void *) {
       const int side = l >= r ? 0 : 1;
       for (size_t i = 0; i < frames; i++) mono[i] = buf[2 * i + side];
       if (wantReset.exchange(false)) levels.resetPeak();
-      levels.add(blockDbfs(mono, frames));
+      const BlockFeatures f = analyzeBlock(mono, frames, RATE);
+      levels.add(f.dbfs);
+      knocks.add(f, millis());
     }
     stopAll();
   }
@@ -122,5 +125,9 @@ bool chipFound() { return found; }
 const LevelMeter &meter() { return levels; }
 void resetPeak() { wantReset = true; }
 void setCalibration(int db) { levels.setCalibration(db); }
+bool takeSoundEvent(SoundEvent &e) { return knocks.take(e); }
+uint32_t knockCount() { return knocks.knocks(); }
+uint32_t howlCount() { return knocks.howls(); }
+bool knockReady() { return knocks.ready(); }
 
 }  // namespace mic

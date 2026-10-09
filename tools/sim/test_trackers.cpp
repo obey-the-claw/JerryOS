@@ -1,6 +1,7 @@
 // Unit tests for tracker detection + persistence + BLE Nearby labels (runs on a PC).
 //   run with tools/sim/run_tests.sh
 #include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -18,6 +19,11 @@
 #include "sound_level.h"
 #include "rig_link.h"
 #include "funk.h"
+#include "sun_clock.h"
+#include "history.h"
+#include "knock_detect.h"
+#include "expedition.h"
+#include "badges.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -676,11 +682,26 @@ static void testRig() {
   RigStatus s{true, 335123456, -1121234567, 9, 66, 45, 23, 0, 87, 7};
   uint8_t adv[31];
   const size_t n = buildRigBeacon(s, adv, sizeof adv);
-  CHECK(n == 29 && n <= 31);  // fits one ordinary broadcast
+  CHECK(n == 31 && n <= 31);  // v2 still fits one ordinary broadcast (exactly)
   RigStatus r{};
   CHECK(parseRigBeacon(adv, n, r));
   CHECK(r.fix && r.latE7 == 335123456 && r.lonE7 == -1121234567 && r.sats == 9 &&
-        r.speedKmh == 66 && r.wifi == 45 && r.ble == 23 && r.battery == 87 && r.seq == 7);
+        r.speedKmh == 66 && r.wifi == 45 && r.ble == 23 && r.battery == 87 && !r.clock);
+  // v2 with the box's clock: 6:05pm, day 282, UTC-7
+  s.clock = true; s.clockMin = 18 * 60 + 5; s.doy = 282; s.utcOff15 = -28;
+  buildRigBeacon(s, adv, sizeof adv);
+  CHECK(parseRigBeacon(adv, n, r) && r.clock && r.clockMin == 1085 && r.doy == 282 && r.utcOff15 == -28);
+  s.utcOff15 = 22;  // UTC+5:30
+  buildRigBeacon(s, adv, sizeof adv);
+  CHECK(parseRigBeacon(adv, n, r) && r.clock && r.utcOff15 == 22);
+  // The exact bytes jerry_beacon.py (v2) printed with --fake-gps 33.5123456,-112.1234567
+  // at 03:28 UTC on day 282 (the Pi's clock in UTC).
+  const Bytes py2 = {0x02, 0x01, 0x06, 0x1B, 0xFF, 0xff, 0xff, 0x4a, 0x52, 0x02, 0x01, 0xd0, 0x00,
+                     0x00, 0x94, 0xf9, 0x13, 0x79, 0x51, 0x2b, 0xbd, 0x09, 0x00, 0x00, 0x00, 0x00,
+                     0x00, 0x00, 0xff, 0x1a, 0x01};
+  CHECK(parseRigBeacon(py2.data(), py2.size(), r) && r.fix && r.latE7 == 335123456 && r.clock &&
+        r.clockMin == 208 && r.doy == 282 && r.utcOff15 == 0);
+  s.clock = false;
   // The exact bytes jerry_beacon.py prints for --fake-gps 33.5123456,-112.1234567
   // (seq 1, no status file): company id + body.
   // ("ff ff | 4a 52 01 01 01 00 00 94 f9 13 79 51 2b bd 09 00 00 00 00 00 00 ff"),
@@ -689,7 +710,7 @@ static void testRig() {
                     0x00, 0x94, 0xf9, 0x13, 0x79, 0x51, 0x2b, 0xbd, 0x09, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0xff};
   CHECK(parseRigBeacon(py.data(), py.size(), r) && r.fix && r.latE7 == 335123456 &&
-        r.lonE7 == -1121234567 && r.sats == 9 && r.battery == 255);
+        r.lonE7 == -1121234567 && r.sats == 9 && r.battery == 255 && !r.clock);  // v1 still read
   adv[7] = 'X';  // wrong magic: not ours
   CHECK(!parseRigBeacon(adv, n, r));
   const Bytes cut = {0x02, 0x01, 0x06, 0x19, 0xFF, 0xff, 0xff, 0x4a};
@@ -739,13 +760,181 @@ static void testFunk() {
     const double rms = sqrt(sum / n);
     printf("  %-12s %.2f s, peak %d, rms %.0f\n", FunkIntro::name(g), n / (double)FunkIntro::RATE, peak, rms);
     CHECK(n == (long)FunkIntro::lengthSamples(g) && !f.playing());
-    CHECK(n > 4 * FunkIntro::RATE && n < 7 * FunkIntro::RATE);  // about its intro's length
+    if (g < 4) CHECK(n > 4 * FunkIntro::RATE && n < 7 * FunkIntro::RATE);  // about its intro's length
+    else CHECK(n > 1 * FunkIntro::RATE && n < 4 * FunkIntro::RATE);    // a stamp sting: short
     CHECK(peak > 16000 && peak < 32000);                        // loud, never clipping
     CHECK(rms > 5000 && rms < 9000);                            // the grooves are about as loud as each other
     CHECK(abs(last) < 200);                                     // fades out at the end (no click)
   }
   CHECK(strcmp(FunkIntro::name(1), "Bluff Creek") == 0);
   CHECK(FunkIntro::lengthSamples(99) == FunkIntro::lengthSamples(0));  // out of range: the original
+}
+
+static void testSunClock() {
+  printf("Sun + clock\n");
+  int rise, set;
+  // Phoenix, 9 Oct (day 282), MST (UTC-7): about 6:22a / 6:03p
+  CHECK(sunTimes(33.45, -112.07, 282, -420, rise, set));
+  CHECK(abs(rise - (6 * 60 + 22)) <= 6 && abs(set - (18 * 60 + 3)) <= 6);
+  // Seattle, summer solstice (day 172), PDT (UTC-7): about 5:11a / 9:11p
+  CHECK(sunTimes(47.61, -122.33, 172, -420, rise, set));
+  CHECK(abs(rise - (5 * 60 + 11)) <= 6 && abs(set - (21 * 60 + 11)) <= 6);
+  CHECK(!sunTimes(78.2, 15.6, 172, 120, rise, set));  // Svalbard in June: midnight sun
+  char b[12];
+  formatClock(18 * 60 + 3, b, sizeof b);
+  CHECK(strcmp(b, "6:03p") == 0);
+  formatClock(5, b, sizeof b);
+  CHECK(strcmp(b, "12:05a") == 0);
+  formatClock(12 * 60, b, sizeof b);
+  CHECK(strcmp(b, "12:00p") == 0);
+  formatSpan(80, b, sizeof b);
+  CHECK(strcmp(b, "1h 20m") == 0);
+  WallClock c;
+  CHECK(!c.valid());
+  c.set(23 * 60 + 58, 282, -420, 1000);
+  CHECK(c.valid() && c.minute(1000) == 1438 && c.minute(1000 + 60000) == 1439);
+  CHECK(c.minute(1000 + 3 * 60000) == 1 && c.dayOfYear(1000 + 3 * 60000) == 283);  // past midnight
+  c.set(2000, 1, 0, 0);  // nonsense ignored
+  CHECK(c.minute(1000) == 1438);
+}
+
+static void testHistory() {
+  printf("Trends history\n");
+  History h;
+  CHECK(h.size() == 0 && h.latest(History::BT) == -1);
+  for (int i = 0; i < 70; i++) h.add(i, 100 + i, i % 2 ? -1 : 50);
+  CHECK(h.size() == History::N);
+  CHECK(h.at(History::BT, 0) == 10 && h.latest(History::BT) == 69);  // oldest dropped
+  CHECK(h.at(History::WIFI, 59) == 169 && h.max(History::BT) == 69);
+  CHECK(h.at(History::SOUND, 59) == -1 && h.at(History::SOUND, 58) == 50);
+  CHECK(h.at(History::BT, 60) == -1);
+}
+
+// 100 ms of a fake microphone: background hiss, plus an optional knock (a
+// short loud burst) or tone.
+static std::vector<int16_t> fakeBlock(int noise, int knockAt, int knockAmp, float toneHz, int toneAmp,
+                                      unsigned &seed) {
+  std::vector<int16_t> b(1600);
+  for (int i = 0; i < 1600; i++) {
+    seed = seed * 1103515245u + 12345u;
+    float v = ((int)((seed >> 16) & 0x7FFF) - 16384) / 16384.0f * noise;
+    if (knockAt >= 0 && i >= knockAt && i < knockAt + 320) v += knockAmp * expf(-(i - knockAt) / 40.0f) * sinf(i * 0.9f);
+    if (toneAmp) v += toneAmp * sinf(2 * 3.14159f * toneHz * i / 16000);
+    b[i] = (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : v);
+  }
+  return b;
+}
+
+static void testKnocks() {
+  printf("Knock Detector\n");
+  unsigned seed = 7;
+  auto q = fakeBlock(150, -1, 0, 0, 0, seed);
+  BlockFeatures f = analyzeBlock(q.data(), q.size(), 16000);
+  CHECK(f.dbfs < -40 && f.dbfs > -60 && f.peakDb - f.dbfs < 3);  // steady hiss
+  auto k = fakeBlock(150, 400, 20000, 0, 0, seed);
+  BlockFeatures fk = analyzeBlock(k.data(), k.size(), 16000);
+  CHECK(fk.peakDb - fk.dbfs > 5 && fk.peakDb > f.peakDb + 25);  // sharp
+  auto t = fakeBlock(150, -1, 0, 440, 6000, seed);
+  BlockFeatures ft = analyzeBlock(t.data(), t.size(), 16000);
+  CHECK(fabsf(ft.zcr - 880) < 60);  // 440 Hz crosses zero 880 times a second
+
+  KnockDetector d;
+  uint32_t now = 0;
+  auto feed = [&](const std::vector<int16_t> &b) { d.add(analyzeBlock(b.data(), b.size(), 16000), now += 100); };
+  for (int i = 0; i < 30; i++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+  SoundEvent e;
+  CHECK(d.ready() && !d.take(e) && d.knocks() == 0);  // quiet woods: nothing
+  feed(fakeBlock(150, 300, 20000, 0, 0, seed));        // KNOCK
+  CHECK(d.take(e) && e.kind == SoundKind::Knock && e.inARow == 1 && e.aboveDb >= 18);
+  for (int i = 0; i < 5; i++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+  feed(fakeBlock(150, 800, 18000, 0, 0, seed));        // ...knock (0.6 s later)
+  CHECK(d.take(e) && e.inARow == 2);
+  for (int i = 0; i < 40; i++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+  feed(fakeBlock(150, 100, 20000, 0, 0, seed));        // a new knock, 4 s later
+  CHECK(d.take(e) && e.inARow == 1 && d.knocks() == 3);
+  for (int i = 0; i < 20; i++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+  // A long steady "whoop" at 500 Hz for 2 s: one howl, no knocks.
+  for (int i = 0; i < 20; i++) feed(fakeBlock(150, -1, 0, 500, 5000, seed));
+  int howls = 0, knocks = 0;
+  while (d.take(e)) (e.kind == SoundKind::Howl ? howls : knocks)++;
+  CHECK(howls == 1 && knocks == 0 && d.howls() == 1);
+  // Loud steady noise (wind / a generator) isn't a howl: the pitch isn't steady... and it
+  // isn't sharp, so no knocks either.
+  for (int i = 0; i < 30; i++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+  for (int i = 0; i < 20; i++) feed(fakeBlock(3000, -1, 0, 0, 0, seed));
+  howls = knocks = 0;
+  while (d.take(e)) (e.kind == SoundKind::Howl ? howls : knocks)++;
+  CHECK(knocks == 0);
+  // The event queue never overflows memory (8 slots), even unread.
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 4; j++) feed(fakeBlock(150, -1, 0, 0, 0, seed));
+    feed(fakeBlock(150, 200, 20000, 0, 0, seed));
+  }
+  int n = 0;
+  while (d.take(e)) n++;
+  CHECK(n == 8);
+}
+
+static void testExpedition() {
+  printf("Expeditions\n");
+  // 0.001 degrees of latitude is about 111 m
+  CHECK(fabs(distanceM(335000000, -1120000000, 335010000, -1120000000) - 111.2) < 1);
+  CHECK(distanceM(0, 0, 0, 0) == 0);
+  Expedition x;
+  TripSample s = {10, 0, 3, 1, 0, true, 335000000, -1120000000, 0};
+  x.begin(1000, s, 600, 282, 4);
+  CHECK(x.active() && x.sofar().startMin == 600 && x.sofar().number == 4);
+  s.bt = 25; s.trackers = 2; s.flockPassed = 5; s.knocks = 2; s.speedKmh = 72;
+  s.latE7 += 50;  // 5 m: wobble, not travel
+  x.sample(6000, s);
+  CHECK(x.sofar().meters == 0);
+  s.latE7 = 335010000;  // ~111 m north
+  x.sample(11000, s);
+  s.latE7 = 336000000;  // 11 km jump in 5 s: a GPS glitch, ignored
+  x.sample(16000, s);
+  s.bt = 12; s.followersFlagged = 2; s.fix = false;
+  x.sample(21000, s);
+  const TripRecap r = x.end(61000, 87);
+  CHECK(!x.active() && r.seconds == 60 && r.nets == 87 && r.peakBt == 25 && r.trackers == 2);
+  CHECK(r.flock == 2 && r.followers == 1 && r.knocks == 2 && r.topKmh == 72);
+  CHECK(r.meters >= 105 && r.meters <= 116);
+  TripLog log;
+  for (int i = 0; i < 10; i++) {
+    TripRecap t = r;
+    t.number = (uint8_t)i;
+    log.add(t);
+  }
+  CHECK(log.count() == TripLog::MAX && log.at(0).number == 9 && log.at(7).number == 2);
+  TripLog back;
+  back.load(log.data(), log.bytes());
+  CHECK(back.count() == 8 && back.at(0).number == 9 && back.at(0).meters == r.meters);
+}
+
+static void testBadges() {
+  printf("Badges\n");
+  Badges b;
+  BadgeInputs in = {};
+  CHECK(b.check(in) == Badge::COUNT && b.earnedCount() == 0);
+  in.flockSeen = true;
+  CHECK(b.check(in) == Badge::FlockSpotter && b.has(Badge::FlockSpotter));
+  CHECK(b.check(in) == Badge::COUNT);  // only once
+  in.btNow = 51;
+  in.rigPaired = true;
+  CHECK(b.check(in) == Badge::CrowdSurfer);  // one at a time, in order
+  CHECK(b.check(in) == Badge::RiggedUp);
+  for (int i = 0; i < 4; i++) b.introSeen(i);
+  CHECK(b.check(in) == Badge::FunkSoul);
+  for (int i = 0; i < 10; i++) b.addTrip(60, 17000);
+  CHECK(b.check(in) == Badge::NetCollector && b.check(in) == Badge::Explorer &&
+        b.check(in) == Badge::RoadTripper);
+  b.nightSeconds(599);
+  CHECK(b.check(in) == Badge::COUNT);
+  b.nightSeconds(1);
+  CHECK(b.check(in) == Badge::NightOwl && b.earnedCount() == 8);
+  Badges c;
+  c.load(b.save());
+  CHECK(c.earnedCount() == 8 && c.netsTotal() == 600 && c.trips() == 10 && c.has(Badge::NightOwl));
+  CHECK(strcmp(badgeName(Badge::KnockKnock), "Knock Knock") == 0);
 }
 
 int main() {
@@ -760,6 +949,11 @@ int main() {
   testSound();
   testRig();
   testFunk();
+  testSunClock();
+  testHistory();
+  testKnocks();
+  testExpedition();
+  testBadges();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

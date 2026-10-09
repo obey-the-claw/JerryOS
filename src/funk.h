@@ -3,6 +3,7 @@
 //   1 Bluff Creek  slow, sneaky half-time creeper with a wah guitar
 //   2 Selfie       a bouncy strut: slap octaves, claps, scratch guitar
 //   3 Cruisin'     four-on-the-floor disco funk, octave bass, open hats
+// plus two short stings for the Rate Gear stamp (4 good, 5 meh).
 // All synthesized in code on a 16th-note grid (no sound files), 4-6 s each.
 //
 // Pure code (no hardware): the PC renders the exact same samples to .wav
@@ -14,7 +15,9 @@
 class FunkIntro {
  public:
   static constexpr int RATE = 16000;  // samples per second (what the AIPI plays)
-  static constexpr int GROOVES = 4;
+  static constexpr int GROOVES = 6;
+  static constexpr int STING_GOOD = 4;  // Rate Gear stamp, 3-5 squatches: a horn fanfare
+  static constexpr int STING_MEH = 5;   // ...1-2 squatches: a sad wah-wah-wah-waaah
 
   static const char *name(int groove);       // "Jeep Jam", ...
   static uint32_t lengthSamples(int groove);  // how long a groove plays

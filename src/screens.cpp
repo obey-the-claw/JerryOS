@@ -20,11 +20,13 @@
 #include <string.h>
 
 #include "ble_scanner.h"
+#include "dashes.h"
 #include "intro.h"
 #include "mic.h"
 #include "shell.h"
 #include "status_led.h"
 #include "theme.h"
+#include "ui.h"
 #include "wifi_scanner.h"
 
 using namespace theme;
@@ -34,42 +36,9 @@ namespace {
 // ---------------------------------------------------------------------------
 // Small drawing helpers shared by the screens
 // ---------------------------------------------------------------------------
-void text(lgfx::LovyanGFX &g, int x, int y, uint16_t col, const char *s) {
-  g.setTextColor(col);
-  g.setCursor(x, y);
-  g.print(s);
-}
-
-void centered(lgfx::LovyanGFX &g, int y, uint16_t col, const char *s) {
-  text(g, (W - g.textWidth(s)) / 2, y, col, s);
-}
-
-// A vertical list with a gold highlight bar on the selected row. Shows 5
-// rows at a time and scrolls to keep the selected one on screen.
-void drawList(lgfx::LovyanGFX &g, int y0, const char *const *labels, const char *const *values,
-              int count, int cursor, bool editing) {
-  const int rowH = 18, visible = (CONTENT_H - 4) / rowH;
-  const int top = cursor < visible ? 0 : cursor - visible + 1;
-  if (top + visible < count) g.fillTriangle(W / 2 - 3, y0 + CONTENT_H - 3, W / 2 + 3,
-                                            y0 + CONTENT_H - 3, W / 2, y0 + CONTENT_H, DIM);
-  for (int i = top; i < count && i < top + visible; i++) {
-    const int y = y0 + 4 + (i - top) * rowH;
-    const bool sel = i == cursor;
-    if (sel) g.fillRoundRect(3, y, W - 6, rowH - 3, 3, editing ? CREAM : GOLD);
-    const uint16_t fg = sel ? BARK : CREAM;
-    text(g, 8, y + 4, fg, labels[i]);
-    if (values && values[i]) {
-      const char *v = values[i];
-      const int vx = W - 8 - g.textWidth(v);
-      if (sel && editing) {  // arrows show the value can be changed
-        text(g, vx - 8, y + 4, fg, "<");
-        text(g, vx, y + 4, fg, v);
-      } else {
-        text(g, vx, y + 4, sel ? BARK : GOLD, v);
-      }
-    }
-  }
-}
+using ui::centered;
+using ui::drawList;
+using ui::text;
 
 // Base for screens that show a little Jerry plus a few lines of text.
 class InfoScreen : public Screen {
@@ -87,14 +56,34 @@ class InfoScreen : public Screen {
 // Tap R = poke (Jerry says something), hold R = start/stop recording.
 class HomeScreen : public Screen {
  public:
-  const char *tag() const override { return "JerryOS"; }
-  Hints hints() const override { return {"menu", "poke", wifi::recording() ? "stop" : "rec"}; }
+  const char *tag() const override { return driving_ ? "DRIVE" : "JerryOS"; }
+  Hints hints() const override { return {"menu", "next", wifi::recording() ? "stop" : "rec"}; }
+  bool fullScreen() const override { return dash_ == Dash::Night; }
+
+  void enter(Shell &shell) override {
+    // The dash you had last time, or the one just picked in Settings.
+    if (!loaded_ || shell.settings().dashIdx != setting_) {
+      loaded_ = true;
+      setting_ = shell.settings().dashIdx;
+      if (!driving_) dash_ = (Dash)setting_;
+    }
+  }
 
   void onLeftShort(Shell &shell) override { shell.open(menuScreen()); }
 
+  // Tap R: next dash (remembered). Landing on Jerry is a poke: he grins and talks.
   void onRightShort(Shell &shell) override {
-    shell.jerry().flash(Mood::Approved, 1500);  // a poke makes Jerry grin...
-    quip(shell);                                 // ...and talk
+    dash_ = (Dash)(((int)dash_ + 1) % DASH_COUNT);
+    if (driving_) manualInDrive_ = true;
+    else {
+      shell.settings().dashIdx = setting_ = (uint8_t)dash_;
+      shell.settings().save();
+    }
+    labelUntil_ = millis() + 1200;
+    if (dash_ == Dash::Jerry) {
+      shell.jerry().flash(Mood::Approved, 1500);
+      quip(shell);
+    }
   }
 
   void onRightLong(Shell &shell) override {
@@ -111,9 +100,10 @@ class HomeScreen : public Screen {
       shell.jerry().flash(Mood::Approved, 1200);
       say("Recording WiFi...");
     }
+    labelUntil_ = 0;
   }
 
-  void update(Shell &shell, uint32_t) override {
+  void update(Shell &shell, uint32_t now) override {
     // Jerry reacts: shocked when followed, sleepy on low battery or after
     // 2 minutes of no buttons, eyes sweeping while he records.
     const PowerStatus &p = shell.power();
@@ -122,15 +112,84 @@ class HomeScreen : public Screen {
     else if (lowBatt || shell.idleMs() > 120000) shell.jerry().setMood(Mood::Sleepy);
     else if (wifi::recording()) shell.jerry().setMood(Mood::Scanning);
     else shell.jerry().setMood(Mood::Idle);
+    if (dashWantsMic(dash_)) mic::use();
+    updateDrive(shell, now);
+    if (dash_ == Dash::Night && now - lastNightTick_ >= 1000) {  // Night Owl badge time
+      lastNightTick_ = now;
+      shell.badges().nightSeconds(1);
+      if (++nightUnsaved_ >= 60) {
+        nightUnsaved_ = 0;
+        shell.saveBadges();
+      }
+    }
   }
 
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) override {
-    shell.jerry().draw(g, W / 2, y0 + h / 2 - 10, 0.76f, /*shoulders=*/true);
-    drawPills(shell, g, y0 + h - 13);
-    if ((int32_t)(millis() - bubbleUntil_) < 0) drawBubble(g, y0 + 1);
+    if (dash_ == Dash::Jerry) {
+      shell.jerry().draw(g, W / 2, y0 + h / 2 - 10, 0.76f, /*shoulders=*/true);
+      drawPills(shell, g, y0 + h - 13);
+    } else {
+      drawDash(dash_, shell, g, y0, h);
+    }
+    if (dash_ == Dash::Jerry && (int32_t)(millis() - bubbleUntil_) < 0) drawBubble(g, y0 + 1);
+    else if ((int32_t)(millis() - labelUntil_) < 0) {  // which dash, just after flipping
+      const char *name = dashName(dash_);
+      const bool night = dash_ == Dash::Night;  // keep it red and dark at night
+      const int w = g.textWidth(name) + 10, y = night ? H - 22 : y0 + h - 16;
+      g.fillRoundRect((W - w) / 2, y, w, 13, 4, night ? lgfx::color565(0x40, 0x04, 0x02) : CREAM);
+      text(g, (W - w) / 2 + 5, y + 3, night ? lgfx::color565(0xff, 0x20, 0x10) : BARK, name);
+    }
   }
 
  private:
+  // Drive mode: the rig says we're moving (10+ mph for 5 s) -> Trail Dash.
+  // Stopped (or the rig gone) for a minute -> back to the dash you had.
+  void updateDrive(Shell &shell, uint32_t now) {
+    if (!shell.settings().driveMode) {
+      if (driving_) stopDriving();
+      return;
+    }
+    const bool rig = shell.rig().connected(now);
+    const int kmh = rig ? shell.rig().status().speedKmh : 0;
+    if (!driving_) {
+      if (kmh >= 16) {
+        if (!movingSince_) movingSince_ = now;
+        if (now - movingSince_ >= 5000) {
+          driving_ = true;
+          manualInDrive_ = false;
+          stoppedSince_ = 0;
+          dash_ = Dash::Trail;
+          shell.toast("Drive mode", 2000);
+        }
+      } else {
+        movingSince_ = 0;
+      }
+      return;
+    }
+    if (kmh < 8) {
+      if (!stoppedSince_) stoppedSince_ = now;
+      if (now - stoppedSince_ >= 60000) {
+        stopDriving();
+        if (!manualInDrive_) dash_ = (Dash)shell.settings().dashIdx;
+      }
+    } else {
+      stoppedSince_ = 0;
+    }
+  }
+  void stopDriving() {
+    driving_ = false;
+    movingSince_ = stoppedSince_ = 0;
+  }
+
+  Dash dash_ = Dash::Jerry;
+  bool loaded_ = false;
+  uint8_t setting_ = 0;
+  uint32_t labelUntil_ = 0;
+  bool driving_ = false, manualInDrive_ = false;
+  uint32_t movingSince_ = 0, stoppedSince_ = 0;
+  uint32_t lastNightTick_ = 0;
+  int nightUnsaved_ = 0;
+
   // Small rounded labels along the bottom.
   struct Pill {
     char text[12];
@@ -145,13 +204,10 @@ class HomeScreen : public Screen {
   void drawPills(Shell &shell, lgfx::LovyanGFX &g, int y) {
     const uint32_t now = millis();
     Pill pills[3];
-    TrackerWatch &w = shell.tracker();
-    // Safety at a glance: trackers + followers.
-    if (shell.anyAlert()) pills[0].set(TFT_WHITE, ALERT, "ALERT");
-    else if (w.anySeparatedNow(now) || shell.follow().flaggedCount() || shell.attacks().anyActive() ||
-             shell.cameras().nearbyFlock(now) ||
-             shell.follow().candidates(now) >= 3)
-      pills[0].set(BARK, GOLD, "WATCH");
+    // Safety at a glance: trackers, followers, attacks, Flock cameras.
+    const ui::Safety safe = ui::safety(shell, now);
+    if (safe == ui::Safety::Alert) pills[0].set(TFT_WHITE, ALERT, "ALERT");
+    else if (safe == ui::Safety::Watch) pills[0].set(BARK, GOLD, "WATCH");
     else pills[0].set(GOOD, INK, "SAFE");
     pills[1].set(CREAM, INK, "BT %lu", (unsigned long)ble::nearbyDevices());
     if (wifi::recording()) pills[2].set(TFT_WHITE, ALERT, "REC %lu", (unsigned long)wifi::savedThisSession());
@@ -1077,7 +1133,7 @@ DiagScreen diagScreen;
 AboutScreen aboutScreen;
 
 // ---------------------------------------------------------------------------
-// Settings: brightness, alert window, LED, pocket, sound cal, intro, intro tune, Wi-Fi scan,
+// Settings: brightness, alert window, LED, pocket, sound cal, dash, drive mode, intro, intro tune, Wi-Fi scan,
 // Wi-Fi log, my devices, reset all, diag, about
 // ---------------------------------------------------------------------------
 class SettingsScreen : public Screen {
@@ -1126,9 +1182,11 @@ class SettingsScreen : public Screen {
         s.soundCalIdx = (s.soundCalIdx + 1) % Settings::N_SOUNDCAL;
         mic::setCalibration(Settings::soundCalChoice(s.soundCalIdx));  // live
         break;
-      case 5: s.introIdx = (s.introIdx + 1) % Settings::N_INTRO; break;
-      case 6: s.tuneVol = (s.tuneVol + 1) % Settings::N_TUNEVOL; break;
-      case 7: s.wifiScan = !s.wifiScan; break;
+      case 5: s.dashIdx = (s.dashIdx + 1) % Settings::N_DASH; break;
+      case 6: s.driveMode = !s.driveMode; break;
+      case 7: s.introIdx = (s.introIdx + 1) % Settings::N_INTRO; break;
+      case 8: s.tuneVol = (s.tuneVol + 1) % Settings::N_TUNEVOL; break;
+      case 9: s.wifiScan = !s.wifiScan; break;
     }
   }
 
@@ -1153,7 +1211,7 @@ class SettingsScreen : public Screen {
       editing_ = false;
       shell.jerry().flash(Mood::Approved, 1200);
       Serial.println(F("[settings] saved"));
-      if (cursor_ == 5 && shell.settings().introIdx > 0) {  // show off the intro just picked
+      if (cursor_ == 7 && shell.settings().introIdx > 0) {  // show off the intro just picked
         replayIntro(shell.settings().introIdx - 1);
         shell.open(introScreen());
       }
@@ -1164,7 +1222,7 @@ class SettingsScreen : public Screen {
       editing_ = true;
     } else if (cursor_ == kWifiLog || cursor_ == kMine || cursor_ == kReset) {
       erasing_ = true;  // ask first: "hold R again to erase"
-    } else if (cursor_ == 11) {
+    } else if (cursor_ == 13) {
       shell.open(diagScreen);
     } else {
       shell.open(aboutScreen);
@@ -1177,17 +1235,17 @@ class SettingsScreen : public Screen {
     snprintf(bright, sizeof(bright), "%u%%", s.brightnessPct());
     snprintf(alert, sizeof(alert), "%um", s.alertMinutes());
     logSize(log, sizeof log);
-    static const char *const labels[kItems] = {"Brightness", "Alert after", "LED",       "Pocket",
-                                               "Sound cal",  "Intro",       "Intro tune", "WiFi scan",
-                                               "WiFi log",   "My devices",  "Reset all",  "Diagnostics",
-                                               "About"};
+    static const char *const labels[kItems] = {
+        "Brightness", "Alert after", "LED",       "Pocket",   "Sound cal",  "Dash",      "Drive mode", "Intro",
+        "Intro tune", "WiFi scan",   "WiFi log",  "My devices", "Reset all", "Diagnostics", "About"};
     static const char *const intros[Settings::N_INTRO] = {"random", "jeep", "creek", "selfie", "cruise"};
     char cal[8];
     snprintf(cal, sizeof cal, "%+d dB", Settings::soundCalChoice(s.soundCalIdx));
     char mine[8];
     snprintf(mine, sizeof mine, "%d", shell.follow().trustedCount());
     const char *values[kItems] = {bright, alert, ledModeName((LedMode)s.ledMode),
-                                  s.pocketDark ? "dark" : "lit", cal, intros[s.introIdx < Settings::N_INTRO ? s.introIdx : 0],
+                                  s.pocketDark ? "dark" : "lit", cal, dashShort((Dash)s.dashIdx), s.driveMode ? "auto" : "off",
+                                  intros[s.introIdx < Settings::N_INTRO ? s.introIdx : 0],
                                   Settings::tuneVolName(s.tuneVol),
                                   s.wifiScan ? "on" : "off",
                                   erasing_ && cursor_ == kWifiLog ? "erase?" : log,
@@ -1197,11 +1255,11 @@ class SettingsScreen : public Screen {
   }
 
  private:
-  static constexpr int kItems = 13;
-  static constexpr int kReset = 10;  // factory reset (asks first)
-  static constexpr int kWifiLog = 8;
-  static constexpr int kMine = 9;  // devices marked "mine" in Followers
-  static bool isValue(int i) { return i <= 7; }
+  static constexpr int kItems = 15;
+  static constexpr int kReset = 12;  // factory reset (asks first)
+  static constexpr int kWifiLog = 10;
+  static constexpr int kMine = 11;  // devices marked "mine" in Followers
+  static bool isValue(int i) { return i <= 9; }
   int cursor_ = 0;
   bool editing_ = false;
   bool erasing_ = false;
@@ -1235,6 +1293,10 @@ const ModeEntry kModes[] = {
     {"BLE Nearby", &nearbyScreen},
     {"WiFi Scan", &wifiScreen},
     {"Rig Dashboard", &rigScreen},
+    {"Knock Detector", &knockScreen()},
+    {"Expeditions", &expeditionsScreen()},
+    {"Rate Gear", &rateScreen()},
+    {"Badges", &badgesScreen()},
     {"Settings", &settingsScreen},
 };
 constexpr int kModeCount = sizeof(kModes) / sizeof(kModes[0]);

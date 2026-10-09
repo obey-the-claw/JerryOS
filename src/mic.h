@@ -5,6 +5,7 @@
 // calling mic::use() and it switches itself off after a few seconds. The
 // speaker is never used.
 #pragma once
+#include "knock_detect.h"
 #include "sound_level.h"
 
 namespace mic {
@@ -15,5 +16,11 @@ bool chipFound();         // false = the audio chip didn't answer
 const LevelMeter &meter();
 void resetPeak();
 void setCalibration(int db);  // Settings -> Sound cal (dB added to the reading)
+
+// Knock Detector (knock_detect.h): listens whenever the microphone is on.
+bool takeSoundEvent(SoundEvent &e);  // next possible knock / howl
+uint32_t knockCount();               // since power-on
+uint32_t howlCount();
+bool knockReady();                   // learned the background, listening
 
 }  // namespace mic

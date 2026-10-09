@@ -8,3 +8,8 @@ Screen &trackerScreen();
 Screen &followersScreen();
 Screen &shieldScreen();
 Screen &camerasScreen();
+Screen &tripScreen();     // the recap card after REC stops (extras.cpp)
+Screen &knockScreen();
+Screen &expeditionsScreen();
+Screen &rateScreen();
+Screen &badgesScreen();

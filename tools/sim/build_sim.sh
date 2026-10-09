@@ -10,7 +10,7 @@ SIM=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$SIM/../.." && pwd)
 L=${1:?give the path to a LovyanGFX checkout}/src
 OUT=$SIM/out
-rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots" "$OUT/intro_jeep_jam" "$OUT/intro_bluff_creek" "$OUT/intro_selfie" "$OUT/intro_cruisin"
+rm -rf "$OUT" && mkdir -p "$OUT/src" "$OUT/obj" "$OUT/shots" "$OUT/intro_jeep_jam" "$OUT/intro_bluff_creek" "$OUT/intro_selfie" "$OUT/intro_cruisin" "$OUT/anim_radar" "$OUT/anim_stamp" "$OUT/anim_stamp2"
 
 # Firmware sources, with the real display driver swapped for an off-screen image.
 cp "$REPO"/src/*.h "$REPO"/src/*.cpp "$REPO"/include/*.h "$OUT/src/"
@@ -47,7 +47,13 @@ sheet = Image.new('RGB', (cols * (w + pad), rows * (h + pad)), (60, 60, 60))
 for k, i in enumerate(ims): sheet.paste(i, ((k % cols) * (w + pad), (k // cols) * (h + pad)))
 sheet.save('screens.png')
 print(f"{len(fs)} screenshots -> tools/sim/out/screens.png")
-for d in sorted(glob.glob('intro_*/')):
+import os
+if os.path.isdir('anim_stamp2'):  # the stamp was recorded in two parts: join them
+    n = len(glob.glob('anim_stamp/*.ppm'))
+    for i, f in enumerate(sorted(glob.glob('anim_stamp2/*.ppm'))):
+        os.rename(f, 'anim_stamp/f%03d.ppm' % (n + i))
+    os.rmdir('anim_stamp2')
+for d in sorted(glob.glob('intro_*/') + glob.glob('anim_*/')):
     frames = [Image.open(f).resize((384, 384), Image.NEAREST) for f in sorted(glob.glob(d + '*.ppm'))]
     if frames:
         name = d.rstrip('/')
@@ -56,7 +62,7 @@ for d in sorted(glob.glob('intro_*/')):
 # With ffmpeg: each intro as a video with its groove, in sync (the frames are real time).
 import shutil, subprocess, os
 wavs = {'intro_jeep_jam': 'intro_funk', 'intro_bluff_creek': 'intro_bluff_creek',
-        'intro_selfie': 'intro_selfie', 'intro_cruisin': 'intro_cruisin'}
+        'intro_selfie': 'intro_selfie', 'intro_cruisin': 'intro_cruisin', 'anim_stamp': 'sting_approved'}
 if shutil.which('ffmpeg'):
     for name, wav in wavs.items():
         wav = os.path.join(os.environ['REPO'], 'docs/sounds', wav + '.wav')

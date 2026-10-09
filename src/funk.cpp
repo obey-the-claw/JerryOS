@@ -75,6 +75,11 @@ const Note kCruiseBass[] = {
     {24, 1, 48, 0}, {26, 1, 60, 2}, {27, 1, 58, 0}, {28, 4, 55, 3},
 };
 
+// --- 4. Sting, good: "ba-da-BAAA" and a bass "bwow"
+const Note kGoodBass[] = {{0, 2, 40, 0}, {3, 1, 52, 2}, {6, 4, 43, 0}, {12, 4, 52, 3}};
+// --- 5. Sting, meh: the bass sinks a semitone at a time under wah chords
+const Note kMehBass[] = {{0, 3, 47, 0}, {4, 3, 46, 0}, {8, 3, 45, 0}, {12, 4, 44, 3}};
+
 #define N(a) (int)(sizeof(a) / sizeof((a)[0]))
 const Groove kGrooves[FunkIntro::GROOVES] = {
     {"Jeep Jam", 110, 2, 0, kJeepBass, N(kJeepBass), 2100, 0.45f,
@@ -105,6 +110,20 @@ const Groove kGrooves[FunkIntro::GROOVES] = {
      "..x...x...x...x...x...x...x.....",
      "X.......................X.......",
      {58, 62, 69}, 0.95f},  // Gm9 (Bb D A) string stab
+    {"Stamp: approved", 120, 1, 0, kGoodBass, N(kGoodBass), 2400, 0.4f,
+     "K.....K.....K...",
+     "...S..S.....C...",
+     "hhhhhhOhhhhhO...",
+     nullptr,
+     "X..x..X.........",
+     {68, 74, 78}, 1.0f},  // E9 horns
+    {"Stamp: meh", 96, 1, 0, kMehBass, N(kMehBass), 1200, 0.5f,
+     "K...............",
+     "............g...",
+     "................",
+     "X...X...X...X...",
+     nullptr,
+     {59, 62, 65}, 1.1f},  // B dim: sad
 };
 
 const Groove &G(int i) { return kGrooves[i >= 0 && i < FunkIntro::GROOVES ? i : 0]; }

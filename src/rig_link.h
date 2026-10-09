@@ -22,6 +22,14 @@
 //   20    1    alerts on the box (0 = none)
 //   21    1    box battery % (255 = on mains / unknown)
 //
+// Version 2 (JerryOS 1.4) adds the box's clock, so Jerry knows the time and
+// can work out sunrise / sunset. 24 bytes, still one ordinary broadcast:
+//    4    2    local time: minute of the day 0-1439 (0xFFFF = clock not set)
+//              (was a sequence number in v1; nothing used it)
+//   22    2    bits 0-8: day of the year 1-366,
+//              bits 9-15: UTC offset in 15-minute steps (signed)
+// Jerry reads both versions.
+//
 // Pairing: anyone could broadcast this, so Jerry only trusts the one box
 // you pair (hold R on the Rig screen). Pure logic, unit-tested on a PC.
 #pragma once
@@ -34,7 +42,12 @@ struct RigStatus {
   uint8_t sats, speedKmh;
   uint16_t wifi, ble;
   uint8_t alerts, battery;
-  uint16_t seq;
+  uint16_t seq;      // v1 only
+  // v2: the box's clock
+  bool clock;        // valid local time + date
+  uint16_t clockMin; // local minute of the day, 0-1439
+  uint16_t doy;      // day of the year, 1-366
+  int8_t utcOff15;   // local time - UTC, in 15-minute steps (e.g. -28 = UTC-7)
 };
 
 // Is this Bluetooth broadcast a rig beacon? Fills `out` if so.

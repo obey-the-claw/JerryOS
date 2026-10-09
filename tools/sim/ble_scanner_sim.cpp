@@ -36,13 +36,21 @@ int newCams = 0;
 
 void drain(TrackerWatch &w, AttackWatch &attacks, CameraWatch &cams, RigLink &rig) {
   const uint32_t now = millis();
-  // The Pi Zero rig box beacons every 2 s, driving north at 40 mph.
+  // The Pi Zero rig box beacons every 2 s. Parked, then from minute 8 to 20
+  // driving north at 40 mph. Its clock says 7:40pm on 9 Oct (UTC-7) at boot.
   static uint32_t lastRig = 0;
   static uint16_t seq = 0;
   if (now - lastRig >= 2000) {
     lastRig = now;
-    const int32_t north = (int32_t)(now / 1000) * 1600;  // ~18 m/s, in 1e-7 degrees
-    RigStatus s{true, 335123456 + north, -1121234567, 11, 64, 52, 31, 0, 78, ++seq};
+    const uint32_t from = 8 * 60000, to = 20 * 60000;
+    const bool driving = now >= from && now < to;
+    const uint32_t drove = (now < from ? 0 : (now < to ? now : to) - from) / 1000;
+    const int32_t north = (int32_t)drove * 1600;  // ~18 m/s, in 1e-7 degrees
+    RigStatus s{true, 335123456 + north, -1121234567, 11, (uint8_t)(driving ? 64 : 0), 52, 31, 0, 78, ++seq};
+    s.clock = true;
+    s.clockMin = (uint16_t)((19 * 60 + 40 + now / 60000) % 1440);
+    s.doy = 282;
+    s.utcOff15 = -28;
     uint8_t adv[31];
     const size_t n = buildRigBeacon(s, adv, sizeof adv);
     RigStatus parsed;

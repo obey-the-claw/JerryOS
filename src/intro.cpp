@@ -584,6 +584,8 @@ class IntroScreen : public Screen {
     started_ = true;
     start_ = millis();
     which_ = pick(shell.settings().introIdx);
+    shell.badges().introSeen(which_);  // Funk Soul Bro badge: see all four
+    shell.saveBadges();
     if (shell.settings().tuneVol) speaker::playIntro(shell.settings().tuneVol, which_);  // the funk
   }
   // Any button skips the intro (and cuts the music).

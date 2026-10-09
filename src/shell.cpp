@@ -12,6 +12,7 @@
 #include "screens.h"
 #include "status_led.h"
 #include "theme.h"
+#include "ui.h"
 #include "wifi_scanner.h"
 
 void Screen::onLeftShort(Shell &shell) { shell.back(); }
@@ -36,6 +37,10 @@ void Shell::begin() {
       follow_.loadTrusted(buf, (int)(n / 6));
       uint8_t rigAddr[6];
       if (p.getBytes("rig", rigAddr, 6) == 6) rig_.pair(rigAddr);
+      Badges::Saved b;
+      if (p.getBytes("badges", &b, sizeof b) == sizeof b) badges_.load(b);
+      static uint8_t trips[TripLog::MAX * sizeof(TripRecap)];
+      trips_.load(trips, (int)p.getBytes("trips", trips, sizeof trips));
       p.end();
     }
   }
@@ -63,6 +68,7 @@ void Shell::begin() {
 // Tiny USB command line. Type a command + Enter in a serial terminal:
 //   wifi dump   print the whole Wi-Fi log (tools/pull_wifi_log.py does this)
 //   wifi clear  erase the Wi-Fi log
+//   trips       print the Expedition log (REC session recaps) as CSV
 //   help        list commands
 void Shell::pollConsole() {
   while (Serial.available()) {
@@ -76,7 +82,18 @@ void Shell::pollConsole() {
     cmdLen_ = 0;
     if (!strcmp(cmd_, "wifi dump")) wifi::dumpLog();
     else if (!strcmp(cmd_, "wifi clear")) wifi::clearLog();
-    else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | help"));
+    else if (!strcmp(cmd_, "trips")) {  // the Expedition log as CSV (newest first)
+      Serial.println(F("# trip,day_of_year,start_min,seconds,networks,meters,top_kmh,peak_bt,trackers,"
+                       "followers,flock,knocks"));
+      for (int i = 0; i < trips_.count(); i++) {
+        const TripRecap &r = trips_.at(i);
+        Serial.printf("%u,%u,%d,%lu,%lu,%lu,%u,%u,%u,%u,%u,%u\n", r.number, r.doy,
+                      r.startMin == 0xFFFF ? -1 : r.startMin, (unsigned long)r.seconds,
+                      (unsigned long)r.nets, (unsigned long)r.meters, r.topKmh, r.peakBt, r.trackers,
+                      r.followers, r.flock, r.knocks);
+      }
+      Serial.println(F("# end"));
+    } else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | trips | help"));
   }
 }
 
@@ -86,6 +103,116 @@ void Shell::saveRig() {
   if (rig_.paired()) p.putBytes("rig", rig_.pairedAddr(), 6);
   else p.remove("rig");
   p.end();
+}
+
+void Shell::saveBadges() {
+  Preferences p;
+  if (!p.begin("jerryos", false)) return;
+  const Badges::Saved b = badges_.save();
+  p.putBytes("badges", &b, sizeof b);
+  p.end();
+}
+
+void Shell::saveTrips() {
+  Preferences p;
+  if (!p.begin("jerryos", false)) return;
+  p.putBytes("trips", trips_.data(), trips_.bytes());
+  p.end();
+}
+
+void Shell::clearTrips() {
+  trips_.clear();
+  saveTrips();
+}
+
+bool Shell::award(Badge b) {
+  if (!badges_.earn(b)) return false;
+  announce(b);
+  return true;
+}
+
+void Shell::announce(Badge b) {
+  saveBadges();
+  char msg[24];
+  snprintf(msg, sizeof msg, "Badge: %s!", badgeName(b));
+  toast(msg, 5000);
+  jerry_.flash(Mood::Approved, 2500);
+  Serial.printf("[badge] %s\n", badgeName(b));
+}
+
+bool Shell::sun(int &rise, int &set) const {
+  if (!clock_.valid() || !hasFix_) return false;
+  return sunTimes(fixLat_ / 1e7, fixLon_ / 1e7, clock_.dayOfYear(millis()), clock_.utcOffsetMin(), rise, set);
+}
+
+TripSample Shell::tripSample(uint32_t now) {
+  TripSample s;
+  s.bt = ble::nearbyDevices();
+  s.trackers = ui::lostTrackersNow(*this, now);
+  s.flockPassed = cams_.passedToday();
+  s.followersFlagged = follow_.flaggedCount();
+  s.knocks = mic::knockCount();
+  s.fix = rig_.location(now, s.latE7, s.lonE7);
+  s.speedKmh = rig_.connected(now) ? rig_.status().speedKmh : -1;
+  return s;
+}
+
+// The v1.4 extras: the box's clock and GPS, the Trends history, the
+// Expedition log (follows REC) and badges.
+void Shell::updateExtras(uint32_t now) {
+  if (rig_.connected(now) && rig_.lastHeardMs() != lastRigMs_) {
+    lastRigMs_ = rig_.lastHeardMs();
+    const RigStatus &st = rig_.status();
+    if (st.clock) clock_.set(st.clockMin, st.doy, st.utcOff15 * 15, now);
+    if (st.fix) {
+      hasFix_ = true;
+      fixLat_ = st.latE7;
+      fixLon_ = st.lonE7;
+    }
+  }
+  if (now - lastHistory_ >= History::STEP_MS) {
+    lastHistory_ = now;
+    history_.add(ble::nearbyDevices(), wifi::enabled() ? wifi::nearby() : -1,
+                 mic::running() && mic::meter().hasData() ? mic::meter().db() : -1);
+  }
+  const bool rec = wifi::recording();
+  if (rec && !wasRecording_) {
+    trip_.begin(now, tripSample(now), clock_.valid() ? clock_.minute(now) : 0xFFFF,
+                clock_.valid() ? clock_.dayOfYear(now) : 0, (uint8_t)wifi::session());
+    lastTripSample_ = now;
+  } else if (rec && now - lastTripSample_ >= 5000) {
+    lastTripSample_ = now;
+    trip_.sample(now, tripSample(now));
+  } else if (!rec && wasRecording_) {  // REC stopped: the recap card
+    trip_.sample(now, tripSample(now));
+    lastRecap_ = trip_.end(now, wifi::savedThisSession());
+    trips_.add(lastRecap_);
+    saveTrips();
+    badges_.addTrip(lastRecap_.nets, lastRecap_.meters);
+    saveBadges();
+    open(tripScreen());
+  }
+  wasRecording_ = rec;
+  if (now - lastBadgeCheck_ >= 5000) {
+    lastBadgeCheck_ = now;
+    BadgeInputs in = {};
+    in.flockSeen = cams_.passedToday() > 0;
+    in.lostTracker = tracker_.anySeparatedNow(now);
+    in.follower = follow_.flaggedCount() > 0;
+    in.rigPaired = rig_.paired();
+    in.shieldCaught = attack_.anyActive();
+    in.cameraHint = cams_.hintsSeen() > 0;
+    in.knockHeard = mic::knockCount() > 0;
+    in.btNow = ble::nearbyDevices();
+    const Badge b = badges_.check(in);  // earns it
+    if (b != Badge::COUNT) announce(b);
+  }
+  // Night Watch keeps the backlight low.
+  const bool night = atHome() && current().fullScreen();
+  if (night != nightDim_) {
+    nightDim_ = night;
+    if (backlight_ == Backlight::On) applyBrightness();
+  }
 }
 
 void Shell::factoryReset() {
@@ -168,7 +295,8 @@ void Shell::drawToast(lgfx::LovyanGFX &g) {
 
 void Shell::applyBrightness() {
   backlight_ = Backlight::On;
-  lcd_.setBrightness(settings_.brightnessPct() * 255 / 100);
+  const int pct = nightDim_ ? min(20, (int)settings_.brightnessPct()) : settings_.brightnessPct();
+  lcd_.setBrightness(pct * 255 / 100);
 }
 
 // On battery, save power when nobody's looking: dim after 1 min without a
@@ -347,6 +475,7 @@ void Shell::loop() {
     lastInput_ = now;  // wake the screen
     if (&current() != &shieldScreen()) open(shieldScreen());
   }
+  updateExtras(now);
   updateBacklight(now);
 
   jerry_.update(now);

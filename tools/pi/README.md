@@ -44,6 +44,14 @@ See the systemd snippet at the bottom of `jerry_beacon.py`.
 ## The beacon format
 
 Documented in `src/rig_link.h`: company ID 0xFFFF (Bluetooth SIG's "testing /
-private use" ID), then 22 bytes: "JR", version, flags, sequence, lat/lon ×1e7,
-satellites, speed, counts, alerts, battery. The PC tests check that the bytes
+private use" ID), then 24 bytes: "JR", version (2), flags, the Pi's local
+time (minute of the day), lat/lon ×1e7, satellites, speed, counts, alerts,
+battery, then day of the year + UTC offset. The PC tests check that the bytes
 this script makes decode correctly on Jerry.
+
+**Version 2 (JerryOS 1.4)** added the clock, so Jerry can show the time and
+work out sunrise / sunset. Update the script on the Pi and Jerry together:
+JerryOS 1.4 still reads the old v1 beacon, but JerryOS 1.3 and older ignore
+the new v2 one. The clock is only sent once the Pi's own clock is set
+(network time, or GPS through chrony / gpsd); until then Jerry just has no
+time.

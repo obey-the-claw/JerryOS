@@ -935,3 +935,109 @@ legendary".
 - [x] Settings → Intro → pick one → hold R: it plays straight away
   ("all good that works as intended and is awesome!")
 - [ ] A button press skips any intro and cuts its music
+
+---
+
+## v1.4: dashes, Knock Detector, Expeditions, Rate Gear, Badges (previews first)
+
+Steve: "what can you see this device also doing? better home/dash screen?
+multiple dash types we can easily swap between?" I pitched six dashes and a
+handful of squatchy extras. Steve: "yes lets build it all.. sounds like a
+magical upgrade".
+
+All of it is built and running in the simulator, and the logic is
+unit-tested. There are two new sounds (the Rate Gear stamp stings), so this
+is a **preview round**, same as the intros: no new firmware file until Steve
+has heard them.
+
+### Dashes (`src/dashes.cpp`)
+
+Tap R on home flips to the next dash. It used to poke Jerry; landing back on
+Jerry still does. The choice is remembered (Settings → Dash).
+
+- **Jerry:** the original home screen.
+- **Radar:** a green sweep. Bluetooth devices are blips at a fixed angle per
+  device (from a hash of its address) and a distance from signal strength.
+  Lost trackers are red, followers red with a pulsing ring, cameras gold
+  squares. Blips glow when the sweep passes and fade over a turn.
+- **Trail Dash:** a Jeep cluster.
+  - The big gauge is mph from the rig box, or the Bluetooth count without it.
+  - Small gauges show Wi-Fi and sound dB. Battery is the fuel gauge, from E to F.
+  - GPS / REC / ! warning lamps, plus the clock and sunrise / sunset.
+- **All Clear:** ALL CLEAR / HEADS UP / ALERT! as one big word, with "quiet
+  for 12m" and four count boxes.
+- **Trends:** 10-minute graphs of Bluetooth, Wi-Fi and sound, sampled every
+  10 s (`src/history.cpp`).
+- **Night Watch:** full screen, all red, backlight down to 20%. Shows the
+  time, the status and the next sunrise / dark.
+- **Drive mode:** the rig box says 10+ mph for 5 s, so it switches to the
+  Trail Dash ("DRIVE" in the top bar). Stopped for a minute, it goes back.
+
+### Knock Detector (`src/knock_detect.cpp`, Menu)
+
+- The microphone's 100 ms blocks now also get their loudest 10 ms and a
+  rough pitch (zero crossings).
+- **Knock:** the loudest 10 ms is 18 dB over the background and 5 dB over the
+  rest of its block (short and sharp). Knocks within 2.5 s count as "x2",
+  "x3".
+- **Howl:** 1.2 s or more of sound 10 dB over the background with a steady
+  pitch (between 150 and 3,000 crossings a second, varying under 30%).
+- The background follows quiet sound quickly and loud sound slowly, so a
+  generator starting up becomes background after a while.
+- Unit-tested with fake microphone audio: a quiet forest gives nothing, a
+  knock is caught, a double knock reads "x2", a 2 s whoop is one howl with no
+  knocks, and loud wind gives no knocks.
+
+### Expeditions (`src/expedition.cpp`, Menu)
+
+- Follows REC. While recording, every 5 s it notes the most Bluetooth
+  devices at once and the most lost trackers, plus new followers, Flock
+  cameras passed and knocks since the start.
+- With the rig's GPS it also adds distance (moves under 15 m are GPS wobble,
+  and jumps over 5 km in 5 s are glitches; both are ignored) and top speed.
+- When REC stops, a recap card pops up with a verdict line. The last 8 are
+  kept (Menu → Expeditions), and the `trips` serial command prints them as
+  CSV.
+- Only exists while you pressed REC, same as the Wi-Fi log.
+
+### Rate Gear
+
+- The **5quatch Rated** stamp: pick 1-5 squatch footprints, then hold R.
+- The card slams down with a shake and the footprints stomp in one by one.
+- The verdict runs from "Leave it in woods" up to "Bigfoot Approved!".
+- Two new stings in `funk.cpp`:
+  - **approved** (3-5): a "ba-da-BAAA" horn hit and a bass bwow.
+  - **meh** (1-2): the bass sinks a semitone at a time under wah chords.
+- They play at the Intro tune volume, and not at all when it's off.
+
+### Badges (`src/badges.cpp`, Menu)
+
+- 14 badges, checked every 5 s. A new one gets a toast and Jerry grins.
+- They're kept across power-offs, along with running totals: networks,
+  miles, trips, Night Watch time and which intros you've seen.
+
+### Clock and sun (`src/sun_clock.cpp`, rig beacon v2)
+
+- Jerry has no clock, so the Pi now sends its local time, the day of the
+  year and its UTC offset.
+- The new fields fit by reusing the beacon's unused sequence number plus 2
+  more bytes. That's 31 bytes, exactly one ordinary broadcast.
+- Jerry keeps counting from there.
+- Sunrise and sunset use NOAA's formulas. They're tested against Phoenix in
+  October and Seattle on the solstice (within a few minutes), and the
+  midnight sun returns "no sunset".
+- **Update the Pi script with this firmware:** 1.3 ignores v2 beacons.
+
+### Tests
+
+- 289 checks.
+- New ones cover sun times and the clock, the Trends history, knocks and
+  howls, expedition distance and the trip log, badges, the beacon v2 clock
+  (including the exact bytes the new Pi script prints), and the stings.
+
+### Previews (`docs/previews/`)
+
+- `v1.4_screens.png`: every new screen, from the simulator.
+- `anim_radar.gif`: one sweep.
+- `anim_stamp.mp4`: the stamp with its sting.
+- `docs/sounds/sting_approved.wav`, `sting_meh.wav`.
