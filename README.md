@@ -31,9 +31,35 @@ a microphone and a speaker. Flash JerryOS onto it and it becomes:
   **colour LED**, **pocket mode**, and four boot intros, each with its own
   funk groove.
 
+## Quick start
+
+1. Get an **AIPI Lite** and a USB-C data cable.
+2. **Back up** the stock firmware, then **flash** the newest file in
+   [`firmware/`](firmware/) ([how](#install), about 2 minutes).
+3. Power on: Jerry plays an intro. **Press any button.**
+4. **Tap R** on the home screen to flip between the dashes. **Tap L** for the
+   menu. The bottom bar always shows what each button does.
+5. Read the **[user guide](docs/USER-GUIDE.md)** for everything else.
+
+## A tour
+
+**Four boot intros, each with its own funk groove** (random each time, or pick
+one in Settings): Jeep Jam, Bluff Creek, Selfie and Cruisin'. Watch them with
+sound in [docs/previews](docs/previews/).
+
 ![The intros](docs/img/intros.png)
 
-![v1.4 screens](docs/previews/v1.4_screens.png)
+**The home dashes.** Tap R on the home screen to flip between them:
+
+| Radar | 5quatch Rated stamp |
+|---|---|
+| ![Radar](docs/previews/anim_radar.gif) | ![Rate Gear stamp](docs/previews/anim_stamp.gif) |
+
+![Dashes and new screens](docs/previews/v1.4_screens.png)
+
+**The menu modes:**
+
+![Modes](docs/img/modes.png)
 
 ## Listen-only, by design
 

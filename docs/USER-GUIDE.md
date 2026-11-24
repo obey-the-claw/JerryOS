@@ -117,8 +117,17 @@ pocket mode, where the LED tells you. On USB it stays on.
 
 ## Flashing a new version
 
-GitHub Desktop: Fetch → Pull. Then in PowerShell, in the repo folder:
-`powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7`
+Get the latest copy of this project (GitHub Desktop: Fetch → Pull, or
+`git pull`, or download the ZIP again), then flash the newest file in
+`firmware/`. Your settings, badges and logs survive an update.
+
+- Windows, in PowerShell in the project folder:
+  `powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1`
+  (add `-Port COM7` or whichever port your AIPI Lite is on).
+- macOS / Linux:
+  `esptool --chip esp32s3 --port <port> write-flash 0x0 firmware/<newest>.bin`
+
+Full install steps, including the backup, are in the [README](../README.md#install).
 
 ## Honest limits
 

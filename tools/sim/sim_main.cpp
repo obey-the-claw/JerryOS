@@ -102,7 +102,7 @@ int main() {
   tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2500); snap("rig_found");
   hold(PIN_BTN_RIGHT); run(300); snap("rig_paired_toast");
-  run(5000); snap("rig_dashboard");
+  run(11000); snap("rig_dashboard");  // after the "Rigged Up" badge toast
   tap(PIN_BTN_LEFT); snap("menu_back");
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(800); snap("knock_start");
   run(9000); snap("knock_heard");
