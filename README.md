@@ -7,6 +7,8 @@ By [5quatch Rated](https://5quatchrated.com) · Instagram
 [@5quatchRated](https://instagram.com/5quatchRated) · Jerry is our "Chief
 Gear Inspector".
 
+### ➡️ [Install it from your browser](https://obey-the-claw.github.io/JerryOS/) (Chrome or Edge, no software needed)
+
 ![JerryOS boot intro](docs/img/intro.gif)
 
 The AIPI Lite is a little ESP32-S3 gadget with a 128×128 screen, two buttons,
@@ -22,20 +24,24 @@ a microphone and a speaker. Flash JerryOS onto it and it becomes:
 - **Six home dashes:** Jerry himself, a **Radar** sweep, a Jeep-style **Trail
   Dash** (speed, gauges, battery as the fuel gauge), **All Clear**, 10-minute
   **Trends**, and a dim red **Night Watch**.
-- **Knock Detector:** listens for wood knocks and howls. Knock on a tree and
-  see if the woods knock back.
-- **Expeditions:** a recap card for every recording session.
+- **Listen:** a sound meter plus a knock detector for wood knocks and
+  howls. Knock on a tree and see if the woods knock back.
+- **Logbook:** a recap card for every recording session, and badges to earn.
+- **REC:** saves the Wi-Fi networks and Bluetooth devices around you (with
+  GPS from the optional Pi box); download them as spreadsheets from the
+  browser.
 - **Rate Gear:** the **5quatch Rated** stamp, rate your gear 1-5 squatch
   prints on camera.
-- **Badges**, a **sound meter**, **BLE / Wi-Fi scanners**, a silent
-  **colour LED**, **pocket mode**, and four boot intros, each with its own
-  funk groove.
+- **Nearby** (every Bluetooth device and Wi-Fi network), a silent **colour
+  LED**, **pocket mode**, battery **time left**, and four boot intros, each
+  with its own funk groove.
 
 ## Quick start
 
 1. Get an **AIPI Lite** and a USB-C data cable.
-2. **Back up** the stock firmware, then **flash** the newest file in
-   [`firmware/`](firmware) ([how](#install), about 2 minutes).
+2. Open the **[web installer](https://obey-the-claw.github.io/JerryOS/)** in Chrome or Edge, plug the AIPI
+   Lite in, click **Back up**, then **Install JerryOS** (about 5 minutes,
+   most of it the backup). Command-line instructions are [below](#install).
 3. Power on: Jerry plays an intro. **Press any button.**
 4. **Tap R** on the home screen to flip between the dashes. **Tap L** for the
    menu. The bottom bar always shows what each button does.
@@ -55,7 +61,7 @@ sound in [docs/previews](docs/previews).
 |---|---|
 | ![Radar](docs/previews/anim_radar.gif) | ![Rate Gear stamp](docs/previews/anim_stamp.gif) |
 
-![Dashes and new screens](docs/previews/v1.4_screens.png)
+![Dashes and more](docs/img/screens.png)
 
 **The menu modes:**
 
@@ -84,11 +90,27 @@ sound in [docs/previews](docs/previews).
 
 ## Install
 
+### The easy way: from your browser
+
+**[obey-the-claw.github.io/JerryOS](https://obey-the-claw.github.io/JerryOS/)**: Chrome or Edge on a computer,
+nothing to install. Four buttons:
+
+1. **Back up my AIPI Lite:** a full 16 MB copy of the stock firmware, checked
+   before it's saved. Keep it private (it can hold the Wi-Fi password you
+   gave the stock app).
+2. **Install JerryOS:** the newest version, in one click. Updating later?
+   Leave "Erase device" unticked to keep your settings, badges and logs.
+3. **Download my logs:** your REC logs (Wi-Fi + Bluetooth) and expedition
+   recaps as CSV files.
+4. **Restore this backup:** back to stock, from the file you saved in step 1.
+
+### The command-line way
+
 The ready-made firmware is in [`firmware/`](firmware): use the newest
-`jerryos-cp*.bin` (the highest number; `cp19` is v1.4.1). Each has a
+`jerryos-cp*.bin` (the highest number; `cp20` is v1.6.0). Each has a
 `.sha256` file to check it against.
 
-### 1. Back up your original firmware first
+#### 1. Back up your original firmware first
 
 Your backup stays on your own computer: it can contain the Wi-Fi password
 you gave the stock app, so never share it. With it you can always go back
@@ -107,7 +129,7 @@ powershell -ExecutionPolicy Bypass -File tools\backup_firmware.ps1
 esptool --chip esp32s3 --port /dev/ttyACM0 read-flash 0 0x1000000 aipi-backup.bin
 ```
 
-### 2. Flash JerryOS
+#### 2. Flash JerryOS
 
 **Windows:**
 
@@ -120,7 +142,7 @@ powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7
 **macOS / Linux:**
 
 ```bash
-esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp19-nightled.bin
+esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp20-v16.bin
 ```
 
 (esptool v4 and older spell these `read_flash` / `write_flash`.)
@@ -128,7 +150,7 @@ esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp19
 If esptool can't connect, see
 [backup/README.md](backup/README.md#if-esptool-cannot-connect).
 
-### 3. Going back to stock
+#### 3. Going back to stock
 
 Windows: `tools\restore_firmware.ps1`. Elsewhere:
 `esptool --chip esp32s3 --port <port> write-flash 0x0 aipi-backup.bin`.
@@ -136,8 +158,8 @@ Windows: `tools\restore_firmware.ps1`. Elsewhere:
 ## Using Jerry
 
 Tap **L** = menu / back, tap **R** = next (on the home screen: the next dash),
-hold **R** = select (on home: REC), hold **L** = home, hold **L + R** =
-pocket mode. The bottom bar always shows what the buttons do.
+hold **R** = select (on home: REC), hold **L** = home, hold **L** for 5 s =
+power off, hold **L + R** = pocket mode. The bottom bar always shows what the buttons do.
 
 Everything else is in the **[user guide](docs/USER-GUIDE.md)**.
 
@@ -149,7 +171,10 @@ Everything else is in the **[user guide](docs/USER-GUIDE.md)**.
   one-time setup. The exact versions matter.
 - **PC simulator:** `tools/sim/build_sim.sh <path to LovyanGFX>` runs the
   real screens on your computer and saves screenshots, GIFs and videos.
-- **Unit tests:** `tools/sim/run_tests.sh` (289 checks, no device needed).
+- **Unit tests:** `tools/sim/run_tests.sh` (304 checks, no device needed).
+- **Docs pictures:** `python3 tools/sim/make_docs_images.py` after the simulator.
+- **Web installer:** `python3 tools/update_web_installer.py` after a new
+  firmware build (copies it to `docs/install/`).
 - **Hear the grooves:** `tools/sim/render_funk.sh`, or just play
   [docs/sounds](docs/sounds).
 
@@ -166,6 +191,7 @@ include/     board_pins.h: every pin in one place
 src/         the firmware
 tools/       build, backup, restore, flash, log-pull scripts; PC simulator + tests (tools/sim);
              the Pi rig box beacon (tools/pi)
+docs/index.html + docs/install/   the web installer (GitHub Pages)
 BUILDLOG.md  the build diary
 ```
 
@@ -209,7 +235,9 @@ based on JerryOS, with a link back here, is welcome.
 | 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | ✅ "the groove is jamming" 2026-10-08 |
 | 16 | **v1.2.1:** quieter, cleaner groove; Intro tune off / low / med / high | ✅ "volume sounds way better" 2026-10-08 |
 | 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews)); Settings → Intro | ✅ "absolutely perfect" 2026-10-08 |
-| 18 | **v1.4:** home dashes (Radar, Trail Dash, All Clear, Trends, Night Watch), drive mode, Knock Detector, Expeditions, Rate Gear stamp, Badges, sunrise / sunset ([previews](docs/previews/v1.4_screens.png)) | ✅ released 2026-11-24 |
+| 18 | **v1.4:** home dashes (Radar, Trail Dash, All Clear, Trends, Night Watch), drive mode, Knock Detector, Expeditions, Rate Gear stamp, Badges, sunrise / sunset ([previews](docs/img/screens.png)) | ✅ released 2026-11-24 |
+| 19 | **v1.4.1:** Night Watch turns the LED off | ✅ 2026-11-24 |
+| 20 | **v1.5 + v1.6:** menu cleanup (Nearby, Listen, Logbook), Clock, Power off, battery time left, REC logs Bluetooth, Trends = 1 hour, the [web installer](https://obey-the-claw.github.io/JerryOS/) | 🟡 ready to flash |
 
 ## Credits
 

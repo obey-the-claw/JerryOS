@@ -11,6 +11,8 @@ JerryOS's own code is under the PolyForm Noncommercial License (see
 | [LovyanGFX](https://github.com/lovyan03/LovyanGFX) 1.2.7 | the display driver and fonts | FreeBSD (BSD-2-Clause), fonts under their own licenses (see its license.txt) |
 | [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) 1.4.3 | Bluetooth LE (listen-only) | Apache-2.0 |
 | [esptool](https://github.com/espressif/esptool) | flashing (a tool, not in the firmware) | GPL-2.0 |
+| [ESP Web Tools](https://github.com/esphome/esp-web-tools) 10.4.0 | the web installer's Install button (loaded by the page, not in the firmware) | Apache-2.0 |
+| [esptool-js](https://github.com/espressif/esptool-js) 0.6.1 | the web installer's backup / restore (loaded by the page) | Apache-2.0 |
 
 **LGPL note (Arduino-ESP32):** you can rebuild JerryOS against your own copy
 of Arduino-ESP32: the full source and the exact build recipe are in this repo

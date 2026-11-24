@@ -1,5 +1,27 @@
 # Test plan: JerryOS
 
+## v1.6 (cp20): cleanup, power off, Bluetooth in REC, the web installer
+
+Flash `jerryos-cp20-v16.bin` (flash_prebuilt picks it, or use the web
+installer's Install button). About says **v1.6.0**.
+
+- [ ] Menu: Trackers · Followers · Shield · Cameras · Nearby · Listen ·
+      Logbook · Rate Gear · Rig · Settings
+- [ ] Nearby: one list with **B** (Bluetooth) and **W** (Wi-Fi) tags; hold R
+      on each kind opens its details
+- [ ] Listen: dB on top; knock twice on a table: "KNOCK x2" below
+- [ ] Logbook: Badges on the top row (hold R opens them), trips below
+- [ ] Settings → Clock: set the time; Night Watch shows it
+- [ ] On battery: hold L, "Keep holding: power off" at 2 s, off at 5 s.
+      Settings → Power off does the same. On USB it says "Unplug USB first"
+- [ ] After 10+ min on battery: Trail Dash fuel gauge shows the time left
+- [ ] REC for a few minutes, stop: the recap card. Then the web installer's
+      **Download my logs** gives three CSVs; the ble one lists Bluetooth
+      devices
+- [ ] Web installer (https://obey-the-claw.github.io/JerryOS/): **Back up** finishes and saves a 16 MB file.
+      (Restore only if you want to go back to stock.)
+
+
 ## v1.4 (cp18): dashes, Knock Detector, Expeditions, Rate Gear, Badges
 
 Flash `jerryos-cp18-dashes.bin` (flash_prebuilt picks it). About says **v1.4.0**.

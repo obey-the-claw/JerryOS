@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JerryOS Installer</title>
+<meta name="description" content="Install JerryOS on your AIPI Lite from your browser: back up, install, download your logs, restore.">
+<link rel="icon" href="img/favicon.png">
+<style>
+  :root {
+    --bark: #2a1a0e; --bar: #452c1a; --card: #36231a; --fur: #a8735f; --fur-dark: #7a4e3c;
+    --gold: #e8a317; --cream: #f7f0e4; --dim: #b7a794; --grin: #f4511e; --good: #4cc25a; --alert: #e52b2b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bark); color: var(--cream); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--gold); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 48px; }
+  header { text-align: center; padding: 32px 0 8px; }
+  header img.hero { width: 256px; max-width: 70vw; image-rendering: pixelated; border-radius: 12px; border: 3px solid var(--bar); }
+  h1 { font-size: 2.4rem; margin: 12px 0 0; color: var(--gold); letter-spacing: .5px; }
+  .tag { color: var(--dim); margin: 4px 0 0; }
+  .links { margin: 10px 0 0; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .banner { border-radius: 10px; padding: 12px 16px; margin: 20px 0; }
+  .banner.warn { background: #4a3206; border: 1px solid var(--gold); }
+  .banner.bad { background: #4a0c0c; border: 1px solid var(--alert); }
+  .banner.good { background: #0a3618; border: 1px solid var(--good); }
+  .step { background: var(--card); border: 1px solid var(--bar); border-radius: 14px; padding: 18px 20px; margin: 18px 0; }
+  .step h2 { margin: 0 0 6px; font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+  .num { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--gold); color: var(--bark); font-weight: 800; flex: none; }
+  .step p { margin: 6px 0; }
+  .small { color: var(--dim); font-size: .92rem; }
+  button, .btn { font: inherit; font-weight: 700; color: var(--bark); background: var(--gold); border: 0; border-radius: 10px; padding: 10px 18px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.secondary { background: var(--fur); color: var(--cream); }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  progress { width: 100%; height: 14px; accent-color: var(--gold); margin-top: 10px; }
+  .status { margin-top: 8px; min-height: 1.4em; color: var(--dim); font-size: .95rem; white-space: pre-wrap; }
+  .status.ok { color: var(--good); } .status.err { color: #ff7a6a; }
+  label.check { display: flex; gap: 8px; align-items: center; color: var(--dim); font-size: .95rem; }
+  esp-web-install-button button { font: inherit; }
+  details { margin-top: 8px; } summary { cursor: pointer; color: var(--gold); }
+  footer { text-align: center; color: var(--dim); font-size: .9rem; margin-top: 30px; }
+  img.wide { width: 100%; border-radius: 10px; image-rendering: pixelated; margin-top: 8px; }
+  code { background: var(--bark); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="hero" src="img/intro.gif" alt="Jerry walks out of the woods, hops in his Jeep and drives off">
+    <h1>JerryOS</h1>
+    <p class="tag">Free, listen-only privacy monitor firmware for the AIPI Lite, starring Jerry the Squatch.</p>
+    <div class="links">
+      <a href="https://github.com/obey-the-claw/JerryOS">GitHub</a>
+      <a href="https://github.com/obey-the-claw/JerryOS/blob/main/docs/USER-GUIDE.md">User guide</a>
+      <a href="https://instagram.com/5quatchRated">IG @5quatchRated</a>
+      <a href="https://5quatchrated.com">5quatchrated.com</a>
+    </div>
+  </header>
+
+  <div id="unsupported" class="banner bad" hidden>
+    <b>This page needs Chrome or Edge on a computer</b> (Windows, Mac, Linux or ChromeOS). It talks to the
+    AIPI Lite over USB with Web Serial, which Safari, Firefox and phones don't have.
+    You can still install with the command line: see the <a href="https://github.com/obey-the-claw/JerryOS#install">README</a>.
+  </div>
+
+  <div class="banner warn">
+    <b>Before you start:</b> plug the AIPI Lite into this computer with a USB-C <b>data</b> cable (some cables only charge),
+    and close anything else that might be using it (a serial monitor, Arduino, the flash script).
+    When the browser asks which device to use, pick the one called <b>USB JTAG/serial debug unit</b>
+    (or "ESP32-S3"), usually the only one listed.
+  </div>
+
+  <section class="step">
+    <h2><span class="num">1</span> Back up your AIPI Lite</h2>
+    <p>Saves a full copy (16 MB) of what's on the device now, so you can always go back to stock. Do this once,
+       before your first install. It takes a few minutes.</p>
+    <p class="small">Keep the file private: it can contain the Wi-Fi password you gave the stock app. Jerry checks
+       the copy looks right before saving it.</p>
+    <div class="row"><button id="backupBtn">Back up my AIPI Lite</button></div>
+    <progress id="backupBar" value="0" max="1" hidden></progress>
+    <div id="backupStatus" class="status"></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="num">2</span> Install JerryOS</h2>
+    <p>One click: JerryOS <b id="ver">v1.6</b> goes on, and Jerry plays an intro when he restarts.
+       Updating from an older JerryOS? Leave <b>"Erase device"</b> unticked to keep your settings, badges and logs.</p>
+    <div class="row">
+      <esp-web-install-button manifest="install/manifest.json">
+        <button slot="activate">Install JerryOS</button>
+        <span slot="unsupported">Needs Chrome or Edge on a computer.</span>
+        <span slot="not-allowed">Open this page over https (it is, on GitHub Pages).</span>
+      </esp-web-install-button>
+    </div>
+    <details><summary>It can't connect?</summary>
+      <p class="small">Unplug and replug, try another USB port or cable, close other programs using the device, and try again.
+      Last resort (no soldering): there's a BOOT button under the back cover; hold it while plugging in USB, let go, then
+      click Install. The screen stays dark in that mode; that's normal.</p>
+    </details>
+  </section>
+
+  <section class="step">
+    <h2><span class="num">3</span> Download my logs</h2>
+    <p>Everything Jerry saved while REC was on, as spreadsheet files (CSV): the <b>Wi-Fi networks</b>, the
+       <b>Bluetooth devices</b> (trackers, followers and cameras marked), and your <b>Expedition</b> recaps.
+       Open them in Excel or Google Sheets.</p>
+    <label class="check"><input type="checkbox" id="clearAfter"> Erase the REC logs on Jerry afterwards (your downloads are kept)</label>
+    <div class="row"><button id="logsBtn">Download my logs</button></div>
+    <div id="logsStatus" class="status"></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="num">4</span> Go back to stock (optional)</h2>
+    <p>Puts your step-1 backup back on the device, exactly as it was before JerryOS.</p>
+    <div class="row">
+      <input type="file" id="restoreFile" accept=".bin">
+      <button id="restoreBtn" class="secondary" disabled>Restore this backup</button>
+    </div>
+    <progress id="restoreBar" value="0" max="1" hidden></progress>
+    <div id="restoreStatus" class="status"></div>
+  </section>
+
+  <section class="step">
+    <h2>What Jerry does</h2>
+    <p>Trackers (AirTag, Tile, SmartTag...) travelling with you, devices that follow you, Wi-Fi and Bluetooth
+       attacks, Flock licence-plate cameras, hidden-camera hints, six home dashes (Radar, Trail Dash, All Clear,
+       Trends, Night Watch), a knock detector, expedition recaps, badges and the 5quatch Rated stamp.
+       <b>He only ever listens; he never transmits.</b></p>
+    <img class="wide" src="img/screens.png" alt="JerryOS screens">
+  </section>
+
+  <footer>
+    JerryOS is free for noncommercial use (<a href="https://github.com/obey-the-claw/JerryOS/blob/main/LICENSE.md">PolyForm Noncommercial</a>).
+    Jerry the Squatch and 5quatch Rated are not covered by the license.<br>
+    Installer powered by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> and
+    <a href="https://github.com/espressif/esptool-js">esptool-js</a>.
+  </footer>
+</div>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<script type="module">
+import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.6.1/bundle.js";
+
+const $ = (id) => document.getElementById(id);
+const FLASH_SIZE = 16 * 1024 * 1024;
+
+if (!("serial" in navigator)) {
+  $("unsupported").hidden = false;
+  for (const b of ["backupBtn", "logsBtn", "restoreBtn"]) $(b).disabled = true;
+}
+fetch("install/manifest.json").then((r) => r.json()).then((m) => { $("ver").textContent = "v" + m.version; }).catch(() => {});
+
+function say(id, text, kind) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+
+function saveFile(name, data, type) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+// Does this look like a whole ESP32-S3 flash: a bootloader at 0 and a partition table at 0x8000?
+function checkImage(d) {
+  if (d.length !== FLASH_SIZE) return `it's ${d.length} bytes, not 16 MB`;
+  if (d[0] !== 0xe9) return "there's no bootloader at the start";
+  if (d[0x8000] !== 0xaa || d[0x8001] !== 0x50) return "there's no partition table at 0x8000";
+  return null;
+}
+
+async function sha256(d) {
+  const h = new Uint8Array(await crypto.subtle.digest("SHA-256", d));
+  return [...h].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Connect to the chip's bootloader with esptool-js (resets the AIPI Lite into download mode).
+async function connectLoader(statusId) {
+  const port = await navigator.serial.requestPort();
+  const transport = new Transport(port, false);
+  const loader = new ESPLoader({ transport, baudrate: 921600, terminal: { clean() {}, writeLine() {}, write() {} } });
+  say(statusId, "Connecting...");
+  const chip = await loader.main();
+  if (!/ESP32-S3/i.test(chip)) {
+    await transport.disconnect();
+    throw new Error(`that's a ${chip}, not an AIPI Lite (ESP32-S3)`);
+  }
+  return { loader, transport };
+}
+
+async function finish(loader, transport) {
+  try { await loader.after("hard_reset"); } catch (e) { /* the device restarts either way */ }
+  try { await transport.disconnect(); } catch (e) {}
+}
+
+// ---- 1. Backup ----
+$("backupBtn").onclick = async () => {
+  $("backupBtn").disabled = true;
+  const bar = $("backupBar");
+  let conn;
+  try {
+    conn = await connectLoader("backupStatus");
+    bar.hidden = false;
+    bar.value = 0;
+    say("backupStatus", "Reading 16 MB... keep it plugged in.");
+    const t0 = Date.now();
+    const data = await conn.loader.readFlash(0, FLASH_SIZE, (_pkt, done, total) => {
+      bar.value = done / total;
+      const left = Math.round(((Date.now() - t0) / done) * (total - done) / 1000);
+      if (done > 0) say("backupStatus", `Reading... ${Math.round((100 * done) / total)}% (about ${left}s left)`);
+    });
+    const problem = checkImage(data);
+    if (problem) throw new Error(`the copy doesn't look right: ${problem}. Nothing was saved; try again.`);
+    const hash = await sha256(data);
+    saveFile(`aipi-lite-backup-${today()}.bin`, data, "application/octet-stream");
+    say("backupStatus", `Backup saved (16 MB). Keep it somewhere safe and private.\nSHA-256 ${hash}`, "ok");
+  } catch (e) {
+    say("backupStatus", "Backup failed: " + (e.message || e), "err");
+  } finally {
+    if (conn) await finish(conn.loader, conn.transport);
+    $("backupBtn").disabled = false;
+  }
+};
+
+// ---- 4. Restore ----
+let restoreData = null;
+$("restoreFile").onchange = async (ev) => {
+  restoreData = null;
+  $("restoreBtn").disabled = true;
+  const f = ev.target.files[0];
+  if (!f) return;
+  const d = new Uint8Array(await f.arrayBuffer());
+  const problem = checkImage(d);
+  if (problem) return say("restoreStatus", `That file isn't a full AIPI Lite backup: ${problem}.`, "err");
+  restoreData = d;
+  $("restoreBtn").disabled = !("serial" in navigator);
+  say("restoreStatus", "Backup looks good. Ready to restore.");
+};
+$("restoreBtn").onclick = async () => {
+  if (!restoreData || !confirm("Put this backup back on the AIPI Lite? JerryOS and everything it saved will be replaced.")) return;
+  $("restoreBtn").disabled = true;
+  const bar = $("restoreBar");
+  let conn;
+  try {
+    conn = await connectLoader("restoreStatus");
+    bar.hidden = false;
+    say("restoreStatus", "Writing the backup... keep it plugged in.");
+    await conn.loader.writeFlash({
+      fileArray: [{ data: restoreData, address: 0 }],
+      flashSize: "keep", flashMode: "keep", flashFreq: "keep",
+      eraseAll: false, compress: true,
+      reportProgress: (_i, written, total) => { bar.value = written / total; },
+    });
+    say("restoreStatus", "Done: your AIPI Lite is back to how it was. It's restarting.", "ok");
+  } catch (e) {
+    say("restoreStatus", "Restore failed: " + (e.message || e) + "\nNothing is lost: your backup file is unchanged. Try again.", "err");
+  } finally {
+    if (conn) await finish(conn.loader, conn.transport);
+    $("restoreBtn").disabled = false;
+  }
+};
+
+// ---- 3. Logs: JerryOS's own serial commands (the same ones tools/pull_wifi_log.py uses) ----
+const LOGS = [
+  { cmd: "wifi dump", begin: "=== JERRYOS WIFI LOG BEGIN ===", end: "=== JERRYOS WIFI LOG END", file: "wifi", what: "Wi-Fi networks" },
+  { cmd: "ble dump", begin: "=== JERRYOS BLE LOG BEGIN ===", end: "=== JERRYOS BLE LOG END", file: "ble", what: "Bluetooth devices" },
+  { cmd: "trips", begin: "=== JERRYOS TRIPS BEGIN ===", end: "=== JERRYOS TRIPS END", file: "trips", what: "expeditions" },
+];
+
+class LineLink {
+  constructor(port) {
+    this.port = port;
+    this.buf = "";
+    this.waiters = [];
+  }
+  async open() {
+    await this.port.open({ baudRate: 115200 });
+    // Leave DTR / RTS low: toggling them would restart the AIPI Lite.
+    try { await this.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+    this.decoder = new TextDecoderStream();
+    this.piped = this.port.readable.pipeTo(this.decoder.writable).catch(() => {});
+    this.reader = this.decoder.readable.getReader();
+    this.writer = this.port.writable.getWriter();
+    this.pump();
+  }
+  async pump() {
+    try {
+      for (;;) {
+        const { value, done } = await this.reader.read();
+        if (done) break;
+        this.buf += value;
+        let i;
+        while ((i = this.buf.indexOf("\n")) >= 0) {
+          const line = this.buf.slice(0, i).replace(/\r$/, "");
+          this.buf = this.buf.slice(i + 1);
+          for (const w of [...this.waiters]) w(line);
+        }
+      }
+    } catch (e) {}
+  }
+  send(text) { return this.writer.write(new TextEncoder().encode("\n" + text + "\n")); }
+  // Send a command, collect the lines between its markers.
+  request(log, ms = 20000) {
+    return new Promise((resolve) => {
+      let inside = false, lines = [];
+      let timer = setTimeout(() => done(null), ms);
+      const onLine = (line) => {
+        if (line.startsWith(log.begin)) { inside = true; lines = []; clearTimeout(timer); timer = setTimeout(() => done(null), 600000); }
+        else if (line.startsWith(log.end)) { if (inside) done(lines); }
+        else if (inside && !line.startsWith("[")) lines.push(line);  // skip Jerry's own status messages
+      };
+      const done = (v) => { clearTimeout(timer); this.waiters = this.waiters.filter((w) => w !== onLine); resolve(v); };
+      this.waiters.push(onLine);
+      this.send(log.cmd);
+    });
+  }
+  version(ms = 8000) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => done(null), ms);
+      const onLine = (line) => { const m = line.match(/^JerryOS (\d+\.\d+\.\d+)/); if (m) done(m[1]); };
+      const done = (v) => { clearTimeout(timer); this.waiters = this.waiters.filter((w) => w !== onLine); resolve(v); };
+      this.waiters.push(onLine);
+      this.send("version");
+    });
+  }
+  async close() {
+    try { await this.reader.cancel(); } catch (e) {}
+    await this.piped;
+    try { this.writer.releaseLock(); } catch (e) {}
+    try { await this.port.close(); } catch (e) {}
+  }
+}
+
+$("logsBtn").onclick = async () => {
+  $("logsBtn").disabled = true;
+  let link;
+  try {
+    const port = await navigator.serial.requestPort();
+    link = new LineLink(port);
+    await link.open();
+    say("logsStatus", "Saying hi to Jerry...");
+    let version = await link.version();
+    if (!version) version = await link.version();  // he may have been busy starting up
+    if (!version) throw new Error("no answer. Is JerryOS running (not the stock firmware), and is the device plugged in?");
+    const report = [];
+    let any = false;
+    for (const log of LOGS) {
+      say("logsStatus", `JerryOS ${version}: getting the ${log.what}...`);
+      const lines = await link.request(log);
+      if (lines === null) { report.push(`${log.what}: not in JerryOS ${version}`); continue; }
+      const rows = Math.max(0, lines.length - 1);
+      saveFile(`jerry-${log.file}-${today()}.csv`, lines.join("\n") + "\n", "text/csv");
+      report.push(`${log.what}: ${rows}`);
+      any = true;
+    }
+    if (any && $("clearAfter").checked) {
+      await link.send("wifi clear");
+      await new Promise((r) => setTimeout(r, 500));
+      await link.send("ble clear");
+      await new Promise((r) => setTimeout(r, 800));
+      report.push("REC logs erased on Jerry");
+    }
+    say("logsStatus", "Saved to your Downloads folder.\n" + report.join("\n"), "ok");
+  } catch (e) {
+    say("logsStatus", "Couldn't get the logs: " + (e.message || e), "err");
+  } finally {
+    if (link) await link.close();
+    $("logsBtn").disabled = false;
+  }
+};
+</script>
+</body>
+</html>

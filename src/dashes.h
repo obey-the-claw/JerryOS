@@ -1,5 +1,5 @@
 // dashes.h - the home screen's dashes. Tap R on the home screen flips to the
-// next one; Jerry remembers the last one (Settings -> Dash picks it too).
+// next one; Jerry remembers the last one.
 //
 //   Jerry       his face + SAFE / BT / WiFi pills (the original home screen)
 //   Radar       a sweeping radar: every Bluetooth device is a blip, closer =

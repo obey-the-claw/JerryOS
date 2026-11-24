@@ -1114,3 +1114,97 @@ Steve: "in night watch mode the led light should turn off".
 - Simulator check: the LED strip in the screenshots is off on Night Watch
   and amber on the other dashes.
 - Firmware: `firmware/jerryos-cp19-nightled.bin`.
+
+---
+
+## v1.5 + v1.6 + the web installer
+
+Steve: "do all 3 proposed changes.. 1.5 1.6 and web installer. push straight
+to main". From here on, work goes straight to `main`.
+
+### v1.5: cleanup
+
+- **Menu 13 → 10:** Trackers, Followers, Shield, Cameras, **Nearby**,
+  **Listen**, **Logbook**, Rate Gear, Rig, Settings.
+  - **Nearby** = BLE Nearby + WiFi Scan: one list, strongest first, with a
+    B / W tag. The two lists are merged by signal, and the highlight stays
+    on the same device or network as the list re-sorts.
+  - **Listen** = Sound + Knock Detector, since they both use the mic: dB on
+    top, knocks and howls below. The peak became a line across the trace.
+  - **Logbook** = Expeditions + Badges: Badges is the top row.
+- **Settings**, regrouped: screen (Brightness, LED, Pocket), alerts and
+  driving, sounds, scanning, then the action rows.
+  - **Dash** is gone: tap R on home already remembers.
+  - New **Clock**: set hour, minutes, month and day with the two buttons.
+    It lasts until restart, since there's no battery-backed clock. The rig
+    box's clock wins when it's around.
+  - New **Power off** row.
+- **Power off:** hold L for 5 s (a warning toast at 2 s) or Settings →
+  Power off. Jerry says "Bye! Stay wild." and lets the power latch go
+  (GPIO 10 low). On USB that can't work, so he says "Unplug USB first", and
+  if the power somehow stays on he carries on normally.
+- **Battery time left** (`src/battery_life.h`, unit-tested):
+  - Waits for 10+ minutes on battery and a 3% drop before guessing, so the
+    estimate is from a real trend.
+  - Shown on the Trail Dash's fuel gauge and in Diagnostics.
+- **Sunrise / sunset without the rig:** the last GPS fix and UTC offset are
+  saved, so a hand-set clock plus a remembered spot is enough.
+- The old checkpoint guides moved to `docs/history/`, with every link fixed.
+
+### v1.6: easy logs
+
+- **REC logs Bluetooth too:** `/ble.csv`, next to the Wi-Fi log.
+  - Each device gets one line per recording, with what it is and its
+    signal: device, tracker, lost tracker, follower or camera.
+  - GPS is included when the rig has a fix.
+  - Space is split: 2.5 MB for Wi-Fi, 600 KB for Bluetooth.
+  - Settings shows "REC logs" (both together), and erasing clears both.
+  - Checked end to end in the simulator: a 12 s REC logged the AirTags,
+    the follower and the speaker with their kinds and GPS.
+- **Trends covers an hour** (360 samples).
+- **Serial commands:**
+  - `ble dump` / `ble clear` are new, and `version` says which JerryOS this is.
+  - `trips` now has clear BEGIN / END markers.
+  - `tools/pull_wifi_log.py` now saves all three logs.
+- **Why not "Jerry shows up as a USB drive"?** That needs the ESP32-S3's
+  USB switched to TinyUSB mode. If it goes wrong, the automatic
+  reset-into-download-mode that one-click flashing relies on can break, and
+  people would have to open the case for the BOOT button. The web
+  installer's **Download my logs** gets the same result (no Python, no
+  command line) without that risk.
+
+### The web installer (https://obey-the-claw.github.io/JerryOS/)
+
+`docs/index.html` on GitHub Pages, served from `/docs` on `main`. It needs
+Chrome or Edge on a computer (Web Serial). Four steps:
+
+1. **Back up:** esptool-js reads all 16 MB.
+   - It checks the copy before saving: the right size, a bootloader at 0,
+     a partition table at 0x8000.
+   - It shows the SHA-256.
+2. **Install:** ESP Web Tools, from `docs/install/manifest.json` and
+   `jerryos.bin`. The "Erase device" choice is offered, so updates keep
+   their settings.
+3. **Download my logs:** Web Serial and JerryOS's own console commands.
+   - DTR / RTS stay low, so opening the port doesn't restart Jerry.
+   - Status lines are skipped, and it saves wifi, ble and trips CSVs.
+   - It can erase the REC logs afterwards.
+4. **Restore:** writes a backup file back, after the same checks.
+
+How it was tested:
+- In Chromium with a pretend Jerry on a fake serial port. It answered in
+  7-character pieces with a status line in the middle, the way a real one
+  might. The right commands went out, the three files came out exactly
+  right, DTR and RTS stayed low, and a bad backup file was refused while a
+  good one was accepted.
+- The esptool-js calls the page uses all exist in the pinned version.
+- What still needs the real device: the backup read, the restore write and
+  the install itself.
+- `tools/update_web_installer.py` copies the newest firmware into
+  `docs/install/` after a build. `tools/sim/make_docs_images.py` refreshes
+  every README / web page picture from the simulator.
+
+### Firmware
+
+`firmware/jerryos-cp20-v16.bin` (v1.6.0). 304 unit-test checks pass, and the
+simulator walks every screen.
