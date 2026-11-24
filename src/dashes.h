@@ -7,7 +7,7 @@
 //   Trail Dash  a Jeep instrument cluster: speed (with the rig) or Bluetooth,
 //               Wi-Fi and sound gauges, battery as the fuel gauge, warning lamps
 //   All Clear   one big word (ALL CLEAR / HEADS UP / ALERT) + the counts
-//   Trends      the last 10 minutes of Bluetooth, Wi-Fi and sound as graphs
+//   Trends      the last hour of Bluetooth, Wi-Fi and sound as graphs
 //   Night Watch dim, all red, full screen: easy on night vision in the woods
 #pragma once
 #include <LovyanGFX.hpp>

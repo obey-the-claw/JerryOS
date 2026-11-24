@@ -16,6 +16,7 @@
 
 #include <atomic>
 
+#include "ble_log.h"
 #include "camera_watch.h"
 
 namespace wifi {
@@ -24,7 +25,9 @@ namespace {
 constexpr const char *LOG_PATH = "/wifi.csv";
 constexpr uint32_t SCAN_EVERY_MS = 20000;      // one sweep every 20 s
 constexpr uint32_t MS_PER_CHANNEL = 120;       // beacons come every ~102 ms
-constexpr uint32_t MAX_LOG_BYTES = 3u << 20;   // 3 MB, about 40,000 networks
+constexpr uint32_t MAX_LOG_BYTES = 5u << 19;   // 2.5 MB, about 33,000 networks
+constexpr const char *BLE_PATH = "/ble.csv";   // the Bluetooth side of REC (ble_log.h)
+constexpr uint32_t MAX_BLE_BYTES = 600u << 10; // 600 KB, about 8,000 devices
 
 SemaphoreHandle_t tableLock = nullptr;  // guards `table`
 SemaphoreHandle_t fileLock = nullptr;   // guards the log file
@@ -32,7 +35,8 @@ WifiTable table;
 std::atomic<bool> on{true}, running{false}, mounted{false}, full{false};
 std::atomic<bool> rec{false}, scanNow{false}, haveLoc{false};
 std::atomic<int32_t> locLat{0}, locLon{0};
-std::atomic<uint32_t> bytes{0}, saved{0}, sessionNo{0};
+std::atomic<uint32_t> bytes{0}, saved{0}, sessionNo{0}, bleBytes{0};
+std::atomic<bool> bleFull{false};
 
 struct Lock {  // holds a lock until the end of the { } block
   explicit Lock(SemaphoreHandle_t m) : m_(m) { xSemaphoreTake(m_, portMAX_DELAY); }
@@ -89,6 +93,17 @@ void mountLog() {
   bytes = f ? f.size() : 0;
   if (f) f.close();
   full = bytes >= MAX_LOG_BYTES;
+  if (!LittleFS.exists(BLE_PATH)) {
+    File b = LittleFS.open(BLE_PATH, FILE_WRITE);
+    if (b) {
+      b.println(BLE_LOG_HEADER);
+      b.close();
+    }
+  }
+  File b = LittleFS.open(BLE_PATH, FILE_READ);
+  bleBytes = b ? b.size() : 0;
+  if (b) b.close();
+  bleFull = bleBytes >= MAX_BLE_BYTES;
   mounted = true;
   Serial.printf("[wifi] log ready: %lu bytes\n", (unsigned long)bytes);
 }
@@ -318,6 +333,52 @@ void clearLog() {
   }
   full = false;
   Serial.println(F("[wifi] log erased"));
+}
+
+void appendBleLines(const char *lines) {
+  if (!mounted || bleFull || !lines || !lines[0]) return;
+  Lock l(fileLock);
+  File f = LittleFS.open(BLE_PATH, FILE_APPEND);
+  if (!f) return;
+  f.print(lines);
+  bleBytes = f.size();
+  f.close();
+  if (bleBytes >= MAX_BLE_BYTES) bleFull = true;
+}
+
+bool bleLogFull() { return bleFull; }
+uint32_t bleLogBytes() { return bleBytes; }
+
+void clearBleLog() {
+  if (!mounted) return;
+  Lock l(fileLock);
+  File f = LittleFS.open(BLE_PATH, FILE_WRITE);
+  if (f) {
+    f.println(BLE_LOG_HEADER);
+    bleBytes = f.size();
+    f.close();
+  }
+  bleFull = false;
+  Serial.println(F("[ble] log erased"));
+}
+
+void dumpBleLog() {
+  Print &out = Serial;
+  out.println(F("=== JERRYOS BLE LOG BEGIN ==="));
+  if (mounted) {
+    Lock l(fileLock);
+    File f = LittleFS.open(BLE_PATH, FILE_READ);
+    if (f) {
+      uint8_t buf[256];
+      while (f.available()) {
+        const size_t n = f.read(buf, sizeof buf);
+        if (!n) break;
+        out.write(buf, n);
+      }
+      f.close();
+    }
+  }
+  out.printf("=== JERRYOS BLE LOG END %lu ===\n", (unsigned long)bleBytes);
 }
 
 void dumpLog() {

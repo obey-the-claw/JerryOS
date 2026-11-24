@@ -598,8 +598,8 @@ Screen &nearbyDetail(const NearbyDevice &d) {
 // ---------------------------------------------------------------------------
 // WiFi Scan: networks heard (listen-only), strongest first, + the logger
 // ---------------------------------------------------------------------------
-void logSize(char *buf, size_t n) {
-  const uint32_t b = wifi::logBytes();
+void logSize(char *buf, size_t n) {  // both REC logs (Wi-Fi + Bluetooth) together
+  const uint32_t b = wifi::logBytes() + wifi::bleLogBytes();
   if (b < 1024 * 1024) snprintf(buf, n, "%luK", (unsigned long)((b + 1023) / 1024));
   else snprintf(buf, n, "%lu.%luM", (unsigned long)(b >> 20), (unsigned long)((b % (1 << 20)) * 10 >> 20));
 }
@@ -1137,6 +1137,7 @@ class SettingsScreen : public Screen {
       erasing_ = false;
       if (cursor_ == WifiLog) {
         wifi::clearLog();
+        wifi::clearBleLog();
       } else if (cursor_ == Reset) {
         shell.factoryReset();  // restarts the device
       } else if (cursor_ == PowerOff) {
@@ -1189,7 +1190,7 @@ class SettingsScreen : public Screen {
     static const char *const intros[Settings::N_INTRO] = {"random", "jeep", "creek", "selfie", "cruise"};
     static const char *const labels[COUNT] = {"Brightness", "LED",        "Pocket",   "Alert after",
                                               "Drive mode", "Intro",      "Intro tune", "Sound cal",
-                                              "WiFi scan",  "Clock",      "WiFi log", "My devices",
+                                              "WiFi scan",  "Clock",      "REC logs", "My devices",
                                               "Power off",  "Reset all",  "Diagnostics", "About"};
     const char *values[COUNT] = {bright,
                                  ledModeName((LedMode)s.ledMode),

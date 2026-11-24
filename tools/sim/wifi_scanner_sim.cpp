@@ -9,6 +9,7 @@
 #include <string>
 
 #include "wifi_scanner.h"
+#include "ble_log.h"
 
 namespace wifi {
 namespace {
@@ -113,5 +114,11 @@ bool logFull() { return false; }
 uint32_t logBytes() { return (uint32_t)logText.size(); }
 void clearLog() { logText = std::string(LOG_HEADER) + "\n"; }
 void dumpLog() { printf("%s", logText.c_str()); }
+std::string bleText = std::string(BLE_LOG_HEADER) + "\n";
+void appendBleLines(const char *lines) { bleText += lines; }
+bool bleLogFull() { return false; }
+uint32_t bleLogBytes() { return (uint32_t)bleText.size(); }
+void clearBleLog() { bleText = std::string(BLE_LOG_HEADER) + "\n"; }
+void dumpBleLog() { printf("%s", bleText.c_str()); }
 
 }  // namespace wifi

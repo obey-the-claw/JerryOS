@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "attack_watch.h"
 #include "badges.h"
+#include "ble_log.h"
 #include "battery_life.h"
 #include "expedition.h"
 #include "history.h"
@@ -107,6 +108,9 @@ class Shell {
   int utcOffsetMin_ = 0;  // from the rig box (saved): for sunrise / sunset
   uint32_t lastFixSave_ = 0;
   void saveFix();
+  SeenSet bleSeen_;          // devices already in /ble.csv this recording
+  uint32_t bleSession_ = 0;
+  void logBluetooth(uint32_t now);
   TripSample tripSample(uint32_t now);
   void updateExtras(uint32_t now);  // clock, trends, expeditions, badges
   void saveTrips();

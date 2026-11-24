@@ -74,7 +74,10 @@ void Shell::begin() {
 // Tiny USB command line. Type a command + Enter in a serial terminal:
 //   wifi dump   print the whole Wi-Fi log (tools/pull_wifi_log.py does this)
 //   wifi clear  erase the Wi-Fi log
+//   ble dump    print the Bluetooth log (the other half of REC)
+//   ble clear   erase it
 //   trips       print the Expedition log (REC session recaps) as CSV
+//   version     which JerryOS this is
 //   help        list commands
 void Shell::pollConsole() {
   while (Serial.available()) {
@@ -88,8 +91,11 @@ void Shell::pollConsole() {
     cmdLen_ = 0;
     if (!strcmp(cmd_, "wifi dump")) wifi::dumpLog();
     else if (!strcmp(cmd_, "wifi clear")) wifi::clearLog();
+    else if (!strcmp(cmd_, "ble dump")) wifi::dumpBleLog();
+    else if (!strcmp(cmd_, "ble clear")) wifi::clearBleLog();
     else if (!strcmp(cmd_, "trips")) {  // the Expedition log as CSV (newest first)
-      Serial.println(F("# trip,day_of_year,start_min,seconds,networks,meters,top_kmh,peak_bt,trackers,"
+      Serial.println(F("=== JERRYOS TRIPS BEGIN ==="));
+      Serial.println(F("trip,day_of_year,start_min,seconds,networks,meters,top_kmh,peak_bt,trackers,"
                        "followers,flock,knocks"));
       for (int i = 0; i < trips_.count(); i++) {
         const TripRecap &r = trips_.at(i);
@@ -98,8 +104,12 @@ void Shell::pollConsole() {
                       (unsigned long)r.nets, (unsigned long)r.meters, r.topKmh, r.peakBt, r.trackers,
                       r.followers, r.flock, r.knocks);
       }
-      Serial.println(F("# end"));
-    } else if (cmd_[0]) Serial.println(F("[console] commands: wifi dump | wifi clear | trips | help"));
+      Serial.println(F("=== JERRYOS TRIPS END ==="));
+    } else if (!strcmp(cmd_, "version")) {
+      Serial.printf("JerryOS %s\n", JERRYOS_VERSION);
+    } else if (cmd_[0]) {
+      Serial.println(F("[console] commands: wifi dump | wifi clear | ble dump | ble clear | trips | version | help"));
+    }
   }
 }
 
@@ -191,6 +201,46 @@ void Shell::powerOff() {
   toast("Couldn't switch off", 3000);
 }
 
+// REC also logs Bluetooth: each device once per recording, marked if it's
+// a tracker, a follower or a camera (ble_log.h).
+void Shell::logBluetooth(uint32_t now) {
+  if (wifi::session() != bleSession_) {  // a new recording: everyone's new again
+    bleSession_ = wifi::session();
+    bleSeen_.clear();
+  }
+  static NearbyDevice devs[NearbyTable::MAX];
+  const int n = ble::nearbySnapshot(devs, NearbyTable::MAX);
+  const TrackedDevice *trk[TrackerWatch::MAX_DEVICES];
+  const Follower *fol[FollowWatch::MAX];
+  const int nf = follow_.followers(fol, FollowWatch::MAX);
+  const CamSighting *cams[16];
+  const int nc = cams_.list(cams, 16);
+  int32_t lat = 0, lon = 0;
+  const bool loc = rig_.location(now, lat, lon);
+  static char lines[2048];
+  size_t used = 0;
+  for (int i = 0; i < n; i++) {
+    const uint8_t *a = devs[i].addr;
+    BleKind kind = BleKind::Device;
+    for (int k = 0; k < TRACKER_KINDS && kind == BleKind::Device; k++) {
+      const int c = tracker_.listDevices((TrackerKind)k, now, trk, TrackerWatch::MAX_DEVICES);
+      for (int j = 0; j < c; j++)
+        if (!memcmp(trk[j]->addr, a, 6)) kind = trk[j]->separated ? BleKind::LostTracker : BleKind::Tracker;
+    }
+    for (int j = 0; j < nf; j++)
+      if (fol[j]->flagged && !memcmp(fol[j]->addr, a, 6)) kind = BleKind::Follower;
+    for (int j = 0; j < nc; j++)
+      if (!memcmp(cams[j]->addr, a, 6)) kind = BleKind::Camera;
+    if (used + 140 > sizeof lines) break;  // the rest get their turn in 5 s
+    if (!bleSeen_.insert(a)) continue;
+    used += formatBleLogLine(lines + used, sizeof lines - used, bleSession_, now / 1000, a, devs[i].label, kind,
+                             devs[i].rssi, loc, lat, lon);
+    lines[used++] = '\n';
+    lines[used] = 0;
+  }
+  if (used) wifi::appendBleLines(lines);
+}
+
 TripSample Shell::tripSample(uint32_t now) {
   TripSample s;
   s.bt = ble::nearbyDevices();
@@ -239,6 +289,7 @@ void Shell::updateExtras(uint32_t now) {
   } else if (rec && now - lastTripSample_ >= 5000) {
     lastTripSample_ = now;
     trip_.sample(now, tripSample(now));
+    logBluetooth(now);
   } else if (!rec && wasRecording_) {  // REC stopped: the recap card
     trip_.sample(now, tripSample(now));
     lastRecap_ = trip_.end(now, wifi::savedThisSession());
@@ -274,6 +325,7 @@ void Shell::updateExtras(uint32_t now) {
 void Shell::factoryReset() {
   Serial.println(F("[shell] FACTORY RESET"));
   wifi::clearLog();
+  wifi::clearBleLog();
   Preferences p;
   if (p.begin("jerryos", false)) {
     p.clear();

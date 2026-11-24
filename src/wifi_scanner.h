@@ -42,4 +42,11 @@ uint32_t logBytes();
 void clearLog();                 // erase /wifi.csv
 void dumpLog();                  // print the whole file over USB (for the PC script)
 
+// The Bluetooth side of REC: /ble.csv, next to the Wi-Fi log (ble_log.h).
+void appendBleLines(const char *lines);  // whole lines, each ending in '\n'
+bool bleLogFull();
+uint32_t bleLogBytes();
+void clearBleLog();
+void dumpBleLog();
+
 }  // namespace wifi

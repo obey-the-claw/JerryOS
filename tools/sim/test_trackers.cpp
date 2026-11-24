@@ -25,6 +25,7 @@
 #include "expedition.h"
 #include "badges.h"
 #include "battery_life.h"
+#include "ble_log.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -803,12 +804,14 @@ static void testHistory() {
   printf("Trends history\n");
   History h;
   CHECK(h.size() == 0 && h.latest(History::BT) == -1);
-  for (int i = 0; i < 70; i++) h.add(i, 100 + i, i % 2 ? -1 : 50);
-  CHECK(h.size() == History::N);
-  CHECK(h.at(History::BT, 0) == 10 && h.latest(History::BT) == 69);  // oldest dropped
-  CHECK(h.at(History::WIFI, 59) == 169 && h.max(History::BT) == 69);
-  CHECK(h.at(History::SOUND, 59) == -1 && h.at(History::SOUND, 58) == 50);
-  CHECK(h.at(History::BT, 60) == -1);
+  const int N = History::N, extra = 10;
+  CHECK(N * History::STEP_MS == 3600000u);  // an hour
+  for (int i = 0; i < N + extra; i++) h.add(i, 100 + i, i % 2 ? -1 : 50);
+  CHECK(h.size() == N);
+  CHECK(h.at(History::BT, 0) == extra && h.latest(History::BT) == N + extra - 1);  // oldest dropped
+  CHECK(h.at(History::WIFI, N - 1) == 100 + N + extra - 1 && h.max(History::BT) == N + extra - 1);
+  CHECK(h.at(History::SOUND, N - 1) == -1 && h.at(History::SOUND, N - 2) == 50);
+  CHECK(h.at(History::BT, N) == -1);
 }
 
 // 100 ms of a fake microphone: background hiss, plus an optional knock (a
@@ -958,6 +961,31 @@ static void testBatteryLife() {
   CHECK(b.minutesLeft() == -1);
 }
 
+static void testBleLog() {
+  printf("Bluetooth REC log\n");
+  const uint8_t a[6] = {0x66, 0x55, 0x44, 0x33, 0x22, 0x11};  // stored backwards
+  char line[160];
+  formatBleLogLine(line, sizeof line, 3, 125, a, "JBL \"Flip\" 5", BleKind::Device, -61, true, 335123456, -1121234567);
+  CHECK(strcmp(line, "3,125,11:22:33:44:55:66,\"JBL \"\"Flip\"\" 5\",device,-61,33.5123456,-112.1234567") == 0);
+  formatBleLogLine(line, sizeof line, 3, 126, a, "AirTag (lost)", BleKind::LostTracker, -70, false, 0, 0);
+  CHECK(strcmp(line, "3,126,11:22:33:44:55:66,\"AirTag (lost)\",lost tracker,-70,,") == 0);
+  formatBleLogLine(line, sizeof line, 1, 1, a, "bad\nname", BleKind::Camera, -50, false, 0, 0);
+  CHECK(strstr(line, "\"bad?name\",camera") != nullptr);  // a newline can't break the file
+  CHECK(strcmp(BLE_LOG_HEADER, "session,uptime_s,address,label,kind,rssi,lat,lon") == 0);
+  static SeenSet seen;
+  CHECK(seen.insert(a) && !seen.insert(a) && seen.size() == 1);
+  uint8_t b[6] = {};
+  int added = 0;
+  for (int i = 0; i < 2000; i++) {
+    b[0] = (uint8_t)i;
+    b[1] = (uint8_t)(i >> 8);
+    added += seen.insert(b);
+  }
+  CHECK(seen.size() <= SeenSet::CAP * 3 / 4 && added > 700);  // fills up, never overflows
+  seen.clear();
+  CHECK(seen.size() == 0 && seen.insert(a));
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -976,6 +1004,7 @@ int main() {
   testExpedition();
   testBadges();
   testBatteryLife();
+  testBleLog();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

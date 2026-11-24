@@ -346,7 +346,7 @@ void drawTrends(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) {
   sparkPanel(g, hist, History::BT, y0 + 1, ph - 1, "BT", GOLD, "");
   sparkPanel(g, hist, History::WIFI, y0 + ph + 1, ph - 1, "WiFi", lgfx::color565(0x7c, 0xc4, 0xe8), "");
   sparkPanel(g, hist, History::SOUND, y0 + 2 * ph + 1, ph - 1, "Sound", GRIN, " dB");
-  centered(g, y0 + h - 10, DIM, "last 10 minutes");
+  centered(g, y0 + h - 10, DIM, "the last hour");
 }
 
 // ---------------------------------------------------------------------------

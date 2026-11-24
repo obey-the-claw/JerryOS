@@ -5,6 +5,7 @@
 #include "screens.h"
 #include "shell.h"
 #include "status_led.h"
+#include "wifi_scanner.h"
 extern Rgb g_simLed;
 uint32_t g_fake_ms = 1000;
 int g_pin[64];
@@ -205,6 +206,10 @@ int main() {
   tap(PIN_BTN_RIGHT); run(300); snap("pocket_peek");
   g_pin[PIN_BTN_LEFT] = 0; g_pin[PIN_BTN_RIGHT] = 0; run(1200);
   g_pin[PIN_BTN_LEFT] = 1; g_pin[PIN_BTN_RIGHT] = 1; run(300); snap("pocket_unlocked");
+  // A longer REC with the rig's GPS: Bluetooth gets logged too (printed for checking).
+  hold(PIN_BTN_RIGHT); run(12000, 40); hold(PIN_BTN_RIGHT); run(300); snap("recap_long");
+  tap(PIN_BTN_LEFT);
+  printf("--- ble log ---\n"); wifi::dumpBleLog(); printf("--- end ---\n");
   printf("brightness now %u, depth ok\n", lcd.brightness);
   return 0;
 }
