@@ -1100,3 +1100,17 @@ approved.
   amazing :)"
 - Lesson: the dashes are easy to miss if you expect a Menu item. The user
   guide and README both say "tap R on home".
+
+---
+
+## v1.4.1: Night Watch turns the LED off
+
+Steve: "in night watch mode the led light should turn off".
+
+- On the Night Watch dash the colour LED now stays dark, so there's no glow
+  in the woods. The dim red screen still shows alerts (ALERT blinks).
+- **Except in pocket mode:** there the screen is off and the LED is the
+  only signal left, so it keeps working.
+- Simulator check: the LED strip in the screenshots is off on Night Watch
+  and amber on the other dashes.
+- Firmware: `firmware/jerryos-cp19-nightled.bin`.

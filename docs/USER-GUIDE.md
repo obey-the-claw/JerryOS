@@ -40,7 +40,7 @@ you were on, and **Settings → Dash** picks it too. **Hold R** is still
 | **Trail Dash** | A Jeep instrument cluster: big gauge = speed in mph with the rig box (otherwise Bluetooth devices), small gauges = Wi-Fi networks and sound dB, the fuel gauge = battery, warning lamps GPS / REC / !, the time and sunrise / sunset when the rig box has sent them |
 | **All Clear** | One big word: **ALL CLEAR** (green, and how long it's been quiet), **HEADS UP** (amber) or **ALERT!** (flashing red), with the counts of lost trackers, followers, Flock cameras and attacks |
 | **Trends** | Graphs of the last 10 minutes: Bluetooth, Wi-Fi and sound (sound only fills in while a dash that uses the microphone is up) |
-| **Night Watch** | Full screen, dim, all red, so it won't ruin your night vision: the time (big) once the rig box has sent it, otherwise the Bluetooth count, plus the status, counts and next sunrise / dark |
+| **Night Watch** | Full screen, dim, all red, and the LED goes dark (except in pocket mode), so it won't ruin your night vision: the time (big) once the rig box has sent it, otherwise the Bluetooth count, plus the status, counts and next sunrise / dark |
 
 **Drive mode:** with the rig box paired, when it reports 10+ mph for 5 s Jerry
 switches to the Trail Dash and the top bar says **DRIVE**. Stopped for a

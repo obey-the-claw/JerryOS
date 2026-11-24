@@ -272,6 +272,10 @@ void Shell::updateLed(uint32_t now) {
   in.watching = tracker_.anySeparatedNow(now) || follow_.flaggedCount() > 0 ||
                 attack_.anyActive() || cams_.nearbyFlock(now) > 0;
   in.recording = wifi::recording();
+  // Night Watch: the LED goes dark too (no glow in the woods at night; the
+  // dim red screen still shows alerts). Not in pocket mode, where the screen
+  // is off and the LED is the only signal left.
+  if (nightDim_ && !pocket_) return led::show(Rgb{0, 0, 0});
   led::show(ledColor(in, (LedMode)settings_.ledMode, now));
 }
 

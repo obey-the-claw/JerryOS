@@ -11,7 +11,7 @@ Flash `jerryos-cp18-dashes.bin` (flash_prebuilt picks it). About says **v1.4.0**
 - [ ] Restart: Jerry comes back on the dash you left him on
 - [ ] Radar: blips sweep and fade; walk a Bluetooth gadget closer, its blip moves in
 - [ ] Trail Dash: BT gauge, Wi-Fi + dB gauges move, fuel gauge = battery
-- [ ] Night Watch: dim and red, readable in a dark room
+- [ ] Night Watch: dim and red, readable in a dark room; the LED goes off (v1.4.1)
 - [ ] Knock Detector: knock on a table / door: "KNOCK!", two quick knocks = "x2"
 - [ ] Hold R on home (REC), wait a minute, hold R again: the recap card pops up;
       Menu → Expeditions lists it

@@ -85,7 +85,7 @@ sound in [docs/previews](docs/previews/).
 ## Install
 
 The ready-made firmware is in [`firmware/`](firmware/): use the newest
-`jerryos-cp*.bin` (the highest number; `cp18` is v1.4.0). Each has a
+`jerryos-cp*.bin` (the highest number; `cp19` is v1.4.1). Each has a
 `.sha256` file to check it against.
 
 ### 1. Back up your original firmware first
@@ -120,7 +120,7 @@ powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7
 **macOS / Linux:**
 
 ```bash
-esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp18-dashes.bin
+esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp19-nightled.bin
 ```
 
 (esptool v4 and older spell these `read_flash` / `write_flash`.)
