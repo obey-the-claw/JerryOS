@@ -1092,3 +1092,11 @@ approved.
     addresses, and no email addresses in files.
   - The backup script no longer says "tell Claude" (strangers won't have
     me).
+
+### On the real device
+
+- [x] v1.4.0 flashed. Tap R flips through the dashes. Steve: "ok thats
+  amazing i didn't reailze that was how it was now with right button..
+  amazing :)"
+- Lesson: the dashes are easy to miss if you expect a Menu item. The user
+  guide and README both say "tap R on home".

@@ -5,8 +5,9 @@
 Flash `jerryos-cp18-dashes.bin` (flash_prebuilt picks it). About says **v1.4.0**.
 
 - [ ] Boot: the intro shows **IG @5quatchRated** under the version
-- [ ] Home: tap R flips Jerry → Radar → Trail Dash → All Clear → Trends →
-      Night Watch → Jerry (name pops up each time; landing on Jerry = poke)
+- [x] Home: tap R flips Jerry → Radar → Trail Dash → All Clear → Trends →
+      Night Watch → Jerry (name pops up each time; landing on Jerry = poke).
+      Steve: "thats amazing"
 - [ ] Restart: Jerry comes back on the dash you left him on
 - [ ] Radar: blips sweep and fade; walk a Bluetooth gadget closer, its blip moves in
 - [ ] Trail Dash: BT gauge, Wi-Fi + dB gauges move, fuel gauge = battery
