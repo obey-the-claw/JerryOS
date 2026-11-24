@@ -1098,12 +1098,13 @@ class AboutScreen : public Screen {
   }
 
  private:
-  static constexpr int kLines = 25;
+  static constexpr int kLines = 26;
   const char *const kText[kLines] = {
       "*JerryOS v" JERRYOS_VERSION,
       "Jerry the Squatch",
       "Chief Gear Inspector",
       "5quatchrated.com",
+      "*IG @5quatchRated",
       "",
       "*Personal monitor",
       "Trackers, BLE, WiFi",
@@ -1113,7 +1114,7 @@ class AboutScreen : public Screen {
       "*Built with",
       "LovyanGFX (lovyan03)",
       "Espressif ESP32",
-      "PlatformIO, NimBLE",
+      "Arduino-ESP32, NimBLE",
       "*Tracker research",
       "AirGuard (SEEMOO lab)",
       "*Flock signatures",

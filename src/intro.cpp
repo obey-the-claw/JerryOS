@@ -186,6 +186,13 @@ void title(lgfx::LovyanGFX &g, float k) {  // k: 0..1 pop-in
     g.setTextColor(CREAM);
     g.setCursor((W - g.textWidth(v)) / 2, y + 19);
     g.print(v);
+    // Say hi on Instagram (on a dark tag so it reads over any intro).
+    const char *ig = "IG @5quatchRated";
+    const int iw = g.textWidth(ig);
+    g.fillRoundRect((W - iw) / 2 - 3, y + 29, iw + 6, 11, 3, INK);
+    g.setTextColor(GOLD);
+    g.setCursor((W - iw) / 2, y + 31);
+    g.print(ig);
   }
 }
 
@@ -193,9 +200,9 @@ void title(lgfx::LovyanGFX &g, float k) {  // k: 0..1 pop-in
 void pressAnyButton(lgfx::LovyanGFX &g) {
   if ((millis() / 600) % 2 == 0) return;
   const char *msg = "press any button";
-  g.fillRoundRect((W - g.textWidth(msg)) / 2 - 4, 54, g.textWidth(msg) + 8, 13, 4, INK);
+  g.fillRoundRect((W - g.textWidth(msg)) / 2 - 4, 58, g.textWidth(msg) + 8, 13, 4, INK);
   g.setTextColor(CREAM);
-  g.setCursor((W - g.textWidth(msg)) / 2, 57);
+  g.setCursor((W - g.textWidth(msg)) / 2, 61);
   g.print(msg);
 }
 

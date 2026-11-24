@@ -1,43 +1,168 @@
 # JerryOS
 
-Custom firmware for the **AIPI Lite** (ESP32-S3) that turns it into Jerry the
-Squatch's pocket/dash sidekick, "Chief Gear Inspector" for the
-[5quatch Rated](https://5quatchrated.com) rig.
+**Free custom firmware that turns the AIPI Lite into Jerry the Squatch: a
+pocket-sized, listen-only privacy monitor with a funky attitude.**
 
-It's a **personal, on-the-spot monitor**: it warns you about trackers
-following you and shows the Bluetooth and Wi-Fi around you. It only
-listens (never transmits) and only saves when you press REC. It's also the
-handheld starting point for the Pi Zero box (Scanner v0).
+By [5quatch Rated](https://5quatchrated.com) · Instagram
+[@5quatchRated](https://instagram.com/5quatchRated) · Jerry is our "Chief
+Gear Inspector".
 
-Jerry's animated head lives on the screen. The v0 modes are:
+![JerryOS boot intro](docs/img/intro.gif)
 
-- **Tracker Watch:** passive BLE scan for AirTag / Tile / SmartTag-style
-  trackers that keep following you.
-- **Followers:** any Bluetooth device that stays with you while you move
-  (car, watch, hidden gadget), using Wi-Fi changes as a "you moved" signal.
-- **Shield:** listen-only attack detector: Wi-Fi "deauth" floods, Flipper-style
-  Bluetooth pop-up spam, evil-twin and many-names fake networks.
-- **Cameras:** spots Flock licence-plate cameras, their battery packs and
-  Raven sensors as you pass (signatures from flock-you / flock-you-go), and
-  lists hidden-camera hints (camera-brand Wi-Fi, spy-cam hotspots).
-- **Pocket mode:** hold both buttons to lock (screen dark, LED only).
-- **Sound:** rough dB meter from the built-in microphone.
-- **Colour LED:** red blink = look at Jerry, amber = watching, blue blip =
-  recording, soft green = all clear. Works with the screen off.
-- **BLE Nearby:** every Bluetooth device in range, closest first.
-- **WiFi Scan:** listen-only Wi-Fi scanner. Hold R on the home screen to
-  record networks to a log (copy it to your PC with `tools/pull_wifi_log.py`).
-- **Home screen:** Jerry plus live counts (trackers, Bluetooth, Wi-Fi),
-  speech bubbles, and a battery-saving screen timeout. Silent by design.
-- **Rig Dashboard:** your Pi Zero "Scanner" box (GPS, speed, its counts) over a
-  listen-only Bluetooth beacon (`tools/pi/jerry_beacon.py`). With a fix, REC
-  logs get lat/lon.
-- **Settings.**
+The AIPI Lite is a little ESP32-S3 gadget with a 128×128 screen, two buttons,
+a microphone and a speaker. Flash JerryOS onto it and it becomes:
 
-Two buttons, a hint bar that always tells you what they do, and the device
-stays physically stock (no soldering).
+- **Tracker Watch:** AirTags, Tiles, SmartTags and other item trackers that
+  have been travelling with you, away from their owner.
+- **Followers:** any Bluetooth device that keeps showing up wherever you go.
+- **Shield:** Wi-Fi "kick-off" floods, Flipper-style Bluetooth pop-up spam,
+  evil-twin and fake networks.
+- **Cameras:** Flock licence-plate cameras as you pass them, plus
+  hidden-camera hints for hotel and rental checks.
+- **Six home dashes:** Jerry himself, a **Radar** sweep, a Jeep-style **Trail
+  Dash** (speed, gauges, battery as the fuel gauge), **All Clear**, 10-minute
+  **Trends**, and a dim red **Night Watch**.
+- **Knock Detector:** listens for wood knocks and howls. Knock on a tree and
+  see if the woods knock back.
+- **Expeditions:** a recap card for every recording session.
+- **Rate Gear:** the **5quatch Rated** stamp, rate your gear 1-5 squatch
+  prints on camera.
+- **Badges**, a **sound meter**, **BLE / Wi-Fi scanners**, a silent
+  **colour LED**, **pocket mode**, and four boot intros, each with its own
+  funk groove.
 
-## Status
+![The intros](docs/img/intros.png)
+
+![v1.4 screens](docs/previews/v1.4_screens.png)
+
+## Listen-only, by design
+
+- Jerry **never transmits**. He only listens to what's already in the air:
+  no jamming, no deauth, no probing, no connecting to anything.
+- He **saves nothing** unless you press REC, and what he saves stays on the
+  device until you copy it off.
+- He's a helpful second pair of eyes, **not a guarantee**. Phones and AirPods
+  change their Bluetooth address every ~15 minutes on purpose, a camera that
+  records to a card is radio-silent, and the "knocks" are possible knocks.
+  The [user guide](docs/USER-GUIDE.md) lists the honest limits.
+- Know your local laws on Wi-Fi / Bluetooth monitoring and recording before
+  you use it.
+
+## What you need
+
+- An **AIPI Lite** (ESP32-S3, 16 MB flash, 8 MB PSRAM). It stays physically
+  stock: no soldering, no opening it up (normally).
+- A USB-C data cable and a computer (Windows, macOS or Linux).
+- Optional: a Raspberry Pi Zero "rig box" with GPS for speed, location,
+  the time and sunrise / sunset ([tools/pi](tools/pi/README.md)).
+
+## Install
+
+The ready-made firmware is in [`firmware/`](firmware/): use the newest
+`jerryos-cp*.bin` (the highest number; `cp18` is v1.4.0). Each has a
+`.sha256` file to check it against.
+
+### 1. Back up your original firmware first
+
+Your backup stays on your own computer: it can contain the Wi-Fi password
+you gave the stock app, so never share it. With it you can always go back
+to stock.
+
+**Windows** (in this folder, in PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\backup_firmware.ps1
+```
+
+**macOS / Linux** (`pip install esptool` first; your port looks like
+`/dev/cu.usbmodem...` on a Mac, `/dev/ttyACM0` on Linux):
+
+```bash
+esptool --chip esp32s3 --port /dev/ttyACM0 read-flash 0 0x1000000 aipi-backup.bin
+```
+
+### 2. Flash JerryOS
+
+**Windows:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\flash_prebuilt.ps1 -Port COM7
+```
+
+(Your COM port may differ: leave `-Port` off and it finds the device.)
+
+**macOS / Linux:**
+
+```bash
+esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 firmware/jerryos-cp18-dashes.bin
+```
+
+(esptool v4 and older spell these `read_flash` / `write_flash`.)
+
+If esptool can't connect, see
+[backup/README.md](backup/README.md#if-esptool-cannot-connect).
+
+### 3. Going back to stock
+
+Windows: `tools\restore_firmware.ps1`. Elsewhere:
+`esptool --chip esp32s3 --port <port> write-flash 0x0 aipi-backup.bin`.
+
+## Using Jerry
+
+Tap **L** = menu / back, tap **R** = next (on the home screen: the next dash),
+hold **R** = select (on home: REC), hold **L** = home, hold **L + R** =
+pocket mode. The bottom bar always shows what the buttons do.
+
+Everything else is in the **[user guide](docs/USER-GUIDE.md)**.
+
+## Build it yourself
+
+- **Firmware:** `tools/build_firmware.sh firmware/my-build.bin` (Linux,
+  macOS, WSL) with arduino-cli, Arduino-ESP32 **2.0.17**, NimBLE-Arduino
+  **1.4.3** and LovyanGFX **1.2.7**. The script's header lists the
+  one-time setup. The exact versions matter.
+- **PC simulator:** `tools/sim/build_sim.sh <path to LovyanGFX>` runs the
+  real screens on your computer and saves screenshots, GIFs and videos.
+- **Unit tests:** `tools/sim/run_tests.sh` (289 checks, no device needed).
+- **Hear the grooves:** `tools/sim/render_funk.sh`, or just play
+  [docs/sounds](docs/sounds/).
+
+Code map: `src/main.cpp` explains where everything lives. The whole build
+story, checkpoint by checkpoint, is in [BUILDLOG.md](BUILDLOG.md).
+
+## Repo layout
+
+```
+backup/      where YOUR firmware backup goes (never in git)
+docs/        user guide, hardware notes, checkpoint guides, previews, sounds
+firmware/    ready-to-flash builds (+ SHA256)
+include/     board_pins.h: every pin in one place
+src/         the firmware
+tools/       build, backup, restore, flash, log-pull scripts; PC simulator + tests (tools/sim);
+             the Pi rig box beacon (tools/pi)
+BUILDLOG.md  the build diary
+```
+
+## License
+
+JerryOS is **free for noncommercial use** under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md): use it, change it, share
+it, build on it. **Selling it**, or using it in a paid product or service,
+needs written permission from 5quatch Rated: get in touch through
+[5quatchrated.com](https://5quatchrated.com) or
+[@5quatchRated](https://instagram.com/5quatchRated).
+
+The open-source libraries inside the firmware keep their own licenses: see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### The brand
+
+"Jerry the Squatch", "5quatch Rated", and Jerry's look and character are
+5quatch Rated's own and are **not** covered by the license. If you share a
+modified version, give it your own name and character. Telling people it's
+based on JerryOS, with a link back here, is welcome.
+
+## Build history
 
 | # | Checkpoint | State |
 |---|---|---|
@@ -58,46 +183,7 @@ stays physically stock (no soldering).
 | 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | ✅ "the groove is jamming" 2026-10-08 |
 | 16 | **v1.2.1:** quieter, cleaner groove; Intro tune off / low / med / high | ✅ "volume sounds way better" 2026-10-08 |
 | 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews/)); Settings → Intro | ✅ "absolutely perfect" 2026-10-08 |
-| 18 | **v1.4:** home dashes (Radar, Trail Dash, All Clear, Trends, Night Watch), drive mode, Knock Detector, Expeditions, Rate Gear stamp, Badges, sunrise / sunset ([previews](docs/previews/v1.4_screens.png)) | 👀 previews for Steve |
-
-**How to use Jerry:** [docs/USER-GUIDE.md](docs/USER-GUIDE.md) · **What to test:** [docs/TEST-PLAN.md](docs/TEST-PLAN.md)
-
-See [BUILDLOG.md](BUILDLOG.md) for the story so far.
-
-![JerryOS boot intro](docs/img/intro.gif)
-
-![JerryOS](docs/img/cp6-monitor.png)
-
-## Repo layout
-
-```
-backup/         where YOUR firmware backup goes (not in git)  (backup/README.md)
-docs/           hardware reference, per-checkpoint guides     (docs/)
-firmware/       ready-to-flash builds (+ SHA256)
-include/        board_pins.h - every pin in one place
-src/            the firmware source
-tools/          backup / restore / flash / inspect / pull-log scripts, PC simulator (tools/sim)
-logs/           Wi-Fi logs pulled off the device (not in git)
-platformio.ini  build settings (PlatformIO)
-BUILDLOG.md     checkpoint-by-checkpoint build diary
-```
-
-
-## Step 0: back up the original firmware
-
-Do this before anything gets flashed. The backup stays on your own PC (it's
-never put in git). Full instructions are in
-[backup/README.md](backup/README.md). Short version, on Windows in this folder:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\backup_firmware.ps1
-```
-
-To put the device back to stock at any time:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\restore_firmware.ps1
-```
+| 18 | **v1.4:** home dashes (Radar, Trail Dash, All Clear, Trends, Night Watch), drive mode, Knock Detector, Expeditions, Rate Gear stamp, Badges, sunrise / sunset ([previews](docs/previews/v1.4_screens.png)) | ✅ released 2026-11-24 |
 
 ## Credits
 

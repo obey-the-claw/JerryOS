@@ -1,4 +1,26 @@
-# Test plan: JerryOS v1.0
+# Test plan: JerryOS
+
+## v1.4 (cp18): dashes, Knock Detector, Expeditions, Rate Gear, Badges
+
+Flash `jerryos-cp18-dashes.bin` (flash_prebuilt picks it). About says **v1.4.0**.
+
+- [ ] Boot: the intro shows **IG @5quatchRated** under the version
+- [ ] Home: tap R flips Jerry → Radar → Trail Dash → All Clear → Trends →
+      Night Watch → Jerry (name pops up each time; landing on Jerry = poke)
+- [ ] Restart: Jerry comes back on the dash you left him on
+- [ ] Radar: blips sweep and fade; walk a Bluetooth gadget closer, its blip moves in
+- [ ] Trail Dash: BT gauge, Wi-Fi + dB gauges move, fuel gauge = battery
+- [ ] Night Watch: dim and red, readable in a dark room
+- [ ] Knock Detector: knock on a table / door: "KNOCK!", two quick knocks = "x2"
+- [ ] Hold R on home (REC), wait a minute, hold R again: the recap card pops up;
+      Menu → Expeditions lists it
+- [ ] Rate Gear: tap R to 3, hold R: stamp + horn sting; try 1 (sad wah-wah)
+- [ ] Badges: Gear Inspector earned (toast) after the stamp
+- [ ] With the Pi rig box (new `jerry_beacon.py`): the time on Trail Dash /
+      Night Watch, sunrise / sunset, Drive mode when you drive off
+
+---
+
 
 One flash gives you everything: **Followers, Shield, LED, Flock cameras,
 hidden-camera hints, pocket mode, sound meter, Rig Dashboard, GPS-tagged

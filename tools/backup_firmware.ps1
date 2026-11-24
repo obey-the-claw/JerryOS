@@ -117,7 +117,7 @@ if ($r.Code -ne 0) {
 }
 $facts = $r.Lines -join "`n"
 if ($facts -match 'Secure Download Mode') {
-    Fail 'The chip is locked in Secure Download Mode, which blocks reading flash. Nothing was changed. Tell Claude.'
+    Fail 'The chip is locked in Secure Download Mode, which blocks reading flash. Nothing was changed. JerryOS cannot be installed on this unit.'
 }
 $r = Run-Py ($Base + @('get-security-info')) $InfoFile
 $sec = $r.Lines -join "`n"
@@ -141,7 +141,7 @@ if ($sec -match 'Flash Encryption:\s*Enabled' -or $sec -match 'Flash encryption:
 }
 if ($sec -match 'Secure Boot:\s*Enabled' -or $sec -match 'Secure boot:\s*enabled') {
     Fail ('Secure Boot is ENABLED on this chip. It will refuse unsigned custom firmware. Do NOT try to flash JerryOS - ' +
-          'tell Claude and we will rethink. (Your backup has not been taken yet; nothing was changed.)')
+          'this unit can''t run JerryOS. (Your backup has not been taken yet; nothing was changed.)')
 }
 
 $expect = if ($flashSize) { $flashSize } else { '16MB' }
@@ -183,4 +183,4 @@ Write-Host "   Device info   : $InfoFile"
 Write-Host "   Full log      : $LogFile"
 Write-Host ''
 Write-Host 'Next: copy the .bin somewhere OFF this laptop too (USB stick / cloud drive).' -ForegroundColor Yellow
-Write-Host 'Then send Claude the device-info file contents. Checkpoint 1 done.' -ForegroundColor Yellow
+Write-Host 'Backup done. Next: tools\flash_prebuilt.ps1 to install JerryOS.' -ForegroundColor Yellow

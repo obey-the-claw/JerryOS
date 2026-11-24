@@ -1041,3 +1041,54 @@ Jerry still does. The choice is remembered (Settings → Dash).
 - `anim_radar.gif`: one sweep.
 - `anim_stamp.mp4`: the stamp with its sting.
 - `docs/sounds/sting_approved.wav`, `sting_meh.wav`.
+
+---
+
+## v1.4.0: firmware, and getting ready to go public
+
+Steve: "ok i want to prep this for launching on github for free to people.
+i've had people see it and want access to it. ... we need to add a 'IG
+@5quatchRated' ... good to build new firmware". So the previews are
+approved.
+
+### What we did
+
+- **IG @5quatchRated** on every intro's title card (on a dark tag so it
+  reads over any scene), and in Settings → About. "press any button" moved
+  down 4 px to make room. About also said "PlatformIO" under "Built with",
+  which was wrong; it's Arduino-ESP32.
+- **The build recipe is in the repo now: `tools/build_firmware.sh`.**
+  - Until now it lived in a scratch file on the build machine, which got
+    wiped. Anyone building JerryOS needs it, so it's in git now.
+  - I proved it by rebuilding v1.3 from its commit and comparing with the
+    `cp17` file Steve flashed. It matched byte for byte, apart from the
+    32-byte fingerprints the build adds.
+  - One detail that test caught: it compiles in **QIO** mode, matching
+    `platformio.ini`'s `qio_opi` memory type, but the final file's header
+    says **DIO**. That's the combination this board boots with, and it's
+    what every working build used. Compiling in DIO mode gave a different
+    bootloader and system libraries.
+- **Firmware:** `firmware/jerryos-cp18-dashes.bin`, v1.4.0.
+- **Going public:**
+  - **License: PolyForm Noncommercial 1.0.0** (`LICENSE.md`), Steve's pick:
+    free to use, change and share, but no selling without permission.
+  - The Jerry / 5quatch Rated brand is kept out of the license (a README
+    note plus a "Required Notice" line).
+  - `THIRD_PARTY_NOTICES.md` lists the libraries inside the firmware and
+    their licenses, checked against each project's LICENSE file:
+    - Arduino-ESP32: LGPL-2.1. The full source and the build script cover
+      LGPL's "you can rebuild it" rule.
+    - ESP-IDF: Apache-2.0.
+    - LovyanGFX: FreeBSD.
+    - NimBLE-Arduino: Apache-2.0.
+  - It also credits the data we built on: AirGuard (Apache-2.0), flock-you
+    (MIT), flock-you-go, and the IEEE OUI registry.
+  - A new README for strangers: what Jerry does, listen-only rules and
+    honest limits, what you need, and how to back up, flash and go back to
+    stock on Windows, macOS and Linux. It also covers building, the
+    simulator and the tests. The checkpoint table moved to "Build history".
+  - Checked the repo and its whole git history for anything private. There
+    are no firmware backups, no Wi-Fi logs, no passwords, no real MAC
+    addresses, and no email addresses in files.
+  - The backup script no longer says "tell Claude" (strangers won't have
+    me).
