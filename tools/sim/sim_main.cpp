@@ -81,8 +81,7 @@ int main() {
   hold(PIN_BTN_RIGHT); run(300); snap("expedition_recap");  // REC stopped: the recap card
   tap(PIN_BTN_LEFT); run(2600); snap("home_rec_stop");
   tap(PIN_BTN_LEFT); snap("menu");
-  // Menu: Tracker Watch, Followers, Shield, Cameras, Sound, BLE Nearby, WiFi Scan, Rig,
-  // Knock Detector, Expeditions, Rate Gear, Badges, Settings
+  // Menu: Trackers, Followers, Shield, Cameras, Nearby, Listen, Logbook, Rate Gear, Rig, Settings
   tap(PIN_BTN_RIGHT); snap("menu_next");
   hold(PIN_BTN_RIGHT); run(300); snap("followers_empty");
   tap(PIN_BTN_LEFT);
@@ -90,25 +89,20 @@ int main() {
   tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(300); snap("cameras_none");
   tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(3000); snap("sound");
-  tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("nearby");   // Bluetooth + Wi-Fi
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("nearby_next");
   hold(PIN_BTN_RIGHT); run(1100); snap("nearby_detail");
-  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2100); snap("wifi");
-  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("wifi_next");
-  hold(PIN_BTN_RIGHT); run(1100); snap("wifi_detail");
-  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2500); snap("rig_found");
-  hold(PIN_BTN_RIGHT); run(300); snap("rig_paired_toast");
-  run(11000); snap("rig_dashboard");  // after the "Rigged Up" badge toast
-  tap(PIN_BTN_LEFT); snap("menu_back");
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(800); snap("knock_start");
-  run(9000); snap("knock_heard");
   tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("expeditions");
-  hold(PIN_BTN_RIGHT); snap("expedition_open");
+  for (int i = 0; i < 5; i++) tap(PIN_BTN_RIGHT);
+  hold(PIN_BTN_RIGHT); run(1100); snap("nearby_detail_2");
+  tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(800); snap("listen_start");  // sound + knocks
+  run(9000); snap("listen_heard");
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("logbook");
+  hold(PIN_BTN_RIGHT); snap("badges");                        // the top row: Badges
+  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("expedition_open");  // a trip
   tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("rate");
   tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("rate_pick_3");
@@ -120,22 +114,38 @@ int main() {
   recordIntro("anim_stamp2", 2600, 50);
   snap("rate_stamped");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_LEFT);
-  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("badges");
-  tap(PIN_BTN_LEFT);
+  tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); run(2500); snap("rig_found");
+  hold(PIN_BTN_RIGHT); run(300); snap("rig_paired_toast");
+  run(11000); snap("rig_dashboard");  // after the "Rigged Up" badge toast
+  tap(PIN_BTN_LEFT); snap("menu_back");
   tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("settings");
   hold(PIN_BTN_RIGHT); snap("settings_edit");
   tap(PIN_BTN_RIGHT); snap("settings_edit_next");
   hold(PIN_BTN_RIGHT); snap("settings_saved");
-  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_led");
+  tap(PIN_BTN_RIGHT); snap("settings_led");
   tap(PIN_BTN_RIGHT); snap("settings_pocket");
-  tap(PIN_BTN_RIGHT); snap("settings_soundcal");
-  tap(PIN_BTN_RIGHT); snap("settings_dash");
+  tap(PIN_BTN_RIGHT); snap("settings_alert");
   tap(PIN_BTN_RIGHT); snap("settings_drive");
   tap(PIN_BTN_RIGHT); snap("settings_intro");
   tap(PIN_BTN_RIGHT); snap("settings_introtune");
-  tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); snap("settings_wifilog");
+  tap(PIN_BTN_RIGHT); snap("settings_soundcal");
+  tap(PIN_BTN_RIGHT); snap("settings_wifiscan");
+  tap(PIN_BTN_RIGHT); snap("settings_clock");
+  hold(PIN_BTN_RIGHT); snap("clock");                          // set the time by hand
+  for (int i = 0; i < 9; i++) tap(PIN_BTN_RIGHT);              // hour +9
+  hold(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); // tens +2
+  hold(PIN_BTN_RIGHT); snap("clock_editing");
+  hold(PIN_BTN_RIGHT);                                         // ones, then month
+  for (int i = 0; i < 9; i++) tap(PIN_BTN_RIGHT);              // October
+  hold(PIN_BTN_RIGHT); for (int i = 0; i < 8; i++) tap(PIN_BTN_RIGHT);  // the 9th
+  snap("clock_date");
+  hold(PIN_BTN_RIGHT); run(300); snap("clock_saved");
+  tap(PIN_BTN_RIGHT); snap("settings_wifilog");
   hold(PIN_BTN_RIGHT); snap("settings_erase_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_mine");
+  tap(PIN_BTN_RIGHT); snap("settings_poweroff");
+  hold(PIN_BTN_RIGHT); snap("settings_poweroff_ask");
+  hold(PIN_BTN_RIGHT); run(300); snap("settings_poweroff_usb");  // on USB: it can't, and says so
   tap(PIN_BTN_RIGHT); snap("settings_reset");
   hold(PIN_BTN_RIGHT); snap("settings_reset_ask");
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); snap("settings_diag_sel");
@@ -147,7 +157,7 @@ int main() {
   // Hidden-camera check at home (menu cursor is on Settings: 4 taps wrap to Cameras).
   tap(PIN_BTN_LEFT); for (int i = 0; i < 4; i++) tap(PIN_BTN_RIGHT);
   hold(PIN_BTN_RIGHT); run(300); snap("cameras_home");
-  tap(PIN_BTN_LEFT); for (int i = 0; i < 9; i++) tap(PIN_BTN_RIGHT);  // back to Settings
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 6; i++) tap(PIN_BTN_RIGHT);  // back to Settings
   hold(PIN_BTN_LEFT);
   // Tracker Watch: open it from the menu (cursor is on Settings; wrap to Tracker).
   tap(PIN_BTN_LEFT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("tracker_watching");
@@ -184,9 +194,9 @@ int main() {
   tap(PIN_BTN_RIGHT); run(500); snap("dash_trends_later");
   tap(PIN_BTN_RIGHT); run(500); snap("dash_night_later");
   tap(PIN_BTN_RIGHT); run(300);
-  // Badges earned along the way (menu cursor is on Cameras: 8 taps to Badges).
-  tap(PIN_BTN_LEFT); for (int i = 0; i < 8; i++) tap(PIN_BTN_RIGHT);
-  hold(PIN_BTN_RIGHT); snap("badges_later");
+  // Badges earned along the way (menu cursor is on Cameras: 3 taps to the Logbook).
+  tap(PIN_BTN_LEFT); for (int i = 0; i < 3; i++) tap(PIN_BTN_RIGHT);
+  hold(PIN_BTN_RIGHT); tap(PIN_BTN_RIGHT); hold(PIN_BTN_RIGHT); snap("badges_later");
   hold(PIN_BTN_LEFT); run(300);
   // Pocket mode: hold both buttons 1 s.
   g_pin[PIN_BTN_LEFT] = 0; g_pin[PIN_BTN_RIGHT] = 0; run(1200);

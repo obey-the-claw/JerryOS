@@ -35,7 +35,7 @@ a microphone and a speaker. Flash JerryOS onto it and it becomes:
 
 1. Get an **AIPI Lite** and a USB-C data cable.
 2. **Back up** the stock firmware, then **flash** the newest file in
-   [`firmware/`](firmware/) ([how](#install), about 2 minutes).
+   [`firmware/`](firmware) ([how](#install), about 2 minutes).
 3. Power on: Jerry plays an intro. **Press any button.**
 4. **Tap R** on the home screen to flip between the dashes. **Tap L** for the
    menu. The bottom bar always shows what each button does.
@@ -45,7 +45,7 @@ a microphone and a speaker. Flash JerryOS onto it and it becomes:
 
 **Four boot intros, each with its own funk groove** (random each time, or pick
 one in Settings): Jeep Jam, Bluff Creek, Selfie and Cruisin'. Watch them with
-sound in [docs/previews](docs/previews/).
+sound in [docs/previews](docs/previews).
 
 ![The intros](docs/img/intros.png)
 
@@ -84,7 +84,7 @@ sound in [docs/previews](docs/previews/).
 
 ## Install
 
-The ready-made firmware is in [`firmware/`](firmware/): use the newest
+The ready-made firmware is in [`firmware/`](firmware): use the newest
 `jerryos-cp*.bin` (the highest number; `cp19` is v1.4.1). Each has a
 `.sha256` file to check it against.
 
@@ -151,7 +151,7 @@ Everything else is in the **[user guide](docs/USER-GUIDE.md)**.
   real screens on your computer and saves screenshots, GIFs and videos.
 - **Unit tests:** `tools/sim/run_tests.sh` (289 checks, no device needed).
 - **Hear the grooves:** `tools/sim/render_funk.sh`, or just play
-  [docs/sounds](docs/sounds/).
+  [docs/sounds](docs/sounds).
 
 Code map: `src/main.cpp` explains where everything lives. The whole build
 story, checkpoint by checkpoint, is in [BUILDLOG.md](BUILDLOG.md).
@@ -195,20 +195,20 @@ based on JerryOS, with a link back here, is welcome.
 | 1 | Firmware backup confirmed | ✅ 2026-10-04 |
 | 2 | Hello world: screen, buttons, battery, serial log | ✅ 2026-10-04 |
 | 3 | JerryOS shell: home, menu, hint bar, modes (placeholder faces) | ✅ 2026-10-05 |
-| 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
-| 5 | Wi-Fi scanner + logger | ✅ 2026-10-05 ([guide](docs/CHECKPOINT5.md)) |
-| 6 | Personal monitor: home screen, REC, screen saver | ✅ 2026-10-06 ([guide](docs/CHECKPOINT6.md)) |
-| 7 | Followers: any Bluetooth device that moves with you | 🟡 home test ✅, drive test pending ([guide](docs/CHECKPOINT7.md)) |
-| 8 | Shield: Wi-Fi kick-offs, Bluetooth pop-up spam, fake networks | ✅ quiet-day test 2026-10-07 ([guide](docs/CHECKPOINT8.md)) |
-| 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/CHECKPOINT9.md)) |
-| 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/CHECKPOINT10.md)) |
-| 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/CHECKPOINT11.md)) |
-| 12 | Pocket mode + sound meter | ✅ 2026-10-07 ([guide](docs/CHECKPOINT12.md)) |
-| 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | ✅ boots 2026-10-08, field tests ongoing ([guide](docs/CHECKPOINT13.md)) |
+| 4 | Tracker Watch + BLE Nearby | ✅ 2026-10-05 ([guide](docs/history/CHECKPOINT4.md), [how it works](docs/TRACKERS.md)) |
+| 5 | Wi-Fi scanner + logger | ✅ 2026-10-05 ([guide](docs/history/CHECKPOINT5.md)) |
+| 6 | Personal monitor: home screen, REC, screen saver | ✅ 2026-10-06 ([guide](docs/history/CHECKPOINT6.md)) |
+| 7 | Followers: any Bluetooth device that moves with you | 🟡 home test ✅, drive test pending ([guide](docs/history/CHECKPOINT7.md)) |
+| 8 | Shield: Wi-Fi kick-offs, Bluetooth pop-up spam, fake networks | ✅ quiet-day test 2026-10-07 ([guide](docs/history/CHECKPOINT8.md)) |
+| 9 | Colour LED as a silent signal | ✅ 2026-10-07 ([guide](docs/history/CHECKPOINT9.md)) |
+| 10 | Flock licence-plate cameras | 🟡 home ✅, drive-by pending ([guide](docs/history/CHECKPOINT10.md)) |
+| 11 | Hidden-camera hints (hotel / rental check) | 🟡 ready to test ([guide](docs/history/CHECKPOINT11.md)) |
+| 12 | Pocket mode + sound meter | ✅ 2026-10-07 ([guide](docs/history/CHECKPOINT12.md)) |
+| 13 | **v1.0:** Rig Dashboard (Pi beacon), GPS-tagged logs, reset, user guide | ✅ boots 2026-10-08, field tests ongoing ([guide](docs/history/CHECKPOINT13.md)) |
 | 14 | **v1.1:** boot intro (Jerry drives off in his Jeep), "JerryOS" title | ✅ 2026-10-08 |
 | 15 | **v1.2:** funk boot groove (Bootsy-style, [hear it](docs/sounds/intro_funk.wav)) | ✅ "the groove is jamming" 2026-10-08 |
 | 16 | **v1.2.1:** quieter, cleaner groove; Intro tune off / low / med / high | ✅ "volume sounds way better" 2026-10-08 |
-| 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews/)); Settings → Intro | ✅ "absolutely perfect" 2026-10-08 |
+| 17 | **v1.3:** intros Bluff Creek, Selfie, Cruisin' (each with its own groove, [previews](docs/previews)); Settings → Intro | ✅ "absolutely perfect" 2026-10-08 |
 | 18 | **v1.4:** home dashes (Radar, Trail Dash, All Clear, Trends, Night Watch), drive mode, Knock Detector, Expeditions, Rate Gear stamp, Badges, sunrise / sunset ([previews](docs/previews/v1.4_screens.png)) | ✅ released 2026-11-24 |
 
 ## Credits

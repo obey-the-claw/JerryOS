@@ -6,7 +6,7 @@ around you, and **saves only when you tell it to.** Without GPS, a log
 can't say *where* anyway, so recording is a choice, not the default. It's
 also the handheld starting point for the Pi Zero box (Scanner v0).
 
-![JerryOS v0.6](img/cp6-monitor.png)
+![JerryOS v0.6](../img/cp6-monitor.png)
 *Simulator: home → poke → REC → recording → stop → WiFi Scan, Settings,
 Diagnostics.*
 

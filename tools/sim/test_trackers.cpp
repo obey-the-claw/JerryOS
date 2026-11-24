@@ -24,6 +24,7 @@
 #include "knock_detect.h"
 #include "expedition.h"
 #include "badges.h"
+#include "battery_life.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond)                                                  \
@@ -937,6 +938,26 @@ static void testBadges() {
   CHECK(strcmp(badgeName(Badge::KnockKnock), "Knock Knock") == 0);
 }
 
+static void testBatteryLife() {
+  printf("Battery time left\n");
+  BatteryLife b;
+  CHECK(b.minutesLeft() == -1);
+  b.update(0, 90, false);
+  b.update(5 * 60000, 88, false);
+  CHECK(b.minutesLeft() == -1);  // too soon to guess
+  b.update(20 * 60000, 85, false);  // 5% in 20 min = 4 min per %
+  CHECK(b.minutesLeft() == 340);    // 85 x 4
+  b.update(21 * 60000, 85, true);   // plugged in: starts over
+  CHECK(b.minutesLeft() == -1);
+  b.update(22 * 60000, 85, false);
+  b.update(40 * 60000, 84, false);  // only 1% so far: not enough to say
+  CHECK(b.minutesLeft() == -1);
+  b.update(60 * 60000, 80, false);  // 5% in 38 min
+  CHECK(b.minutesLeft() >= 600 && b.minutesLeft() <= 610);
+  b.update(61 * 60000, -1, false);  // no battery reading: forget it
+  CHECK(b.minutesLeft() == -1);
+}
+
 int main() {
   testDetection();
   testPersistence();
@@ -954,6 +975,7 @@ int main() {
   testKnocks();
   testExpedition();
   testBadges();
+  testBatteryLife();
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;
 }

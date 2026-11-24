@@ -9,7 +9,9 @@ Screen &followersScreen();
 Screen &shieldScreen();
 Screen &camerasScreen();
 Screen &tripScreen();     // the recap card after REC stops (extras.cpp)
-Screen &knockScreen();
-Screen &expeditionsScreen();
 Screen &rateScreen();
 Screen &badgesScreen();
+Screen &clockScreen();     // Settings -> Clock: set the time by hand
+Screen &listenScreen();    // Listen: sound meter + Knock Detector
+Screen &logbookScreen();   // Logbook: expeditions + badges
+Screen &nearbyAllScreen(); // Nearby: Bluetooth + Wi-Fi in one list

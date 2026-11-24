@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "attack_watch.h"
 #include "badges.h"
+#include "battery_life.h"
 #include "expedition.h"
 #include "history.h"
 #include "sun_clock.h"
@@ -46,6 +47,12 @@ class Shell {
   const TripRecap &lastRecap() const { return lastRecap_; }
   // Today's sunrise / sunset where the rig box last had a GPS fix.
   bool sun(int &rise, int &set) const;
+  // Set the clock by hand (Settings -> Clock). Lasts until Jerry restarts.
+  void setClock(uint16_t minuteOfDay, uint16_t dayOfYear);
+  // Battery time left in minutes, -1 = still working it out (or on USB).
+  int batteryMinutesLeft() const { return life_.minutesLeft(); }
+  // Switch off (on battery). On USB it can't: it says so instead.
+  void powerOff();
   // A new badge: save it, toast it, Jerry grins. false = already had it.
   bool award(Badge b);
   void saveBadges();
@@ -96,6 +103,10 @@ class Shell {
   int32_t fixLat_ = 0, fixLon_ = 0;
   uint32_t lastRigMs_ = 0, lastHistory_ = 0, lastTripSample_ = 0, lastBadgeCheck_ = 0;
   bool nightDim_ = false;
+  BatteryLife life_;
+  int utcOffsetMin_ = 0;  // from the rig box (saved): for sunrise / sunset
+  uint32_t lastFixSave_ = 0;
+  void saveFix();
   TripSample tripSample(uint32_t now);
   void updateExtras(uint32_t now);  // clock, trends, expeditions, badges
   void saveTrips();
@@ -115,6 +126,8 @@ class Shell {
   bool combo_ = false, comboFired_ = false;
   uint32_t comboStart_ = 0, peekUntil_ = 0;
   void setPocket(bool on);
+  uint32_t leftSince_ = 0;  // hold L 5 s = power off
+  bool offWarned_ = false, offTried_ = false;
 
   static constexpr int MAX_DEPTH = 6;
   Screen *stack_[MAX_DEPTH];

@@ -1,6 +1,6 @@
 # Checkpoint 12: Pocket mode + sound meter
 
-![Pocket mode and sound meter](img/cp12-pocket-sound.png)
+![Pocket mode and sound meter](../img/cp12-pocket-sound.png)
 *Simulator: Sound meter → Settings "Pocket" → locked → screen dark → a
 press peeks → unlocked.*
 

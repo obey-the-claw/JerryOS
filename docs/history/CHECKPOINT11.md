@@ -4,7 +4,7 @@ For checking a hotel room, rental or Airbnb: Jerry lists anything on Wi-Fi
 that looks like a camera. It shares the **Cameras** screen with the Flock
 detector. Listen-only.
 
-![Hidden-camera hints](img/cp11-hidden-cams.png)
+![Hidden-camera hints](../img/cp11-hidden-cams.png)
 *Simulator: nothing heard yet → at "home": a Wyze camera streaming, a spy
 cam's HDWiFiCam hotspot, a Ring doorbell in setup mode → after the drive
 (Flock camera + Ring doorbells passed).*

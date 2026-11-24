@@ -24,4 +24,8 @@ struct Preferences {
     blobs()[k].assign((const uint8_t *)buf, (const uint8_t *)buf + n); return n;
   }
   void putBool(const char *k, bool v) { store()[k] = v; }
+  int32_t getInt(const char *k, int32_t d) { auto it = store().find(k); return it == store().end() ? d : it->second; }
+  void putInt(const char *k, int32_t v) { store()[k] = v; }
+  int16_t getShort(const char *k, int16_t d) { auto it = store().find(k); return it == store().end() ? d : (int16_t)it->second; }
+  void putShort(const char *k, int16_t v) { store()[k] = v; }
 };

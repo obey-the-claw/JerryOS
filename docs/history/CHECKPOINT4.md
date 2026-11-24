@@ -3,9 +3,9 @@
 Jerry now listens for item trackers (AirTag, Find My, Tile, SmartTag,
 Google) and warns you if one keeps up with you for the whole alert window.
 New in v0.4.1, **BLE Nearby** shows every Bluetooth device he can hear.
-How it works and its limits: [TRACKERS.md](TRACKERS.md).
+How it works and its limits: [TRACKERS.md](../TRACKERS.md).
 
-![Tracker Watch](img/cp4-tracker-watch.png)
+![Tracker Watch](../img/cp4-tracker-watch.png)
 *Simulator: watching → device list → alert (auto-opens) → home during alert
 → alert row → acknowledged.*
 
@@ -50,7 +50,7 @@ How it works and its limits: [TRACKERS.md](TRACKERS.md).
 
 ## BLE Nearby (Menu → BLE Nearby)
 
-![BLE Nearby](img/cp4-ble-nearby.png)
+![BLE Nearby](../img/cp4-ble-nearby.png)
 
 Every Bluetooth LE device Jerry heard in the last minute, **closest
 (strongest signal) first**, with phone-style signal bars.

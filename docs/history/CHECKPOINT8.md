@@ -3,7 +3,7 @@
 Jerry now watches for people messing with the radios around you. Still
 **listen-only**: he never sends anything.
 
-![Shield](img/cp8-shield.png)
+![Shield](../img/cp8-shield.png)
 *Simulator: menu → Shield, all quiet → home during an attack → Shield
 after a Flipper burst (minute 10), a kick-off flood (12) and an evil twin
 (15+, still happening).*

@@ -4,7 +4,7 @@ Tracker Watch catches AirTags, Tiles and other item trackers. **Followers**
 catches *any* Bluetooth device that stays with you while you move: a car
 behind you, a watch, a dashcam, a gadget slipped into a bag.
 
-![Followers](img/cp7-followers.png)
+![Followers](../img/cp7-followers.png)
 *Simulator: menu → nothing yet → (a 30-min "drive") home shows ALERT →
 followers list → details → after "mine" on the speaker → Settings "My
 devices" → Diagnostics.*

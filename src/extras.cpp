@@ -1,8 +1,9 @@
 // extras.cpp - the v1.4 screens:
-//   Knock Detector   listen for wood knocks and howls (knock_detect.h)
-//   Expeditions      recaps of your REC sessions, and the card after each one
+//   Listen           the sound meter + Knock Detector (knock_detect.h)
+//   Logbook          badges + recaps of your REC sessions (and the card after each one)
+//   Clock            set the time by hand
 //   Rate Gear        the 5quatch Rated stamp, for gear reviews on camera
-//   Badges           the achievements Jerry hands out (badges.h)
+//   Badges           the achievements Jerry hands out (badges.h), from the Logbook
 
 #include <Arduino.h>
 #include <math.h>
@@ -35,16 +36,17 @@ void formatDay(int doy, char *out, int size) {
 }
 
 // ---------------------------------------------------------------------------
-// Knock Detector
+// Listen: the sound meter and the Knock Detector together (both use the mic)
 // ---------------------------------------------------------------------------
-class KnockScreen : public Screen {
+class ListenScreen : public Screen {
  public:
-  const char *tag() const override { return "KNOCKS"; }
-  Hints hints() const override { return {"back", "clear", nullptr}; }
-  void onRightShort(Shell &) override {
+  const char *tag() const override { return "LISTEN"; }
+  Hints hints() const override { return {"back", "clear", "peak"}; }
+  void onRightShort(Shell &) override {  // clear the knocks list
     n_ = 0;
     flashUntil_ = 0;
   }
+  void onRightLong(Shell &) override { mic::resetPeak(); }  // start the peak over
   void update(Shell &shell, uint32_t now) override {
     mic::use();
     shell.wake();  // you're listening: keep the screen on
@@ -64,7 +66,8 @@ class KnockScreen : public Screen {
       flashUntil_ = now + 900;
       shell.jerry().flash(Mood::Alert, 1500);
     }
-    shell.jerry().setMood(Mood::Scanning);
+    const int db = mic::meter().db();
+    shell.jerry().setMood(!mic::meter().hasData() ? Mood::Scanning : db >= 85 ? Mood::Alert : Mood::Scanning);
   }
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     const uint32_t now = millis();
@@ -72,20 +75,26 @@ class KnockScreen : public Screen {
       centered(g, y0 + 40, ALERT, "microphone not found");
       return;
     }
+    const LevelMeter &m = mic::meter();
     const bool flash = (int32_t)(now - flashUntil_) < 0;
     if (flash) g.drawRoundRect(0, y0, W, CONTENT_H, 4, (now / 150) % 2 ? GOLD : BARK);
     shell.jerry().draw(g, 16, y0 + 15, 0.24f);
-    g.setTextSize(2);
-    const char *head = !mic::knockReady() ? "hush..." : flash ? (ev_[0].kind == SoundKind::Knock ? "KNOCK!" : "HOWL!") : "ears on";
-    text(g, 36, y0 + 4, flash ? GOLD : CREAM, head);
-    g.setTextSize(1);
     char b[32];
-    if (!mic::knockReady()) snprintf(b, sizeof b, "learning...");
-    else snprintf(b, sizeof b, "%lu knock%s %lu howl%s", (unsigned long)mic::knockCount(),
+    // the level, big (or KNOCK! / HOWL! for a moment)
+    g.setTextSize(2);
+    if (flash) snprintf(b, sizeof b, "%s", ev_[0].kind == SoundKind::Knock ? "KNOCK!" : "HOWL!");
+    else if (m.hasData()) snprintf(b, sizeof b, "~%d dB", m.db());
+    else snprintf(b, sizeof b, "...");
+    const int db = m.db();
+    text(g, 36, y0 + 3, flash ? GOLD : db >= 85 ? ALERT : db >= 70 ? GOLD : GOOD, b);
+    g.setTextSize(1);
+    if (m.hasData()) text(g, 36, y0 + 20, CREAM, loudnessName(db));
+    if (!mic::knockReady()) snprintf(b, sizeof b, "learning the quiet...");
+    else snprintf(b, sizeof b, "%lu knock%s, %lu howl%s", (unsigned long)mic::knockCount(),
                   mic::knockCount() == 1 ? "" : "s", (unsigned long)mic::howlCount(), mic::howlCount() == 1 ? "" : "s");
-    text(g, 36, y0 + 22, DIM, b);
+    text(g, 4, y0 + 31, DIM, b);
     // the level trace: the last 12 seconds, knocks marked gold, howls cream
-    const int tx = 4, ty = y0 + 34, th = 26, tw = W - 8;
+    const int tx = 4, ty = y0 + 46, th = 18, tw = W - 8;
     g.drawRect(tx - 1, ty - 1, tw + 2, th + 2, BAR);
     for (int i = 0; i < TRACE; i++) {
       const int k = (head_ + i) % TRACE;
@@ -94,13 +103,18 @@ class KnockScreen : public Screen {
       if (v > 0) g.drawFastVLine(x, ty + th - (v > th ? th : v), v > th ? th : v, mark_[k] ? GOLD : FUR_DARK);
       if (mark_[k]) g.fillTriangle(x - 2, ty - 5, x + 2, ty - 5, x, ty - 1, mark_[k] == 1 ? GOLD : CREAM);
     }
+    if (m.hasData()) {  // the peak since the last reset (hold R): a line across the trace
+      const float peakDbfs = m.peak() - (m.db() - m.dbfs());
+      const int pv = peakDbfs < -80 ? 0 : (int)((peakDbfs + 80) * th / 70);
+      if (pv > 0) g.drawFastHLine(tx, ty + th - (pv > th ? th : pv), tw, CREAM);
+    }
     // what was heard
     if (!n_) {
-      centered(g, y0 + 70, DIM, "Knock on a tree and");
-      centered(g, y0 + 82, DIM, "listen for a reply...");
+      centered(g, y0 + 72, DIM, "Knock on a tree and");
+      centered(g, y0 + 83, DIM, "listen for a reply...");
       return;
     }
-    for (int i = 0; i < n_ && i < 4; i++) {
+    for (int i = 0; i < n_ && i < 3; i++) {
       const SoundEvent &e = ev_[i];
       const uint32_t ago = (now - e.ms) / 1000;
       char when[12];
@@ -108,7 +122,7 @@ class KnockScreen : public Screen {
       else snprintf(when, sizeof when, "%lum ago", (unsigned long)(ago / 60));
       if (e.kind == SoundKind::Knock && e.inARow > 1) snprintf(b, sizeof b, "KNOCK x%u +%udB", e.inARow, e.aboveDb);
       else snprintf(b, sizeof b, "%s +%udB", e.kind == SoundKind::Knock ? "KNOCK" : "HOWL", e.aboveDb);
-      const int y = y0 + 64 + i * 10;
+      const int y = y0 + 70 + i * 10;
       text(g, 6, y, i == 0 ? GOLD : CREAM, b);
       text(g, W - 6 - g.textWidth(when), y, DIM, when);
     }
@@ -199,49 +213,51 @@ class TripScreen : public Screen {
 };
 TripScreen tripObj;
 
-class ExpeditionsScreen : public Screen {
+// Logbook: your trophy case (Badges) on top, then the expedition recaps.
+class LogbookScreen : public Screen {
  public:
-  const char *tag() const override { return "EXPEDITIONS"; }
+  const char *tag() const override { return "LOGBOOK"; }
   Hints hints() const override { return {"back", "next", "open"}; }
   void enter(Shell &shell) override {
-    if (cursor_ >= shell.trips().count()) cursor_ = 0;
+    if (cursor_ > shell.trips().count()) cursor_ = 0;
   }
-  void onRightShort(Shell &shell) override {
-    if (shell.trips().count()) cursor_ = (cursor_ + 1) % shell.trips().count();
-  }
+  void onRightShort(Shell &shell) override { cursor_ = (cursor_ + 1) % (shell.trips().count() + 1); }
   void onRightLong(Shell &shell) override {
-    if (!shell.trips().count()) return;
-    tripObj.show(shell.trips().at(cursor_));
+    if (cursor_ == 0) return shell.open(badgesScreen());
+    tripObj.show(shell.trips().at(cursor_ - 1));
     shell.open(tripObj);
   }
   void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     const TripLog &log = shell.trips();
-    if (!log.count()) {
-      shell.jerry().draw(g, W / 2, y0 + 30, 0.42f);
-      centered(g, y0 + 62, CREAM, "No expeditions yet.");
-      centered(g, y0 + 76, DIM, "Hold R on the home");
-      centered(g, y0 + 88, DIM, "screen to start REC.");
-      return;
-    }
-    static char labels[TripLog::MAX][16], values[TripLog::MAX][10];
-    const char *lp[TripLog::MAX], *vp[TripLog::MAX];
+    static char labels[TripLog::MAX + 1][16], values[TripLog::MAX + 1][10];
+    const char *lp[TripLog::MAX + 1], *vp[TripLog::MAX + 1];
+    snprintf(labels[0], sizeof labels[0], "Badges");
+    snprintf(values[0], sizeof values[0], "%d/%d", shell.badges().earnedCount(), BADGE_COUNT);
     for (int i = 0; i < log.count(); i++) {
       const TripRecap &r = log.at(i);
       char day[10] = "";
       if (r.doy) formatDay(r.doy, day, sizeof day);
-      snprintf(labels[i], sizeof labels[i], "#%u %s", r.number, day);
-      if (r.meters >= 1609) snprintf(values[i], sizeof values[i], "%.1fmi", r.meters / 1609.34f);
-      else formatSpan(r.seconds / 60, values[i], sizeof values[i]);
+      snprintf(labels[i + 1], sizeof labels[i + 1], "Trip #%u %s", r.number, day);
+      if (r.meters >= 1609) snprintf(values[i + 1], sizeof values[i + 1], "%.1fmi", r.meters / 1609.34f);
+      else formatSpan(r.seconds / 60, values[i + 1], sizeof values[i + 1]);
+    }
+    for (int i = 0; i <= log.count(); i++) {
       lp[i] = labels[i];
       vp[i] = values[i];
     }
-    ui::drawList(g, y0, lp, vp, log.count(), cursor_, false);
+    ui::drawList(g, y0, lp, vp, log.count() + 1, cursor_, false);
+    if (!log.count()) {
+      centered(g, y0 + 34, CREAM, "No expeditions yet.");
+      centered(g, y0 + 48, DIM, "Hold R on the home");
+      centered(g, y0 + 60, DIM, "screen to start REC;");
+      centered(g, y0 + 72, DIM, "stop it for a recap.");
+    }
   }
 
  private:
   int cursor_ = 0;
 };
-ExpeditionsScreen expeditionsObj;
+LogbookScreen logbookObj;
 
 // ---------------------------------------------------------------------------
 // Rate Gear: the 5quatch Rated stamp
@@ -299,7 +315,7 @@ class RateScreen : public Screen {
     shell.jerry().setMood(rating_ >= 3 ? Mood::Approved : Mood::Sleepy);
     if (stamped_) shell.wake();
   }
-  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) override {
+  void draw(Shell &shell, lgfx::LovyanGFX &g, int y0, int) override {
     if (stamped_) return drawStamp(shell, g);
     centered(g, y0 + 6, DIM, "How squatchy is it?");
     const int s = 7;
@@ -384,12 +400,96 @@ class BadgesScreen : public Screen {
   int cursor_ = 0;
 };
 BadgesScreen badgesObj;
-KnockScreen knockObj;
+ListenScreen listenObj;
+
+// ---------------------------------------------------------------------------
+// Clock: set the time by hand, for when there's no Pi rig box to send it.
+// Jerry has no battery-backed clock, so it lasts until he restarts.
+// ---------------------------------------------------------------------------
+class ClockScreen : public Screen {
+ public:
+  const char *tag() const override { return "CLOCK"; }
+  Hints hints() const override { return {"cancel", "+1", field_ == DAY ? "save" : "next"}; }
+  void enter(Shell &shell) override {
+    field_ = HOUR;
+    if (shell.clock().valid()) {  // start from the time Jerry already has
+      const int m = shell.clock().minute(millis());
+      hour_ = m / 60;
+      min_ = m % 60;
+      dayToDate(shell.clock().dayOfYear(millis()), month_, day_);
+    }
+  }
+  void onRightShort(Shell &) override {
+    switch (field_) {
+      case HOUR: hour_ = (hour_ + 1) % 24; break;
+      case TENS: min_ = (min_ + 10) % 60; break;
+      case ONES: min_ = min_ / 10 * 10 + (min_ % 10 + 1) % 10; break;
+      case MONTH: month_ = month_ % 12 + 1; day_ = day_ > kLen[month_ - 1] ? kLen[month_ - 1] : day_; break;
+      case DAY: day_ = day_ % kLen[month_ - 1] + 1; break;
+    }
+  }
+  void onRightLong(Shell &shell) override {
+    if (field_ != DAY) {
+      field_ = (Field)(field_ + 1);
+      return;
+    }
+    int doy = day_;
+    for (int m = 1; m < month_; m++) doy += kLen[m - 1];
+    shell.setClock((uint16_t)(hour_ * 60 + min_), (uint16_t)doy);
+    shell.jerry().flash(Mood::Approved, 1200);
+    shell.toast("Clock set", 2000);
+    shell.back();
+  }
+  void draw(Shell &, lgfx::LovyanGFX &g, int y0, int) override {
+    char t[10], d[10];
+    formatClock(hour_ * 60 + min_, t, sizeof t);
+    static const char *const mon[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    snprintf(d, sizeof d, "%s %d", mon[month_ - 1], day_);
+    // the time, big, with the part you're changing underlined
+    g.setTextSize(3);
+    const int tw = g.textWidth(t), tx = (W - tw) / 2, ty = y0 + 14;
+    text(g, tx, ty, CREAM, t);
+    const int cw = g.textWidth("0");
+    const int colon = (int)(strchr(t, ':') - t);  // "6:42p" -> 1
+    int ux = -1, uw = cw;
+    if (field_ == HOUR) { ux = tx; uw = colon * cw; }
+    else if (field_ == TENS) ux = tx + (colon + 1) * cw;
+    else if (field_ == ONES) ux = tx + (colon + 2) * cw;
+    if (ux >= 0) g.fillRect(ux, ty + 25, uw, 3, GOLD);
+    g.setTextSize(2);
+    const int dw = g.textWidth(d), dx = (W - dw) / 2, dy = y0 + 52;
+    text(g, dx, dy, CREAM, d);
+    if (field_ == MONTH) g.fillRect(dx, dy + 17, g.textWidth("Oct"), 2, GOLD);
+    if (field_ == DAY) g.fillRect(dx + g.textWidth("Oct "), dy + 17, dw - g.textWidth("Oct "), 2, GOLD);
+    g.setTextSize(1);
+    static const char *const what[] = {"hour", "minutes (tens)", "minutes", "month", "day"};
+    char hint[32];
+    snprintf(hint, sizeof hint, "setting the %s", what[field_]);
+    centered(g, y0 + 78, GOLD, hint);
+    centered(g, y0 + 90, DIM, "lasts until restart");
+  }
+
+ private:
+  enum Field { HOUR, TENS, ONES, MONTH, DAY };
+  static constexpr int kLen[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  static void dayToDate(int doy, int &month, int &day) {
+    static const int len[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    month = 1;
+    while (month < 12 && doy > len[month - 1]) doy -= len[month++ - 1];
+    day = doy;
+  }
+  Field field_ = HOUR;
+  int hour_ = 12, min_ = 0, month_ = 1, day_ = 1;
+};
+constexpr int ClockScreen::kLen[12];
+ClockScreen clockObj;
 
 }  // namespace
 
 Screen &tripScreen() { return tripObj; }
-Screen &knockScreen() { return knockObj; }
-Screen &expeditionsScreen() { return expeditionsObj; }
+Screen &listenScreen() { return listenObj; }
+Screen &logbookScreen() { return logbookObj; }
 Screen &rateScreen() { return rateObj; }
 Screen &badgesScreen() { return badgesObj; }
+Screen &clockScreen() { return clockObj; }

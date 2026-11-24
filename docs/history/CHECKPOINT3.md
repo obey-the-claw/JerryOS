@@ -6,11 +6,11 @@ placeholder art drawn in code; the real art comes at Checkpoint 5.
 
 🎬 = a good moment to film.
 
-![Jerry's moods](img/cp3-jerry-moods.png)
+![Jerry's moods](../img/cp3-jerry-moods.png)
 *Placeholder Jerry: alert, approved, idle, scanning, sleepy (rendered by the
 simulator from the real firmware code).*
 
-![Every screen](img/cp3-screens.png)
+![Every screen](../img/cp3-screens.png)
 *Every screen, captured by the simulator while it pressed the buttons.*
 
 ---

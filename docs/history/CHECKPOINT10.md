@@ -4,7 +4,7 @@ Jerry now spots **Flock Safety** licence-plate (ALPR) cameras, their
 "Penguin" battery packs and Raven gunshot sensors by their radio
 fingerprints, and tells you as you pass one. Listen-only.
 
-![Cameras](img/cp10-flock.png)
+![Cameras](../img/cp10-flock.png)
 *Simulator: no cameras yet → the "Flock camera nearby!" message popping up
 over whatever screen is open → the Cameras list after the drive → credits.*
 

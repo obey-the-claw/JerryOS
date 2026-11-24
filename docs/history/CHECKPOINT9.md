@@ -4,7 +4,7 @@ The AIPI Lite has one small colour LED that was never used. Now it tells
 you what's going on, **even with the screen off**, so you can glance at
 Jerry on the dash or clipped to a bag.
 
-![LED](img/cp9-led.png)
+![LED](../img/cp9-led.png)
 *Simulator (the dot under each screen is the LED): watching (amber) →
 recording → Settings LED row → during an attack.*
 

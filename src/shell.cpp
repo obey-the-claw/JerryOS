@@ -37,6 +37,12 @@ void Shell::begin() {
       follow_.loadTrusted(buf, (int)(n / 6));
       uint8_t rigAddr[6];
       if (p.getBytes("rig", rigAddr, 6) == 6) rig_.pair(rigAddr);
+      if (p.isKey("fixlat")) {  // where the rig box last had a fix (for sunrise / sunset)
+        hasFix_ = true;
+        fixLat_ = p.getInt("fixlat", 0);
+        fixLon_ = p.getInt("fixlon", 0);
+        utcOffsetMin_ = p.getShort("utcoff", 0);
+      }
       Badges::Saved b;
       if (p.getBytes("badges", &b, sizeof b) == sizeof b) badges_.load(b);
       static uint8_t trips[TripLog::MAX * sizeof(TripRecap)];
@@ -145,6 +151,46 @@ bool Shell::sun(int &rise, int &set) const {
   return sunTimes(fixLat_ / 1e7, fixLon_ / 1e7, clock_.dayOfYear(millis()), clock_.utcOffsetMin(), rise, set);
 }
 
+void Shell::saveFix() {
+  Preferences p;
+  if (!p.begin("jerryos", false)) return;
+  p.putInt("fixlat", fixLat_);
+  p.putInt("fixlon", fixLon_);
+  p.putShort("utcoff", (int16_t)utcOffsetMin_);
+  p.end();
+}
+
+void Shell::setClock(uint16_t minuteOfDay, uint16_t dayOfYear) {
+  clock_.set(minuteOfDay, dayOfYear, utcOffsetMin_, millis());
+  Serial.printf("[clock] set by hand: %02u:%02u, day %u\n", minuteOfDay / 60, minuteOfDay % 60, dayOfYear);
+}
+
+void Shell::powerOff() {
+  using namespace theme;
+  if (power_.usb) {  // USB keeps the board powered whatever we do
+    toast("Unplug USB first", 3000);
+    return;
+  }
+  Serial.println(F("[power] switching off"));
+  wifi::setRecording(false);  // close the log cleanly (and the trip recap is kept)
+  frame_.fillScreen(BARK);
+  jerry_.setMood(Mood::Sleepy);
+  jerry_.draw(frame_, W / 2, H / 2 - 8, 0.6f);
+  frame_.setFont(&fonts::Font0);
+  frame_.setTextColor(CREAM);
+  frame_.setCursor((W - frame_.textWidth("Bye! Stay wild.")) / 2, H - 22);
+  frame_.print("Bye! Stay wild.");
+  frame_.pushSprite(0, 0);
+  led::show(Rgb{0, 0, 0});
+  delay(1500);
+  lcd_.setBrightness(0);
+  digitalWrite(PIN_POWER_HOLD, LOW);  // the power latch lets go
+  delay(2000);
+  // Still here? Something kept the power on: carry on as normal.
+  applyBrightness();
+  toast("Couldn't switch off", 3000);
+}
+
 TripSample Shell::tripSample(uint32_t now) {
   TripSample s;
   s.bt = ble::nearbyDevices();
@@ -163,11 +209,21 @@ void Shell::updateExtras(uint32_t now) {
   if (rig_.connected(now) && rig_.lastHeardMs() != lastRigMs_) {
     lastRigMs_ = rig_.lastHeardMs();
     const RigStatus &st = rig_.status();
-    if (st.clock) clock_.set(st.clockMin, st.doy, st.utcOff15 * 15, now);
+    if (st.clock) {
+      clock_.set(st.clockMin, st.doy, st.utcOff15 * 15, now);
+      utcOffsetMin_ = st.utcOff15 * 15;
+    }
     if (st.fix) {
+      const bool first = !hasFix_ || !lastFixSave_;
       hasFix_ = true;
       fixLat_ = st.latE7;
       fixLon_ = st.lonE7;
+      // Remember it (sunrise / sunset keep working without the box): once
+      // per power-on, then every 30 minutes.
+      if (first || now - lastFixSave_ >= 30 * 60000u) {
+        lastFixSave_ = now;
+        saveFix();
+      }
     }
   }
   if (now - lastHistory_ >= History::STEP_MS) {
@@ -378,6 +434,24 @@ void Shell::handleButtons() {
     comboFired_ = false;
     comboStart_ = now;
   }
+  // Hold L for 5 s (on its own, not in pocket mode) = switch off. Long
+  // before that, at 0.7 s, it has already gone home as usual.
+  if (left_.isPressed() && !right_.isPressed() && !pocket_) {
+    if (!leftSince_) leftSince_ = now;
+    const uint32_t held = now - leftSince_;
+    if (held >= 2000 && !offWarned_) {
+      offWarned_ = true;
+      toast("Keep holding: power off", 3000);
+    }
+    if (held >= 5000 && !offTried_) {
+      offTried_ = true;
+      powerOff();
+    }
+  } else {
+    leftSince_ = 0;
+    offWarned_ = offTried_ = false;
+  }
+
   if (combo_) {
     if (both && !comboFired_ && now - comboStart_ >= COMBO_MS) {
       comboFired_ = true;
@@ -425,6 +499,7 @@ void Shell::loop() {
     lastPowerRead_ = now;
     const bool wasUsb = power_.usb;
     power_ = gauge_.update(power::read());
+    life_.update(now, power_.batteryPresent ? power_.percent : -1, power_.usb);
     if (power_.usb && !wasUsb) jerry_.flash(Mood::Approved, 1500);  // "thanks for the juice"
   }
   if (now - lastLog_ >= 10000) {

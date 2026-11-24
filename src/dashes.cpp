@@ -229,11 +229,20 @@ void drawTrail(Shell &shell, lgfx::LovyanGFX &g, int y0, int h) {
   const PowerStatus &p = shell.power();
   const int fx = 12, fw = W - 24, fy = y0 + h - 8;
   text(g, 3, fy - 1, DIM, "E");
-  text(g, W - 8, fy - 1, DIM, "F");
-  g.drawRect(fx, fy, fw, 6, T_TICK);
+  const int left = shell.batteryMinutesLeft();  // the fuel gauge's "range": time left
+  if (left >= 0) {
+    char r[8];
+    if (left >= 60) snprintf(r, sizeof r, "%dh", (left + 30) / 60);
+    else snprintf(r, sizeof r, "%dm", left);
+    text(g, W - 2 - g.textWidth(r), fy - 1, GOLD, r);
+  } else {
+    text(g, W - 8, fy - 1, DIM, "F");
+  }
+  const int fwEnd = left >= 0 ? W - 22 : fx + fw;
+  g.drawRect(fx, fy, fwEnd - fx, 6, T_TICK);
   const int pct = p.batteryPresent ? p.percent : 100;
-  g.fillRect(fx + 1, fy + 1, (fw - 2) * pct / 100, 4, pct <= 15 ? ALERT : p.charging ? GOLD : GOOD);
-  for (int i = 1; i < 4; i++) g.drawFastVLine(fx + fw * i / 4, fy - 2, 2, T_TICK);
+  g.fillRect(fx + 1, fy + 1, (fwEnd - fx - 2) * pct / 100, 4, pct <= 15 ? ALERT : p.charging ? GOLD : GOOD);
+  for (int i = 1; i < 4; i++) g.drawFastVLine(fx + (fwEnd - fx) * i / 4, fy - 2, 2, T_TICK);
 }
 
 // ---------------------------------------------------------------------------

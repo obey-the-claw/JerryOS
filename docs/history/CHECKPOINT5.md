@@ -4,7 +4,7 @@ Jerry now listens for Wi-Fi networks too, shows them closest first, and
 keeps a log of every network he's heard, saved on the device. Copy the log
 to your PC as a spreadsheet file (CSV) with one command.
 
-![WiFi Scan](img/cp5-wifi.png)
+![WiFi Scan](../img/cp5-wifi.png)
 *Simulator: network list → highlight moves → one network's details →
 Settings, erasing the log.*
 
